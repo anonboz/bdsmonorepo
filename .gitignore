@@ -1,0 +1,58 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build outputs
+dist/
+build/
+out/
+.next/
+.turbo/
+.swc/
+*.tsbuildinfo
+
+# test outputs
+coverage/
+playwright-report/
+test-results/
+.nyc_output/
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+
+# os
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# misc
+.cache/
+.parcel-cache/
+.vercel
+.netlify
+.sentryclirc
+
+# prisma local artifacts
+prisma/migrations/dev.db*
+
+# docker volumes (when bound locally)
+.docker-data/
