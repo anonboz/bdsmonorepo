@@ -51,6 +51,9 @@ desktop.ini
 .netlify
 .sentryclirc
 
+# claude
+.claude/settings.local.json
+
 # prisma local artifacts
 prisma/migrations/dev.db*
 

@@ -8,15 +8,32 @@ NestJS (Fastify adapter) backend serving all four frontends.
 - **One Nest module per domain** (`houses`, `bills`, `tickets`, ...). Layout:
   ```
   src/houses/
-  ├── dto/                # Zod schemas → re-exported from @repo/shared when shared
-  ├── houses.controller.ts
-  ├── houses.service.ts
+  ├── dto/houses.dto.ts        # createZodDto() wrappers around @repo/shared schemas
+  ├── houses.controller.ts     # thin — HTTP ↔ service calls
+  ├── houses.service.ts        # business rules + ownership/authorization
   ├── houses.module.ts
-  ├── houses.guard.ts     # ownership guard if applicable
-  └── houses.spec.ts      # unit + e2e
+  └── houses.service.spec.ts   # unit; e2e in test/houses.e2e.spec.ts
   ```
 - **The `houses` module is the canonical template.** Mirror its structure for
   every new module. Document any new pattern here as it stabilizes.
+
+### Canonical patterns (from `houses`)
+
+- **DTOs:** define the schema in `@repo/shared/schemas/<domain>.ts`; wrap with
+  `createZodDto()` in `dto/<domain>.dto.ts`. The global `ZodValidationPipe`
+  reads the schema off the DTO class metadata.
+- **Auth:** routes are gated globally by `AuthGuard` (skip with `@Public()`)
+  and `RolesGuard` (`@Roles('OWNER')`, `@Roles('OWNER', 'ADMIN')`).
+- **Ownership:** lives in the service, not in a guard — services need DB access
+  to check `ownerId`. Return `404 NOT_FOUND` (not `403`) when an actor accesses
+  someone else's resource, so we don't leak existence.
+- **Pagination:** cursor-based on `id` ordered by `createdAt`. `limit` ≤ 100.
+  Response: `{ items, nextCursor }`. Schema helper: `pageSchema(itemSchema)`.
+- **Soft delete:** set `deletedAt`. All reads filter `deletedAt: null` unless
+  an admin explicitly opts in.
+- **Errors:** throw `ProblemError`. The global filter converts to RFC 7807.
+  Reuse codes from `@repo/shared`'s `ErrorCodes`; add new ones there when
+  needed.
 - **All DTOs are Zod schemas** in `@repo/shared`. Validate at the boundary using
   the global Zod pipe. Never hand-roll validation in a controller.
 - **`@Roles()` guard** on every authenticated route. Ownership guards layered on

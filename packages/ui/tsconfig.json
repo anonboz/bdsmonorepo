@@ -1,0 +1,11 @@
+{
+  "extends": "@repo/config/tsconfig/react-library.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": true,
+    "jsx": "preserve"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tailwind.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}
