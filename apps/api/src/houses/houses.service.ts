@@ -1,18 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { ErrorCodes, type House, type Page, type Role } from '@repo/shared';
 
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
-import type {
-  CreateHouseDto,
-  ListHousesQueryDto,
-  UpdateHouseDto,
-} from './dto/houses.dto.js';
+import type { CreateHouseDto, ListHousesQueryDto, UpdateHouseDto } from './dto/houses.dto.js';
 
-type AnyHouseRow = Awaited<ReturnType<PrismaInstance['house']['findFirstOrThrow']>> & {
-  _count?: { units: number };
-};
+const houseWithCount = Prisma.validator<Prisma.HouseDefaultArgs>()({
+  include: { _count: { select: { units: true } } },
+});
+
+type HouseRow = Prisma.HouseGetPayload<typeof houseWithCount>;
 
 /**
  * Houses service — the canonical pattern for a domain service in this API.
@@ -45,7 +44,7 @@ export class HousesService {
         lng: input.geo?.lng ?? null,
         isPublished: input.isPublished ?? false,
       },
-      include: { _count: { select: { units: true } } },
+      ...houseWithCount,
     });
     return this.toResponse(created);
   }
@@ -68,13 +67,17 @@ export class HousesService {
     };
 
     const limit = query.limit;
-    const rows = await this.prisma.house.findMany({
+    const findArgs: Prisma.HouseFindManyArgs = {
       where,
       orderBy: [{ createdAt: query.sort }, { id: query.sort }],
       take: limit + 1,
-      ...(query.cursor && { cursor: { id: query.cursor }, skip: 1 }),
-      include: { _count: { select: { units: true } } },
-    });
+      ...houseWithCount,
+    };
+    if (query.cursor) {
+      findArgs.cursor = { id: query.cursor };
+      findArgs.skip = 1;
+    }
+    const rows = (await this.prisma.house.findMany(findArgs)) as HouseRow[];
 
     const hasMore = rows.length > limit;
     const items = hasMore ? rows.slice(0, limit) : rows;
@@ -89,7 +92,7 @@ export class HousesService {
   async getById(actor: { id: string; roles: Role[] }, id: string): Promise<House> {
     const row = await this.prisma.house.findUnique({
       where: { id },
-      include: { _count: { select: { units: true } } },
+      ...houseWithCount,
     });
     if (!row || row.deletedAt) throw this.notFound();
     if (!this.canRead(actor, row.ownerId)) throw this.notOwned();
@@ -124,7 +127,7 @@ export class HousesService {
           lng: patch.geo?.lng ?? null,
         }),
       },
-      include: { _count: { select: { units: true } } },
+      ...houseWithCount,
     });
     return this.toResponse(updated);
   }
@@ -179,7 +182,7 @@ export class HousesService {
     });
   }
 
-  private toResponse(row: AnyHouseRow): House {
+  private toResponse(row: HouseRow): House {
     return {
       id: row.id,
       ownerId: row.ownerId,

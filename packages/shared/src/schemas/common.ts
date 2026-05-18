@@ -33,7 +33,7 @@ export const phoneSchema = z
   .string()
   .regex(/^\+?[1-9]\d{6,14}$/, 'Expected E.164 phone number (e.g., +14155552671)');
 
-export const emailSchema = z.string().email().toLowerCase().trim();
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.string().email());
 
 export const addressSchema = z.object({
   line1: z.string().min(1).max(200),

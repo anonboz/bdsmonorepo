@@ -5,7 +5,7 @@
   "description": "Multi-app rental platform — admin, owner, tenant, partner over a shared API.",
   "packageManager": "pnpm@9.12.3",
   "engines": {
-    "node": ">=20.11.0 <21",
+    "node": ">=20.11.0",
     "pnpm": ">=9.12.0"
   },
   "scripts": {

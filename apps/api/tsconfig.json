@@ -15,6 +15,8 @@
     "useDefineForClassFields": false,
     "strictPropertyInitialization": false,
     "noEmit": false,
+    "declaration": false,
+    "declarationMap": false,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],

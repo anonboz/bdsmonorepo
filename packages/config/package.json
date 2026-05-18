@@ -22,6 +22,7 @@
     "clean": "rimraf .turbo node_modules"
   },
   "dependencies": {
+    "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {

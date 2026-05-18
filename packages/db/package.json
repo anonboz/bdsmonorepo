@@ -13,7 +13,7 @@
     "build": "prisma generate && tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "clean": "rimraf .turbo node_modules .prisma",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",

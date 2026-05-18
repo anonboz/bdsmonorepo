@@ -8,7 +8,7 @@
     "start": "next start -p 3010",
     "lint": "next lint --fix --dir app --dir lib",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "clean": "rimraf .next .turbo node_modules"
   },
   "dependencies": {

@@ -16,4 +16,7 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-export type Prisma = typeof prisma;
+/** The single PrismaClient instance type. Named `Db` to avoid shadowing the
+ *  `Prisma` namespace from @prisma/client (used for `Prisma.HouseGetPayload`,
+ *  `Prisma.validator()`, etc.). */
+export type Db = typeof prisma;

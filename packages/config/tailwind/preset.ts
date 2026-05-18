@@ -1,3 +1,4 @@
+import animate from 'tailwindcss-animate';
 import type { Config } from 'tailwindcss';
 
 export const tailwindPreset = {
@@ -58,5 +59,5 @@ export const tailwindPreset = {
       },
     },
   },
-  plugins: [],
+  plugins: [animate],
 } satisfies Partial<Config>;

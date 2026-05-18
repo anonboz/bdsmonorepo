@@ -138,14 +138,21 @@ async function main() {
           { id: createId(), label: 'A1', status: 'OCCUPIED', bedrooms: 2, bathrooms: 1, sqm: 60 },
           { id: createId(), label: 'A2', status: 'OCCUPIED', bedrooms: 1, bathrooms: 1, sqm: 40 },
           { id: createId(), label: 'B1', status: 'VACANT', bedrooms: 2, bathrooms: 1, sqm: 65 },
-          { id: createId(), label: 'B2', status: 'MAINTENANCE', bedrooms: 1, bathrooms: 1, sqm: 40 },
+          {
+            id: createId(),
+            label: 'B2',
+            status: 'MAINTENANCE',
+            bedrooms: 1,
+            bathrooms: 1,
+            sqm: 40,
+          },
         ],
       },
     },
     include: { units: true },
   });
 
-  const occupiedUnits = sunnyside.units.filter((u) => u.status === 'OCCUPIED');
+  const occupiedUnits = sunnyside.units.filter((u: { status: string }) => u.status === 'OCCUPIED');
   for (let i = 0; i < occupiedUnits.length; i++) {
     const unit = occupiedUnits[i]!;
     const tenant = tenants[i]!;

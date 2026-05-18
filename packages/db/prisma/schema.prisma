@@ -4,7 +4,9 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
+  // Default output → @prisma/client's own node_modules/.prisma/client.
+  // With pnpm this is the only setup that lets `Prisma.HouseGetPayload`,
+  // `Prisma.validator` etc. resolve correctly from consumer packages.
 }
 
 datasource db {
@@ -139,7 +141,7 @@ enum NotificationChannel {
 // ---------- Core identity ----------------------------------------------
 
 model User {
-  id            String    @id @default(cuid(2))
+  id            String    @id @default(cuid())
   email         String?   @unique
   emailVerified Boolean   @default(false)
   phone         String?   @unique
@@ -176,7 +178,7 @@ model User {
 
 // Better-Auth session storage. Refresh-token rotation happens here.
 model Session {
-  id        String   @id @default(cuid(2))
+  id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
@@ -192,7 +194,7 @@ model Session {
 
 // OAuth / OTP provider account links. Kept generic for Better-Auth.
 model Account {
-  id                    String    @id @default(cuid(2))
+  id                    String    @id @default(cuid())
   userId                String
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   providerId            String
@@ -213,7 +215,7 @@ model Account {
 
 // Short-lived verification artifacts (OTP codes, magic-link tokens).
 model Verification {
-  id         String   @id @default(cuid(2))
+  id         String   @id @default(cuid())
   identifier String
   value      String
   expiresAt  DateTime
@@ -229,7 +231,7 @@ model Verification {
 // ---------- Property domain --------------------------------------------
 
 model House {
-  id          String   @id @default(cuid(2))
+  id          String   @id @default(cuid())
   ownerId     String
   owner       User     @relation("HouseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   name        String   @db.VarChar(120)
@@ -260,7 +262,7 @@ model House {
 }
 
 model Unit {
-  id     String     @id @default(cuid(2))
+  id     String     @id @default(cuid())
   houseId String
   house   House      @relation(fields: [houseId], references: [id], onDelete: Cascade)
   label   String     @db.VarChar(60)
@@ -282,7 +284,7 @@ model Unit {
 }
 
 model Lease {
-  id        String      @id @default(cuid(2))
+  id        String      @id @default(cuid())
   unitId    String
   unit      Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
   tenantId  String
@@ -313,7 +315,7 @@ model Lease {
 // ---------- Billing & payments -----------------------------------------
 
 model Bill {
-  id      String     @id @default(cuid(2))
+  id      String     @id @default(cuid())
   leaseId String
   lease   Lease      @relation(fields: [leaseId], references: [id], onDelete: Restrict)
 
@@ -338,7 +340,7 @@ model Bill {
 }
 
 model BillLine {
-  id       String       @id @default(cuid(2))
+  id       String       @id @default(cuid())
   billId   String
   bill     Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
   kind     BillLineKind
@@ -353,7 +355,7 @@ model BillLine {
 }
 
 model Payment {
-  id        String          @id @default(cuid(2))
+  id        String          @id @default(cuid())
   billId    String
   bill      Bill            @relation(fields: [billId], references: [id], onDelete: Restrict)
   amount    Int             // minor units
@@ -375,7 +377,7 @@ model Payment {
 // ---------- Tickets ----------------------------------------------------
 
 model Ticket {
-  id         String         @id @default(cuid(2))
+  id         String         @id @default(cuid())
   reporterId String
   reporter   User           @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: Restrict)
   assigneeId String?
@@ -403,7 +405,7 @@ model Ticket {
 // ---------- Campaigns & applications -----------------------------------
 
 model Campaign {
-  id        String         @id @default(cuid(2))
+  id        String         @id @default(cuid())
   unitId    String
   unit      Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
@@ -426,7 +428,7 @@ model Campaign {
 }
 
 model Application {
-  id         String            @id @default(cuid(2))
+  id         String            @id @default(cuid())
   campaignId String
   campaign   Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   applicantId String
@@ -447,7 +449,7 @@ model Application {
 // ---------- Partner marketplace ----------------------------------------
 
 model PartnerProfile {
-  id        String   @id @default(cuid(2))
+  id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -466,7 +468,7 @@ model PartnerProfile {
 }
 
 model Service {
-  id        String         @id @default(cuid(2))
+  id        String         @id @default(cuid())
   partnerId String
   partner   PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
@@ -486,7 +488,7 @@ model Service {
 }
 
 model ServiceJob {
-  id        String    @id @default(cuid(2))
+  id        String    @id @default(cuid())
   partnerId String
   partner   PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   serviceId String?
@@ -514,7 +516,7 @@ model ServiceJob {
 // ---------- Cross-cutting ----------------------------------------------
 
 model Notification {
-  id      String              @id @default(cuid(2))
+  id      String              @id @default(cuid())
   userId  String
   user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   channel NotificationChannel
@@ -532,7 +534,7 @@ model Notification {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid(2))
+  id        String   @id @default(cuid())
   actorId   String?
   actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
   action    String   @db.VarChar(120) // e.g., "user.suspend", "bill.void"
