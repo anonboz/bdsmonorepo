@@ -20,7 +20,7 @@ export function createZodDto<S extends ZodSchema>(schema: S): ZodDtoClass<S> {
     static readonly schema = schema;
   }
   attachZodSchema(ZodDto, schema);
-  return ZodDto as ZodDtoClass<S>;
+  return ZodDto;
 }
 
 export interface ZodDtoClass<S extends ZodSchema> {

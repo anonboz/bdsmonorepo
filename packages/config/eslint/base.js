@@ -15,9 +15,14 @@ export const baseConfig = [
       '**/.next/**',
       '**/.turbo/**',
       '**/coverage/**',
-      '**/*.config.js',
-      '**/*.config.mjs',
-      '**/*.config.cjs',
+      // Toolchain & config files — we don't type-aware-lint these. They use
+      // their own typings via @ts-check comments where relevant.
+      '**/*.config.{js,mjs,cjs,ts}',
+      '**/eslint.config.{js,mjs,cjs,ts}',
+      'eslint/**/*.{js,ts}',
+      'prettier/**/*.{js,ts}',
+      'tailwind/**/*.{js,ts}',
+      'env/**/*.ts',
     ],
   },
   js.configs.recommended,

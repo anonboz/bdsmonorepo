@@ -1,8 +1,9 @@
 import { Injectable, type ArgumentMetadata, type PipeTransform } from '@nestjs/common';
 import { ZodError, type ZodSchema } from 'zod';
 
-import { ProblemError } from '../errors/problem.error.js';
 import { ErrorCodes } from '@repo/shared';
+
+import { ProblemError } from '../errors/problem.error.js';
 
 /**
  * Picks up the Zod schema attached to a DTO via `Reflect.metadata` (set by the

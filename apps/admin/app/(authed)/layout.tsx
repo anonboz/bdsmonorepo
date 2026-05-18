@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
-import { APP_ROLE } from '../../lib/app-config.js';
-import { getSession } from '../../lib/session.js';
+import { APP_ROLE } from '../../lib/app-config';
+import { getSession } from '../../lib/session';
 
 /**
  * Authentication + role gate. Wraps every route inside `(authed)`. If the

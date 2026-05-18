@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
 import { AuthController } from './auth.controller.js';
-import { MeController } from './me.controller.js';
 import { AuthGuard } from './guards/auth.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
+import { MeController } from './me.controller.js';
 
 /**
  * Wires Better-Auth (via AuthController), exposes /me, and registers AuthGuard

@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ProblemError } from '../common/errors/problem.error.js';
+import type { Role } from '@repo/shared';
+
 import { HousesService } from './houses.service.js';
+import { ProblemError } from '../common/errors/problem.error.js';
 
 // Minimal Prisma stub that records calls and returns canned rows.
 function makePrismaStub() {
-  const rows: Array<Record<string, unknown>> = [];
+  const rows: Record<string, unknown>[] = [];
   const stub = {
     house: {
-      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+      create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
         const row = {
           id: `house_${rows.length + 1}`,
           ...data,
@@ -18,21 +20,21 @@ function makePrismaStub() {
           _count: { units: 0 },
         };
         rows.push(row);
-        return row;
+        return Promise.resolve(row);
       }),
       findUnique: vi.fn(
-        async ({ where, include }: { where: { id: string }; include?: { units?: unknown } }) => {
+        ({ where, include }: { where: { id: string }; include?: { units?: unknown } }) => {
           const row = rows.find((r) => r.id === where.id);
-          if (!row) return null;
-          return include?.units ? { ...row, units: [] } : row;
+          if (!row) return Promise.resolve(null);
+          return Promise.resolve(include?.units ? { ...row, units: [] } : row);
         },
       ),
-      findMany: vi.fn(async () => rows),
-      update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+      findMany: vi.fn(() => Promise.resolve(rows)),
+      update: vi.fn(({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const row = rows.find((r) => r.id === where.id);
         if (!row) throw new Error('not found');
         Object.assign(row, data, { updatedAt: new Date() });
-        return { ...row, _count: { units: 0 } };
+        return Promise.resolve({ ...row, _count: { units: 0 } });
       }),
     },
   };
@@ -48,9 +50,9 @@ describe('HousesService', () => {
     service = new HousesService(prismaStub.stub as never);
   });
 
-  const owner = { id: 'owner_1', roles: ['OWNER'] as const };
-  const otherOwner = { id: 'owner_2', roles: ['OWNER'] as const };
-  const admin = { id: 'admin_1', roles: ['ADMIN'] as const };
+  const owner: { id: string; roles: Role[] } = { id: 'owner_1', roles: ['OWNER'] };
+  const otherOwner: { id: string; roles: Role[] } = { id: 'owner_2', roles: ['OWNER'] };
+  const admin: { id: string; roles: Role[] } = { id: 'admin_1', roles: ['ADMIN'] };
 
   const sampleInput = {
     name: 'Sunnyside',
@@ -89,9 +91,9 @@ describe('HousesService', () => {
 
   it('owner cannot mutate another owner’s house', async () => {
     const created = await service.create(owner.id, sampleInput);
-    await expect(
-      service.update(otherOwner, created.id, { name: 'evil' }),
-    ).rejects.toBeInstanceOf(ProblemError);
+    await expect(service.update(otherOwner, created.id, { name: 'evil' })).rejects.toBeInstanceOf(
+      ProblemError,
+    );
   });
 
   it('admin cannot mutate (canMutate is owner-only)', async () => {

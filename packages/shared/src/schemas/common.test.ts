@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import {
   addressSchema,
@@ -9,8 +10,7 @@ import {
   pageSchema,
   paginationQuerySchema,
   phoneSchema,
-} from './common.js';
-import { z } from 'zod';
+} from './common';
 
 describe('common schemas', () => {
   it('accepts cuid2 ids', () => {

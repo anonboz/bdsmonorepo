@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 
-import { APP_NAME } from '../lib/app-config.js';
-import { ServiceWorkerRegister } from './_components/sw-register.js';
+import { APP_NAME } from '../lib/app-config';
+import { ServiceWorkerRegister } from './_components/sw-register';
 import './globals.css';
 
 export const metadata: Metadata = {

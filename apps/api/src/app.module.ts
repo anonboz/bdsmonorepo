@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 
 import { AuthModule } from './auth/auth.module.js';
-import { HealthModule } from './health/health.module.js';
-import { HousesModule } from './houses/houses.module.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { env } from './env.js';
+import { HealthModule } from './health/health.module.js';
+import { HousesModule } from './houses/houses.module.js';
 
 @Module({
   imports: [

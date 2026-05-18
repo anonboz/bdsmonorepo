@@ -1,6 +1,6 @@
 import { type Problem, problemSchema, PROBLEM_CONTENT_TYPE } from '@repo/shared';
 
-import { API_URL } from './app-config.js';
+import { API_URL } from './app-config';
 
 /**
  * Typed API client. All four frontends ship one of these. Always sends cookies

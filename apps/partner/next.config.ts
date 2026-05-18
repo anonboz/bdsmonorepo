@@ -12,8 +12,9 @@ const withSerwist = withSerwistInit({
 const config: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@repo/ui', '@repo/shared', '@repo/config'],
-  experimental: {
-    typedRoutes: true,
+  typedRoutes: true,
+  eslint: {
+    dirs: ['app', 'lib'],
   },
 };
 

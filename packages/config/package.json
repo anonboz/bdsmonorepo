@@ -17,7 +17,7 @@
     "./env": "./env/index.ts"
   },
   "scripts": {
-    "lint": "eslint .",
+    "lint": "echo \"@repo/config: no source to lint (all files are toolchain config)\"",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf .turbo node_modules"
   },

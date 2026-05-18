@@ -3,7 +3,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import type { z } from 'zod';
 
+import { requestOtpSchema, verifyOtpSchema } from '@repo/shared';
 import {
   Alert,
   AlertDescription,
@@ -15,11 +17,9 @@ import {
   Input,
   Spinner,
 } from '@repo/ui';
-import { requestOtpSchema, verifyOtpSchema } from '@repo/shared';
-import type { z } from 'zod';
 
-import { ApiError, api } from '../../lib/api.js';
-import { POST_LOGIN_PATH } from '../../lib/app-config.js';
+import { ApiError, api } from '../../lib/api';
+import { POST_LOGIN_PATH } from '../../lib/app-config';
 
 type RequestForm = z.infer<typeof requestOtpSchema>;
 type VerifyForm = z.infer<typeof verifyOtpSchema>;
@@ -100,7 +100,6 @@ function RequestStep({
           type="email"
           autoComplete="email"
           inputMode="email"
-          autoFocus
           {...form.register('identifier')}
         />
       </FormField>
@@ -153,7 +152,6 @@ function VerifyStep({
           inputMode="numeric"
           autoComplete="one-time-code"
           maxLength={6}
-          autoFocus
           {...form.register('code')}
         />
       </FormField>

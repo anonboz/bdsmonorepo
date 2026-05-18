@@ -6,7 +6,7 @@ import {
   idSchema,
   isoDateTimeSchema,
   paginationQuerySchema,
-} from './common.js';
+} from './common';
 
 export const houseSchema = z.object({
   id: idSchema,

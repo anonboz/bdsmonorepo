@@ -7,9 +7,9 @@ export default function OfflinePage() {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6">
       <Card>
         <CardHeader>
-          <CardTitle>You're offline</CardTitle>
+          <CardTitle>You are offline</CardTitle>
           <CardDescription>
-            We couldn't reach the network. Some cached pages may still be available; otherwise
+            We could not reach the network. Some cached pages may still be available; otherwise
             check your connection and try again.
           </CardDescription>
         </CardHeader>

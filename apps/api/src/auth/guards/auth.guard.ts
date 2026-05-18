@@ -1,19 +1,14 @@
-import {
-  Inject,
-  Injectable,
-  type CanActivate,
-  type ExecutionContext,
-} from '@nestjs/common';
+import { Inject, Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { FastifyRequest } from 'fastify';
 
-import { ErrorCodes, type Role } from '@repo/shared';
+import { ErrorCodes } from '@repo/shared';
 
 import { ProblemError } from '../../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../../common/prisma/prisma.token.js';
+import type { AuthenticatedUser } from '../auth.types.js';
 import { auth } from '../better-auth.config.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
-import type { AuthenticatedUser } from '../auth.types.js';
 
 /**
  * Validates the better-auth session cookie, looks up the user, and attaches
@@ -87,7 +82,7 @@ export class AuthGuard implements CanActivate {
       email: user.email,
       phone: user.phone,
       displayName: user.displayName,
-      roles: user.roles as Role[],
+      roles: user.roles,
       isSuspended: user.isSuspended,
     };
 

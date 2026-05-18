@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { APP_NAME, APP_ROLE } from '../../lib/app-config.js';
+import { APP_NAME, APP_ROLE } from '../../lib/app-config';
 
 export default function ForbiddenPage() {
   return (
@@ -11,7 +11,7 @@ export default function ForbiddenPage() {
         <CardHeader>
           <CardTitle>Access denied</CardTitle>
           <CardDescription>
-            You're signed in, but this account doesn't have the {APP_ROLE} role required to use{' '}
+            You are signed in, but this account does not have the {APP_ROLE} role required to use{' '}
             {APP_NAME}.
           </CardDescription>
         </CardHeader>

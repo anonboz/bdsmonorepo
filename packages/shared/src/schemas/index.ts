@@ -1,3 +1,3 @@
-export * from './common.js';
-export * from './auth.js';
-export * from './houses.js';
+export * from './common';
+export * from './auth';
+export * from './houses';

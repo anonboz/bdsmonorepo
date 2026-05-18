@@ -3,9 +3,9 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import type { MeResponse } from '@repo/shared';
 
+import type { AuthenticatedUser } from './auth.types.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { AuthGuard } from './guards/auth.guard.js';
-import type { AuthenticatedUser } from './auth.types.js';
 
 @ApiTags('auth')
 @ApiBearerAuth()

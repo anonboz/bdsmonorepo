@@ -71,8 +71,8 @@ export function pageSchema<T extends z.ZodTypeAny>(item: T) {
   });
 }
 
-export type Page<T> = {
+export interface Page<T> {
   items: T[];
   nextCursor: string | null;
   total?: number;
-};
+}

@@ -1,9 +1,9 @@
-export * from './lib/cn.js';
+export * from './lib/cn';
 
-export * from './components/button.js';
-export * from './components/input.js';
-export * from './components/label.js';
-export * from './components/card.js';
-export * from './components/alert.js';
-export * from './components/spinner.js';
-export * from './components/form-field.js';
+export * from './components/button';
+export * from './components/input';
+export * from './components/label';
+export * from './components/card';
+export * from './components/alert';
+export * from './components/spinner';
+export * from './components/form-field';

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 
 import type { MeResponse } from '@repo/shared';
 
-import { ApiError, apiFetch } from './api.js';
+import { ApiError, apiFetch } from './api';
 
 /**
  * Server-side current-session lookup. Returns null if the user has no session

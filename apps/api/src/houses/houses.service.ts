@@ -3,9 +3,9 @@ import { Prisma } from '@prisma/client';
 
 import { ErrorCodes, type House, type Page, type Role } from '@repo/shared';
 
+import type { CreateHouseDto, ListHousesQueryDto, UpdateHouseDto } from './dto/houses.dto.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
-import type { CreateHouseDto, ListHousesQueryDto, UpdateHouseDto } from './dto/houses.dto.js';
 
 const houseWithCount = Prisma.validator<Prisma.HouseDefaultArgs>()({
   include: { _count: { select: { units: true } } },

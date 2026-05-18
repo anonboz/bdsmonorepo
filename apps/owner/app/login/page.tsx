@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 
-import { LoginForm } from './login-form.js';
-import { APP_NAME, APP_ROLE } from '../../lib/app-config.js';
-import { getSession } from '../../lib/session.js';
+import { LoginForm } from './login-form';
+import { APP_NAME, APP_ROLE } from '../../lib/app-config';
+import { getSession } from '../../lib/session';
 
 export default async function LoginPage() {
   const session = await getSession();

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { APP_NAME, APP_ROLE } from '../../lib/app-config.js';
-import { getSession } from '../../lib/session.js';
+import { APP_NAME, APP_ROLE } from '../../lib/app-config';
+import { getSession } from '../../lib/session';
 
 export default async function HomePage() {
   // Guarded by (authed)/layout — session is guaranteed.
@@ -24,8 +24,8 @@ export default async function HomePage() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>
-            This app is gated to the <code>ADMIN</code> role. Other roles see the
-            access-denied page.
+            This app is gated to the <code>ADMIN</code> role. Other roles see the access-denied
+            page.
           </p>
         </CardContent>
       </Card>

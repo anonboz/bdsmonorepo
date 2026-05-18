@@ -1,27 +1,13 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import type { House, Page } from '@repo/shared';
 
+import type { AuthenticatedUser } from '../auth/auth.types.js';
+import { CreateHouseDto, ListHousesQueryDto, UpdateHouseDto } from './dto/houses.dto.js';
+import { HousesService } from './houses.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
-import type { AuthenticatedUser } from '../auth/auth.types.js';
-import {
-  CreateHouseDto,
-  ListHousesQueryDto,
-  UpdateHouseDto,
-} from './dto/houses.dto.js';
-import { HousesService } from './houses.service.js';
 
 /**
  * REFERENCE MODULE. Copy this layout when adding new domain modules:
@@ -41,10 +27,7 @@ export class HousesController {
 
   @Post()
   @Roles('OWNER')
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() body: CreateHouseDto,
-  ): Promise<House> {
+  create(@CurrentUser() user: AuthenticatedUser, @Body() body: CreateHouseDto): Promise<House> {
     return this.service.create(user.id, body);
   }
 
@@ -76,10 +59,7 @@ export class HousesController {
   @Delete(':id')
   @Roles('OWNER')
   @HttpCode(204)
-  async remove(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
-  ): Promise<void> {
+  async remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<void> {
     await this.service.softDelete(user, id);
   }
 }

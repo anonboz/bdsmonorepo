@@ -1,8 +1,8 @@
 import * as React from 'react';
 import type { FieldError } from 'react-hook-form';
 
-import { cn } from '../lib/cn.js';
-import { Label } from './label.js';
+import { Label } from './label';
+import { cn } from '../lib/cn';
 
 /**
  * Minimal form-field wrapper for react-hook-form. Renders a label, the input
@@ -35,9 +35,7 @@ export function FormField({
     <div className={cn('space-y-2', className)}>
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
       {children}
-      {description && !error && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
+      {description && !error && <p className="text-xs text-muted-foreground">{description}</p>}
       {error?.message && (
         <p className="text-xs text-destructive" role="alert">
           {error.message}

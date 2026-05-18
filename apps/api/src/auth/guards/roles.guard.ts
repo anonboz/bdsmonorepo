@@ -1,15 +1,11 @@
-import {
-  Injectable,
-  type CanActivate,
-  type ExecutionContext,
-} from '@nestjs/common';
+import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { ErrorCodes, type Role } from '@repo/shared';
 
 import { ProblemError } from '../../common/errors/problem.error.js';
-import { ROLES_KEY } from '../decorators/roles.decorator.js';
 import type { AuthenticatedUser } from '../auth.types.js';
+import { ROLES_KEY } from '../decorators/roles.decorator.js';
 
 /**
  * Authorizes the request iff the authenticated user has *at least one* of the

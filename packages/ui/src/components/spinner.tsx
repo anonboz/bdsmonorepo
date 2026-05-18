@@ -1,7 +1,7 @@
-import * as React from 'react';
 import { Loader2 } from 'lucide-react';
+import * as React from 'react';
 
-import { cn } from '../lib/cn.js';
+import { cn } from '../lib/cn';
 
 export const Spinner = React.forwardRef<
   SVGSVGElement,

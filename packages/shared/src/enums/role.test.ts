@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ALL_ROLES, Role, roleSchema } from './role.js';
+import { ALL_ROLES, Role, roleSchema } from './role';
 
 describe('Role enum', () => {
   it('parses the four canonical roles', () => {

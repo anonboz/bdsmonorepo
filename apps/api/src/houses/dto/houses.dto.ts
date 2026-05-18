@@ -1,6 +1,6 @@
 import {
   createHouseSchema,
-  houseSchema,
+  type houseSchema,
   listHousesQuerySchema,
   updateHouseSchema,
 } from '@repo/shared';

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import { roleSchema } from '../enums/role.js';
-import { emailSchema, idSchema, phoneSchema } from './common.js';
+import { emailSchema, idSchema, phoneSchema } from './common';
+import { roleSchema } from '../enums/role';
 
 export const requestOtpSchema = z.object({
   identifier: z.union([emailSchema, phoneSchema]),
