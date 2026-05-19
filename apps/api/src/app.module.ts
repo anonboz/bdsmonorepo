@@ -6,6 +6,7 @@ import { PrismaModule } from './common/prisma/prisma.module.js';
 import { env } from './env.js';
 import { HealthModule } from './health/health.module.js';
 import { HousesModule } from './houses/houses.module.js';
+import { UnitsModule } from './units/units.module.js';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { HousesModule } from './houses/houses.module.js';
     HealthModule,
     AuthModule,
     HousesModule,
+    UnitsModule,
   ],
 })
 export class AppModule {}

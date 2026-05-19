@@ -68,10 +68,17 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
           <CardTitle className="text-lg">Units</CardTitle>
           <CardDescription>
             {house.unitCount === 0
-              ? 'No units yet. Units land in Phase 2.'
-              : `${house.unitCount} units attached. Unit management lands in Phase 2.`}
+              ? 'No units yet.'
+              : `${house.unitCount} ${house.unitCount === 1 ? 'unit' : 'units'} attached.`}
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link href={`/houses/${house.id}/units`}>
+              {house.unitCount === 0 ? 'Add units' : 'Manage units'}
+            </Link>
+          </Button>
+        </CardContent>
       </Card>
     </main>
   );

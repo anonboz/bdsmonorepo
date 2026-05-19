@@ -27,6 +27,11 @@ export const ErrorCodes = {
   HOUSE_NOT_OWNED: 'houses.not_owned',
   HOUSE_HAS_ACTIVE_UNITS: 'houses.has_active_units',
 
+  // ---- units --------------------------------------------------------
+  UNIT_NOT_FOUND: 'units.not_found',
+  UNIT_LABEL_TAKEN: 'units.label_taken',
+  UNIT_HAS_ACTIVE_LEASE: 'units.has_active_lease',
+
   // ---- bills / payments --------------------------------------------
   BILL_NOT_FOUND: 'bills.not_found',
   BILL_ALREADY_PAID: 'bills.already_paid',
