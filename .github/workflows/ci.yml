@@ -83,8 +83,29 @@ jobs:
       - name: Format check
         run: pnpm format:check
 
-      - name: Lint
-        run: pnpm turbo lint --output-logs=new-only --concurrency=1
+      # Build workspace libs first so downstream lint/typecheck see dist/.
+      - name: Build (libs)
+        run: pnpm --filter @repo/shared --filter @repo/db --filter @repo/ui --filter @repo/config build
+
+      # Lint per package so a failure is named, not buried in a turbo summary.
+      - name: Lint — @repo/config
+        run: pnpm --filter @repo/config lint
+      - name: Lint — @repo/shared
+        run: pnpm --filter @repo/shared lint
+      - name: Lint — @repo/db
+        run: pnpm --filter @repo/db lint
+      - name: Lint — @repo/ui
+        run: pnpm --filter @repo/ui lint
+      - name: Lint — @repo/api
+        run: pnpm --filter @repo/api lint
+      - name: Lint — @repo/admin
+        run: pnpm --filter @repo/admin lint
+      - name: Lint — @repo/owner
+        run: pnpm --filter @repo/owner lint
+      - name: Lint — @repo/tenant
+        run: pnpm --filter @repo/tenant lint
+      - name: Lint — @repo/partner
+        run: pnpm --filter @repo/partner lint
 
       - name: Typecheck
         run: pnpm turbo typecheck --output-logs=new-only --concurrency=1
@@ -92,7 +113,7 @@ jobs:
       - name: Test
         run: pnpm turbo test --output-logs=new-only --concurrency=1
 
-      - name: Build
+      - name: Build (apps)
         run: pnpm turbo build --output-logs=new-only --concurrency=1
 
   commitlint:
