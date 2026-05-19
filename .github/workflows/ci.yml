@@ -70,8 +70,15 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-
 
+      - name: Versions (debug)
+        run: |
+          node --version
+          pnpm --version
+          pnpm config get engine-strict
+          pnpm config get strict-peer-dependencies
+
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --reporter=append-only
 
       - name: Format check
         run: pnpm format:check
