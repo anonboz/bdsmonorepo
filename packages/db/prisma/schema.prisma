@@ -301,6 +301,8 @@ model Lease {
   startDate DateTime
   endDate   DateTime?
 
+  terminationReason String? @db.VarChar(500)
+
   bills Bill[]
 
   createdAt DateTime  @default(now())

@@ -32,6 +32,12 @@ export const ErrorCodes = {
   UNIT_LABEL_TAKEN: 'units.label_taken',
   UNIT_HAS_ACTIVE_LEASE: 'units.has_active_lease',
 
+  // ---- leases -------------------------------------------------------
+  LEASE_NOT_FOUND: 'leases.not_found',
+  LEASE_INVALID_TRANSITION: 'leases.invalid_transition',
+  LEASE_DATES_OVERLAP: 'leases.dates_overlap',
+  LEASE_TENANT_INVALID: 'leases.tenant_invalid',
+
   // ---- bills / payments --------------------------------------------
   BILL_NOT_FOUND: 'bills.not_found',
   BILL_ALREADY_PAID: 'bills.already_paid',

@@ -2,11 +2,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import type { House, Unit, UnitStatus } from '@repo/shared';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApiError } from '../../../../../../lib/api';
 import { serverApi } from '../../../../../../lib/session';
 import { DeleteUnitButton } from '../_components/delete-unit-button';
+import { LeaseListCard } from './leases/_components/lease-list-card';
 
 export default async function UnitDetailPage({
   params,
@@ -53,12 +54,7 @@ export default async function UnitDetailPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Leases</CardTitle>
-          <CardDescription>Lease management lands in Phase 2.2.</CardDescription>
-        </CardHeader>
-      </Card>
+      <LeaseListCard houseId={houseId} unitId={unitId} />
     </main>
   );
 }
