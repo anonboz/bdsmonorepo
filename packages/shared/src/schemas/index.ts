@@ -4,5 +4,6 @@ export * from './houses';
 export * from './units';
 export * from './leases';
 export * from './bills';
+export * from './tickets';
 export * from './users';
 export * from './owner-dashboard';

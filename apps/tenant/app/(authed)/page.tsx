@@ -17,11 +17,11 @@ export default async function HomePage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>My leases</CardTitle>
-            <CardDescription>Current + past leases.</CardDescription>
+            <CardDescription>Current + past.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
@@ -33,11 +33,23 @@ export default async function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle>My bills</CardTitle>
-            <CardDescription>Issued and paid bills.</CardDescription>
+            <CardDescription>Issued and paid.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
               <Link href="/my-bills">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>My tickets</CardTitle>
+            <CardDescription>Repairs and reports.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/my-tickets">Open</Link>
             </Button>
           </CardContent>
         </Card>
@@ -46,9 +58,7 @@ export default async function HomePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>
-            Online payments, tickets and ratings land across Phases 2 and 3.
-          </CardDescription>
+          <CardDescription>Online payments and ratings land in upcoming phases.</CardDescription>
         </CardHeader>
       </Card>
     </main>

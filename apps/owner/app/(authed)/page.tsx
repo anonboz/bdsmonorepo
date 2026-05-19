@@ -17,15 +17,15 @@ export default async function HomePage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Dashboard</CardTitle>
-            <CardDescription>Occupancy, MRR, overdue, recent activity.</CardDescription>
+            <CardDescription>Occupancy, MRR, overdue.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link href="/dashboard">Open dashboard</Link>
+              <Link href="/dashboard">Open</Link>
             </Button>
           </CardContent>
         </Card>
@@ -33,11 +33,23 @@ export default async function HomePage() {
         <Card>
           <CardHeader>
             <CardTitle>Houses</CardTitle>
-            <CardDescription>Manage properties, units, and leases.</CardDescription>
+            <CardDescription>Properties, units, leases.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href="/houses">Open houses</Link>
+              <Link href="/houses">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Tickets</CardTitle>
+            <CardDescription>Repair + report queue.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/tickets">Open</Link>
             </Button>
           </CardContent>
         </Card>
@@ -47,7 +59,7 @@ export default async function HomePage() {
         <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
           <CardDescription>
-            Tickets, campaigns and the partner marketplace land in Phases 3–5.
+            Campaigns and the partner marketplace land in Phases 4 and 5.
           </CardDescription>
         </CardHeader>
       </Card>

@@ -45,6 +45,12 @@ export const ErrorCodes = {
   BILL_GENERATION_FAILED: 'bills.generation_failed',
   PAYMENT_DECLINED: 'payments.declined',
   PAYMENT_WEBHOOK_INVALID: 'payments.webhook_invalid',
+
+  // ---- tickets ------------------------------------------------------
+  TICKET_NOT_FOUND: 'tickets.not_found',
+  TICKET_INVALID_TRANSITION: 'tickets.invalid_transition',
+  TICKET_REOPEN_WINDOW_EXPIRED: 'tickets.reopen_window_expired',
+  TICKET_LEASE_INVALID: 'tickets.lease_invalid',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

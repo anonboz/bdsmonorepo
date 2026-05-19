@@ -303,7 +303,8 @@ model Lease {
 
   terminationReason String? @db.VarChar(500)
 
-  bills Bill[]
+  bills   Bill[]
+  tickets Ticket[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -386,6 +387,8 @@ model Payment {
 
 model Ticket {
   id         String         @id @default(cuid())
+  leaseId    String
+  lease      Lease          @relation(fields: [leaseId], references: [id], onDelete: Restrict)
   reporterId String
   reporter   User           @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: Restrict)
   assigneeId String?
@@ -405,6 +408,7 @@ model Ticket {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  @@index([leaseId, status])
   @@index([reporterId, status])
   @@index([assigneeId, status])
   @@index([status, createdAt])

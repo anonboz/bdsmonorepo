@@ -10,6 +10,7 @@ import { HousesModule } from './houses/houses.module.js';
 import { LeasesModule } from './leases/leases.module.js';
 import { OwnerDashboardModule } from './owner-dashboard/owner-dashboard.module.js';
 import { QueuesModule } from './queues/queues.module.js';
+import { TicketsModule } from './tickets/tickets.module.js';
 import { UnitsModule } from './units/units.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -44,6 +45,7 @@ import { UsersModule } from './users/users.module.js';
     UsersModule,
     BillsModule,
     OwnerDashboardModule,
+    TicketsModule,
   ],
 })
 export class AppModule {}
