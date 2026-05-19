@@ -1,0 +1,131 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { AdminUsersService } from './admin-users.service.js';
+import { AuditLogger } from './audit-logger.service.js';
+import { ProblemError } from '../common/errors/problem.error.js';
+
+function makePrismaStub(opts: {
+  targetId: string;
+  isSuspended?: boolean;
+  kycStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+}) {
+  const users: Record<string, unknown>[] = [
+    {
+      id: opts.targetId,
+      email: 'tenant@example.com',
+      phone: null,
+      displayName: 'Test User',
+      roles: ['TENANT'],
+      kycStatus: opts.kycStatus ?? 'NONE',
+      isSuspended: opts.isSuspended ?? false,
+      lastLoginAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    },
+  ];
+  const auditRows: Record<string, unknown>[] = [];
+
+  // Declare in pieces so the `$transaction` closure can reference the
+  // outer `stub` without TS complaining about a circular initializer.
+  const stub: Record<string, unknown> = {};
+  stub.user = {
+    findUnique: vi.fn(({ where }: { where: { id: string } }) =>
+      Promise.resolve(users.find((u) => u.id === where.id) ?? null),
+    ),
+    update: vi.fn(({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+      const u = users.find((x) => x.id === where.id);
+      if (!u) throw new Error('not found');
+      Object.assign(u, data, { updatedAt: new Date() });
+      return Promise.resolve(u);
+    }),
+    findMany: vi.fn(() => Promise.resolve(users)),
+  };
+  stub.auditLog = {
+    create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
+      auditRows.push({ id: `log_${auditRows.length + 1}`, ...data });
+      return Promise.resolve(auditRows.at(-1));
+    }),
+  };
+  stub.$transaction = vi.fn(<T>(fn: (tx: unknown) => Promise<T>) => fn(stub));
+  return { stub, users, auditRows };
+}
+
+const ctx = { actorId: 'admin_1', ip: '127.0.0.1', userAgent: 'curl/test' };
+
+describe('AdminUsersService', () => {
+  const targetId = 'user_1';
+  let service: AdminUsersService;
+  let stub: ReturnType<typeof makePrismaStub>;
+
+  beforeEach(() => {
+    stub = makePrismaStub({ targetId });
+    const audit = new AuditLogger(stub.stub as never);
+    service = new AdminUsersService(stub.stub as never, audit);
+  });
+
+  it('suspend flips isSuspended and writes the audit entry atomically', async () => {
+    await service.suspend(targetId, { reason: 'abuse' }, ctx);
+    expect(stub.users[0]?.isSuspended).toBe(true);
+    expect(stub.auditRows).toHaveLength(1);
+    expect(stub.auditRows[0]).toMatchObject({
+      action: 'user.suspend',
+      target: `User:${targetId}`,
+      actorId: ctx.actorId,
+    });
+  });
+
+  it('suspending an already-suspended user → 409', async () => {
+    stub = makePrismaStub({ targetId, isSuspended: true });
+    service = new AdminUsersService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await expect(service.suspend(targetId, { reason: 'x' }, ctx)).rejects.toBeInstanceOf(
+      ProblemError,
+    );
+  });
+
+  it('unsuspend writes the matching audit action', async () => {
+    stub = makePrismaStub({ targetId, isSuspended: true });
+    service = new AdminUsersService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await service.unsuspend(targetId, { reason: 'cleared' }, ctx);
+    expect(stub.users[0]?.isSuspended).toBe(false);
+    expect(stub.auditRows[0]?.action).toBe('user.unsuspend');
+  });
+
+  it('admin cannot suspend themselves → 422', async () => {
+    await expect(service.suspend(ctx.actorId, { reason: 'x' }, ctx)).rejects.toBeInstanceOf(
+      ProblemError,
+    );
+  });
+
+  it('KYC approve writes user.kyc.approve and stores previousStatus', async () => {
+    stub = makePrismaStub({ targetId, kycStatus: 'PENDING' });
+    service = new AdminUsersService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await service.kycDecision(targetId, { decision: 'APPROVED' }, ctx);
+    expect(stub.users[0]?.kycStatus).toBe('APPROVED');
+    expect(stub.auditRows[0]?.action).toBe('user.kyc.approve');
+    expect((stub.auditRows[0]?.meta as Record<string, unknown>).previousStatus).toBe('PENDING');
+  });
+
+  it('KYC reject requires + records the reason', async () => {
+    stub = makePrismaStub({ targetId, kycStatus: 'PENDING' });
+    service = new AdminUsersService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await service.kycDecision(targetId, { decision: 'REJECTED', reason: 'ID photo blurry' }, ctx);
+    expect(stub.users[0]?.kycStatus).toBe('REJECTED');
+    expect(stub.auditRows[0]?.action).toBe('user.kyc.reject');
+    expect((stub.auditRows[0]?.meta as Record<string, unknown>).reason).toBe('ID photo blurry');
+  });
+
+  it('KYC decision to the current status → 409', async () => {
+    stub = makePrismaStub({ targetId, kycStatus: 'APPROVED' });
+    service = new AdminUsersService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await expect(
+      service.kycDecision(targetId, { decision: 'APPROVED' }, ctx),
+    ).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  it('missing user → 404', async () => {
+    await expect(service.suspend('nope', { reason: 'x' }, ctx)).rejects.toBeInstanceOf(
+      ProblemError,
+    );
+  });
+});

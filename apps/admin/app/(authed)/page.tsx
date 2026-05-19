@@ -1,6 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
+import Link from 'next/link';
 
-import { APP_NAME, APP_ROLE } from '../../lib/app-config';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
+
+import { APP_NAME } from '../../lib/app-config';
 import { getSession } from '../../lib/session';
 
 export default async function HomePage() {
@@ -11,23 +13,43 @@ export default async function HomePage() {
       <header className="space-y-1">
         <h1 className="text-3xl font-semibold">{APP_NAME}</h1>
         <p className="text-muted-foreground">
-          Signed in as <strong>{session.user.displayName}</strong> ({APP_ROLE}).
+          Signed in as <strong>{session.user.displayName}</strong>.
         </p>
       </header>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Users</CardTitle>
+            <CardDescription>Search, suspend, review KYC.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/users">Open users</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Audit log</CardTitle>
+            <CardDescription>Every sensitive action, who and when.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/audit-log">Open log</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Welcome</CardTitle>
+          <CardTitle className="text-lg">Coming soon</CardTitle>
           <CardDescription>
-            Phase 1 landing page. Real admin dashboards land in Phase 3.
+            House moderation, fee config, and platform dashboards land in follow-ups.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>
-            This app is gated to the <code>ADMIN</code> role. Other roles see the access-denied
-            page.
-          </p>
-        </CardContent>
       </Card>
     </main>
   );

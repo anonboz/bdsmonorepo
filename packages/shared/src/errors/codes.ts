@@ -51,6 +51,11 @@ export const ErrorCodes = {
   TICKET_INVALID_TRANSITION: 'tickets.invalid_transition',
   TICKET_REOPEN_WINDOW_EXPIRED: 'tickets.reopen_window_expired',
   TICKET_LEASE_INVALID: 'tickets.lease_invalid',
+
+  // ---- admin --------------------------------------------------------
+  ADMIN_USER_NOT_FOUND: 'admin.user_not_found',
+  ADMIN_USER_ALREADY_IN_STATE: 'admin.user_already_in_state',
+  ADMIN_CANNOT_ACT_ON_SELF: 'admin.cannot_act_on_self',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

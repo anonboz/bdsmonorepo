@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 
+import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillsModule } from './bills/bills.module.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
@@ -46,6 +47,7 @@ import { UsersModule } from './users/users.module.js';
     BillsModule,
     OwnerDashboardModule,
     TicketsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

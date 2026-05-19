@@ -7,3 +7,4 @@ export * from './bills';
 export * from './tickets';
 export * from './users';
 export * from './owner-dashboard';
+export * from './admin';
