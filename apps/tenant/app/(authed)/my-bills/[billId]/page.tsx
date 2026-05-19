@@ -7,6 +7,7 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { ApiError } from '../../../../lib/api';
 import { formatDate, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
+import { DownloadReceipt } from '../_components/download-receipt';
 
 export default async function MyBillDetailPage({
   params,
@@ -49,6 +50,16 @@ export default async function MyBillDetailPage({
               </li>
             ))}
           </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Receipt</CardTitle>
+          <CardDescription>Download a PDF copy for your records.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DownloadReceipt billId={bill.id} />
         </CardContent>
       </Card>
 

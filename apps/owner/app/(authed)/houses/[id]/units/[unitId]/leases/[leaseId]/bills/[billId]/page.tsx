@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { Bill, BillStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@repo/ui';
 
+import { DownloadReceipt } from './_components/download-receipt';
 import { ApiError } from '../../../../../../../../../../lib/api';
 import { formatDate, formatMoney } from '../../../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../../../lib/session';
@@ -31,6 +32,7 @@ export default async function BillDetailPage({
               {formatDate(bill.periodEnd)} · due {formatDate(bill.dueDate)}
             </p>
           </div>
+          <DownloadReceipt houseId={houseId} unitId={unitId} leaseId={leaseId} billId={bill.id} />
         </div>
       </div>
 
