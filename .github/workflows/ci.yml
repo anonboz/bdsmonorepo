@@ -84,16 +84,16 @@ jobs:
         run: pnpm format:check
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm turbo lint --output-logs=new-only --concurrency=1
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm turbo typecheck --output-logs=new-only --concurrency=1
 
       - name: Test
-        run: pnpm test
+        run: pnpm turbo test --output-logs=new-only --concurrency=1
 
       - name: Build
-        run: pnpm build
+        run: pnpm turbo build --output-logs=new-only --concurrency=1
 
   commitlint:
     name: commitlint
