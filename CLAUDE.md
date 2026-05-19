@@ -2,7 +2,7 @@
 
 Rules of engagement for Claude Code working on this monorepo. Read this before
 touching anything. The product/business plan lives in `BUILD_PLAN.md`; this file
-covers *how to work*, not *what to build*.
+covers _how to work_, not _what to build_.
 
 ---
 
@@ -90,16 +90,16 @@ pnpm turbo dev              # runs all apps + api in parallel
 
 Useful local URLs:
 
-| Service        | URL                       |
-| -------------- | ------------------------- |
-| Admin          | http://localhost:3000     |
-| Owner          | http://localhost:3010     |
-| Tenant         | http://localhost:3020     |
-| Partner        | http://localhost:3030     |
-| API            | http://localhost:3001     |
-| API Swagger    | http://localhost:3001/docs |
-| MinIO console  | http://localhost:9001     |
-| MailHog        | http://localhost:8025     |
+| Service       | URL                        |
+| ------------- | -------------------------- |
+| Admin         | http://localhost:3000      |
+| Owner         | http://localhost:3010      |
+| Tenant        | http://localhost:3020      |
+| Partner       | http://localhost:3030      |
+| API           | http://localhost:3001      |
+| API Swagger   | http://localhost:3001/docs |
+| MinIO console | http://localhost:9001      |
+| MailHog       | http://localhost:8025      |
 
 ## 8. Commits & branches
 

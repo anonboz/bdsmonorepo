@@ -1,9 +1,4 @@
-import {
-  Catch,
-  HttpException,
-  type ArgumentsHost,
-  type ExceptionFilter,
-} from '@nestjs/common';
+import { Catch, HttpException, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 
@@ -66,11 +61,11 @@ export class ProblemFilter implements ExceptionFilter {
       const detail =
         typeof response === 'string'
           ? response
-          : ((response as { message?: string | string[] }).message
-              ? Array.isArray((response as { message?: string | string[] }).message)
-                ? ((response as { message: string[] }).message).join('; ')
-                : String((response as { message: string }).message)
-              : exception.message);
+          : (response as { message?: string | string[] }).message
+            ? Array.isArray((response as { message?: string | string[] }).message)
+              ? (response as { message: string[] }).message.join('; ')
+              : String((response as { message: string }).message)
+            : exception.message;
       return {
         type: mapHttpStatusToErrorCode(status),
         title: exception.name,

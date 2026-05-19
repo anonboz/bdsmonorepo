@@ -12,7 +12,7 @@ Prettier preset, Tailwind preset, and a Zod-validated env loader.
 {
   "extends": "@repo/config/tsconfig/node.json",
   "compilerOptions": { "outDir": "dist", "rootDir": "src" },
-  "include": ["src"]
+  "include": ["src"],
 }
 ```
 

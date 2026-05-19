@@ -69,29 +69,34 @@ Do not swap any of the above without updating this file.
 ## 4. Conventions
 
 **Code**
+
 - Imports: external → internal packages (`@repo/*`) → relative. Enforced by ESLint.
 - No default exports except Next.js pages/layouts.
 - All API inputs and outputs typed via Zod schemas in `@repo/shared`.
 - No `any`. Prefer `unknown` + narrowing.
 
 **Database**
+
 - All tables have `id` (cuid2), `createdAt`, `updatedAt`.
 - Soft-delete via `deletedAt` where deletion needs to be reversible; hard-delete otherwise.
 - All money in **minor units** (integer), with a `currency` field.
 - Migrations are forward-only; never edit a shipped migration.
 
 **API**
+
 - REST under `/v1/*`. Errors follow RFC 7807 (`application/problem+json`).
 - One Nest module per domain (`houses`, `bills`, ...). Each has: controller, service, dto (Zod), guard if needed, tests.
 - Use the `Houses` module as the canonical template — copy its structure for new modules.
 
 **Frontend**
+
 - Server Components for reads, Client Components for interactivity.
 - Data fetching via a typed `apiClient` in `app/lib/api.ts`.
 - Forms: `react-hook-form` + `@hookform/resolvers/zod` with the shared schema.
 - Route segments mirror navigation: `/houses`, `/houses/[id]`, `/houses/[id]/edit`.
 
 **Git**
+
 - Branch: `phase-<n>/<feature-slug>`.
 - Conventional commits.
 - One feature = one PR. Target ≤ 500 lines of generated code per PR; split if larger.
@@ -134,6 +139,7 @@ Goal: real data model, working auth across all roles, one end-to-end CRUD path u
 8. PWA config per app: manifest, icons, service worker (network-first for API, SWR for assets), offline fallback.
 
 Acceptance:
+
 - Each role can log in via its app and is rejected from the others.
 - An owner can create, list, view, edit, and delete a house from the owner app.
 - Lighthouse PWA score ≥ 90 on each app.
@@ -154,6 +160,7 @@ Goal: a tenant can receive a bill and pay it; an owner can manage units and bill
 8. Owner dashboard: occupancy, MRR, overdue bills, recent payments.
 
 Acceptance:
+
 - Owner creates lease → bill auto-generates on schedule → tenant pays via Stripe test → both apps reflect new status within 10s of webhook.
 - Reminder emails fire at the right offsets in a manual time-shift test.
 
@@ -175,6 +182,7 @@ Goal: tenants can raise issues; owners can manage them; admins can run the syste
 5. AuditLog middleware for sensitive mutations (auth, payments, config, KYC).
 
 Acceptance:
+
 - Tenant raises a ticket → owner sees push/email → resolves → tenant rates → rating visible in admin.
 - Admin can suspend a user; that user is blocked across all apps on next request.
 
@@ -192,6 +200,7 @@ Goal: owners can list vacant units; prospects can apply; flow converts to a leas
 6. Anti-spam: per-account application rate limit.
 
 Acceptance:
+
 - Full flow: owner posts → admin approves → prospect applies → owner accepts → draft lease appears in owner app.
 
 ---
@@ -208,6 +217,7 @@ Goal: partners can be booked for tickets and standalone jobs; commission is trac
 6. Ratings (owner ↔ partner) feed back into discovery ranking.
 
 Acceptance:
+
 - Owner books partner from a ticket → partner completes → payment settles → both rate → ledger entries balance.
 
 ---

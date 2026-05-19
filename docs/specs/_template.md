@@ -56,7 +56,7 @@ Which roles can do what. Ownership rules. New `@Roles()` decorators.
 
 ## 9. Out of scope
 
-What this spec deliberately does *not* cover, with a pointer to where it will be
+What this spec deliberately does _not_ cover, with a pointer to where it will be
 covered if known.
 
 ## 10. Acceptance criteria

@@ -42,16 +42,16 @@ docs/
 
 ## Local URLs
 
-| Service       | URL                          |
-| ------------- | ---------------------------- |
-| Admin         | http://localhost:3000        |
-| Owner         | http://localhost:3010        |
-| Tenant        | http://localhost:3020        |
-| Partner       | http://localhost:3030        |
-| API           | http://localhost:3001        |
-| API Swagger   | http://localhost:3001/docs   |
-| MinIO console | http://localhost:9001        |
-| MailHog       | http://localhost:8025        |
+| Service       | URL                        |
+| ------------- | -------------------------- |
+| Admin         | http://localhost:3000      |
+| Owner         | http://localhost:3010      |
+| Tenant        | http://localhost:3020      |
+| Partner       | http://localhost:3030      |
+| API           | http://localhost:3001      |
+| API Swagger   | http://localhost:3001/docs |
+| MinIO console | http://localhost:9001      |
+| MailHog       | http://localhost:8025      |
 
 ## Workflow
 

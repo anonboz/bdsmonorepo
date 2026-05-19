@@ -10,12 +10,12 @@ services:
       POSTGRES_PASSWORD: app
       POSTGRES_DB: app
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -31,11 +31,11 @@ services:
       --save 60 1
       --loglevel warning
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -51,12 +51,12 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_DEFAULT_BUCKETS: bds-uploads,bds-receipts
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ['CMD', 'mc', 'ready', 'local']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -77,17 +77,17 @@ services:
       mc anonymous set download local/bds-uploads &&
       echo 'MinIO buckets ready.'
       "
-    restart: "no"
+    restart: 'no'
 
   mailhog:
     image: mailhog/mailhog:latest
     container_name: bds_mailhog
     restart: unless-stopped
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - '1025:1025'
+      - '8025:8025'
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025"]
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:8025']
       interval: 10s
       timeout: 3s
       retries: 5

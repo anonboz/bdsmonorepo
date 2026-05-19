@@ -36,9 +36,7 @@ const serwist = new Serwist({
       handler: new NetworkFirst({
         cacheName: 'api-cache',
         networkTimeoutSeconds: 5,
-        plugins: [
-          new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 }),
-        ],
+        plugins: [new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 })],
       }),
     },
     // 2. Static assets — stale-while-revalidate.
@@ -47,9 +45,7 @@ const serwist = new Serwist({
         ['style', 'script', 'worker', 'image', 'font'].includes(request.destination),
       handler: new StaleWhileRevalidate({
         cacheName: 'asset-cache',
-        plugins: [
-          new ExpirationPlugin({ maxEntries: 128, maxAgeSeconds: 60 * 60 * 24 * 30 }),
-        ],
+        plugins: [new ExpirationPlugin({ maxEntries: 128, maxAgeSeconds: 60 * 60 * 24 * 30 })],
       }),
     },
     // 3. Same-origin fonts/images that miss above — cache-first long.
@@ -57,9 +53,7 @@ const serwist = new Serwist({
       matcher: /\.(?:png|jpg|jpeg|svg|webp|ico|woff2?)$/i,
       handler: new CacheFirst({
         cacheName: 'static-assets',
-        plugins: [
-          new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 * 30 }),
-        ],
+        plugins: [new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 60 * 60 * 24 * 30 })],
       }),
     },
     // 4. Fall through to Serwist defaults (HTML, etc.).
