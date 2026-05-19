@@ -54,6 +54,12 @@ desktop.ini
 # claude
 .claude/settings.local.json
 
+# secrets (do not commit)
+db.txt
+*.secrets.txt
+**/.env
+!**/.env.example
+
 # prisma local artifacts
 prisma/migrations/dev.db*
 

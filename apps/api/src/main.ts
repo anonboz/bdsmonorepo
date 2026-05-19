@@ -1,7 +1,6 @@
 import fastifyCookie from '@fastify/cookie';
 import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -37,7 +36,7 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('v1', { exclude: ['healthz', 'readyz', 'docs', 'docs-json'] });
-  app.useGlobalPipes(new ZodValidationPipe(), new ValidationPipe({ transform: true }));
+  app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalFilters(new ProblemFilter());
 
   if (env.NODE_ENV !== 'production') {
