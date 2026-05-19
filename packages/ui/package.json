@@ -37,7 +37,7 @@
     "@repo/config": "workspace:*",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "eslint": "^9.13.0",
+    "eslint": "^10.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "rimraf": "^6.0.1",
