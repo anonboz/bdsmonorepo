@@ -8,6 +8,7 @@ import { env } from './env.js';
 import { HealthModule } from './health/health.module.js';
 import { HousesModule } from './houses/houses.module.js';
 import { LeasesModule } from './leases/leases.module.js';
+import { OwnerDashboardModule } from './owner-dashboard/owner-dashboard.module.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { UnitsModule } from './units/units.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -42,6 +43,7 @@ import { UsersModule } from './users/users.module.js';
     LeasesModule,
     UsersModule,
     BillsModule,
+    OwnerDashboardModule,
   ],
 })
 export class AppModule {}

@@ -17,23 +17,37 @@ export default async function HomePage() {
         </p>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Houses</CardTitle>
-          <CardDescription>Manage the properties you own and their listings.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link href="/houses">Open houses</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Dashboard</CardTitle>
+            <CardDescription>Occupancy, MRR, overdue, recent activity.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/dashboard">Open dashboard</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Houses</CardTitle>
+            <CardDescription>Manage properties, units, and leases.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/houses">Open houses</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
           <CardDescription>
-            Units, leases, bills, tickets, campaigns and the partner marketplace land in Phases 2–5.
+            Tickets, campaigns and the partner marketplace land in Phases 3–5.
           </CardDescription>
         </CardHeader>
       </Card>
