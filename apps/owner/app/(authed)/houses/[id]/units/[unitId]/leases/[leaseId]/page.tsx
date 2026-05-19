@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { Lease, LeaseStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { BillsCard } from './_components/bills-card';
 import { ApiError } from '../../../../../../../../lib/api';
 import { formatDate, formatMoney } from '../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../lib/session';
@@ -85,12 +86,7 @@ export default async function LeaseDetailPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Bills</CardTitle>
-          <CardDescription>Bill generation lands in Phase 2.3.</CardDescription>
-        </CardHeader>
-      </Card>
+      <BillsCard houseId={houseId} unitId={unitId} leaseId={leaseId} leaseStatus={lease.status} />
     </main>
   );
 }

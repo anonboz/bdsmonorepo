@@ -1,0 +1,110 @@
+import Link from 'next/link';
+
+import type { Bill, BillStatus, Page } from '@repo/shared';
+import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
+
+import { formatDate, formatMoney } from '../../../lib/format';
+import { serverApi } from '../../../lib/session';
+
+export const metadata = { title: 'My bills' };
+
+export default async function MyBillsPage() {
+  const page = await serverApi<Page<Bill>>('/v1/me/bills?limit=20');
+  const grouped = groupByOpenFirst(page.items);
+
+  return (
+    <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold">My bills</h1>
+        <p className="text-sm text-muted-foreground">
+          {page.items.length === 0 ? 'No bills yet.' : `${page.items.length} on record.`}
+        </p>
+      </header>
+
+      {grouped.open.length > 0 && (
+        <Section title="Open">
+          {grouped.open.map((bill) => (
+            <BillCard key={bill.id} bill={bill} />
+          ))}
+        </Section>
+      )}
+      {grouped.closed.length > 0 && (
+        <Section title="History">
+          {grouped.closed.map((bill) => (
+            <BillCard key={bill.id} bill={bill} />
+          ))}
+        </Section>
+      )}
+
+      {page.items.length === 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Nothing here yet</CardTitle>
+            <CardDescription>
+              Bills appear here on the first of each month while your lease is active.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+    </main>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h2>
+      <ul className="space-y-3">{children}</ul>
+    </section>
+  );
+}
+
+function BillCard({ bill }: { bill: Bill }) {
+  return (
+    <li>
+      <Link
+        href={`/my-bills/${bill.id}`}
+        className="block rounded-lg border bg-card text-card-foreground shadow-sm transition-colors hover:border-foreground/20"
+      >
+        <div className="space-y-1 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <p className="font-semibold">{formatMoney(bill.total, bill.currency)}</p>
+            <StatusBadge status={bill.status} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {formatDate(bill.periodStart)} – {formatDate(bill.periodEnd)} · due{' '}
+            {formatDate(bill.dueDate)}
+          </p>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+function StatusBadge({ status }: { status: BillStatus }) {
+  const palette: Record<BillStatus, string> = {
+    DRAFT: 'bg-slate-100 text-slate-700',
+    ISSUED: 'bg-blue-100 text-blue-900',
+    PARTIALLY_PAID: 'bg-amber-100 text-amber-900',
+    PAID: 'bg-emerald-100 text-emerald-900',
+    OVERDUE: 'bg-rose-100 text-rose-900',
+    VOID: 'bg-zinc-200 text-zinc-700',
+  };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
+      {status.toLowerCase().replace('_', ' ')}
+    </span>
+  );
+}
+
+function groupByOpenFirst(items: Bill[]): { open: Bill[]; closed: Bill[] } {
+  const open: Bill[] = [];
+  const closed: Bill[] = [];
+  for (const b of items) {
+    if (b.status === 'PAID' || b.status === 'VOID') closed.push(b);
+    else open.push(b);
+  }
+  return { open, closed };
+}

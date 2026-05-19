@@ -23,6 +23,11 @@ export const baseConfig = [
       'prettier/**/*.{js,ts}',
       'tailwind/**/*.{js,ts}',
       'env/**/*.ts',
+      // One-off operational scripts (db backfills, BullMQ pokes, etc.). They
+      // live outside src/ so they're not in any tsconfig project, which
+      // breaks typed-aware lint. Trade-off: no lint coverage, but these are
+      // throwaway-friendly tools, not production code.
+      'scripts/**',
     ],
   },
   js.configs.recommended,

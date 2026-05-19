@@ -17,23 +17,37 @@ export default async function HomePage() {
         </p>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>My leases</CardTitle>
-          <CardDescription>See your current and past leases.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link href="/my-leases">Open</Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>My leases</CardTitle>
+            <CardDescription>Current + past leases.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/my-leases">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>My bills</CardTitle>
+            <CardDescription>Issued and paid bills.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/my-bills">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
           <CardDescription>
-            Bills, payments, tickets and ratings land across Phases 2 and 3.
+            Online payments, tickets and ratings land across Phases 2 and 3.
           </CardDescription>
         </CardHeader>
       </Card>

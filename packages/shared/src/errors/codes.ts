@@ -41,6 +41,8 @@ export const ErrorCodes = {
   // ---- bills / payments --------------------------------------------
   BILL_NOT_FOUND: 'bills.not_found',
   BILL_ALREADY_PAID: 'bills.already_paid',
+  BILL_LEASE_NOT_ACTIVE: 'bills.lease_not_active',
+  BILL_GENERATION_FAILED: 'bills.generation_failed',
   PAYMENT_DECLINED: 'payments.declined',
   PAYMENT_WEBHOOK_INVALID: 'payments.webhook_invalid',
 } as const;

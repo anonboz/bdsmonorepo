@@ -321,6 +321,11 @@ model Bill {
   leaseId String
   lease   Lease      @relation(fields: [leaseId], references: [id], onDelete: Restrict)
 
+  /// Stable key built from `${rentCycle}:${periodStart}` (e.g. `MONTHLY:2026-06-01`).
+  /// Together with `leaseId` it gates duplicate generation so a re-fired cron
+  /// or retried BullMQ job can't create a second bill for the same period.
+  idempotencyKey String @db.VarChar(64)
+
   periodStart DateTime
   periodEnd   DateTime
   dueDate     DateTime
@@ -337,6 +342,7 @@ model Bill {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([leaseId, idempotencyKey])
   @@index([leaseId, status])
   @@index([status, dueDate])
 }

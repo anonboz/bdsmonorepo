@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 
 import { AuthModule } from './auth/auth.module.js';
+import { BillsModule } from './bills/bills.module.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { env } from './env.js';
 import { HealthModule } from './health/health.module.js';
 import { HousesModule } from './houses/houses.module.js';
 import { LeasesModule } from './leases/leases.module.js';
+import { QueuesModule } from './queues/queues.module.js';
 import { UnitsModule } from './units/units.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -32,12 +34,14 @@ import { UsersModule } from './users/users.module.js';
       },
     }),
     PrismaModule,
+    QueuesModule,
     HealthModule,
     AuthModule,
     HousesModule,
     UnitsModule,
     LeasesModule,
     UsersModule,
+    BillsModule,
   ],
 })
 export class AppModule {}

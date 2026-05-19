@@ -26,6 +26,15 @@ const envSchema = z.object({
   REDIS_URL: redisUrl,
 
   AUTH_SECRET: z.string().min(32, 'AUTH_SECRET must be at least 32 chars'),
+
+  // Set to 'true' in unit tests or any process that should not connect to
+  // Redis / register workers. Default: queues are on whenever NODE_ENV is
+  // not 'test'.
+  API_DISABLE_QUEUES: z
+    .union([z.literal('true'), z.literal('false')])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   AUTH_JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   AUTH_JWT_REFRESH_TTL: z.coerce
     .number()
