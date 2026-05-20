@@ -310,7 +310,21 @@ export class ServiceJobsService {
     const previousStatus = existing.status;
     const finalAmount = input.finalAmount ?? existing.quotedAmount ?? 0;
     const proofPhotos = input.proofPhotos ?? existing.proofPhotos;
+    // Currency is set at quote time. Default to '___' as a never-reached
+    // fallback so the FK lands; we throw above if quote was skipped.
+    const currency = existing.currency ?? null;
+    if (currency === null) {
+      throw new ProblemError({
+        status: 500,
+        type: ErrorCodes.INTERNAL_ERROR,
+        title: 'Job has no currency',
+        detail: 'Currency is set at quote time; this state should be unreachable.',
+      });
+    }
+    const commission = computeCommission(finalAmount);
+    const partnerCut = finalAmount - commission;
     const now = new Date();
+    const cooldownUntil = new Date(now.getTime() + PAYOUT_COOLDOWN_MS);
     const row = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.serviceJob.update({
         where: { id },
@@ -322,6 +336,54 @@ export class ServiceJobsService {
         },
         ...JOB_WITH_RELATIONS,
       });
+
+      // Defensive double-mint guard. The PARTNER_TRANSITIONS guard above
+      // already prevents reaching here twice for a single job, but a
+      // belt-and-braces check costs one indexed lookup.
+      const alreadyMinted = await tx.jobLedgerEntry.count({
+        where: { jobId: id, kind: 'CHARGE' },
+      });
+      if (alreadyMinted > 0) {
+        throw new ProblemError({
+          status: 500,
+          type: ErrorCodes.INTERNAL_ERROR,
+          title: 'Ledger already minted',
+        });
+      }
+
+      // `0 - x` instead of `-x` so `finalAmount === 0` produces `+0`
+      // and doesn't surface a `-0` quirk through equality comparisons.
+      const chargeAmount = 0 - finalAmount;
+      await tx.jobLedgerEntry.createMany({
+        data: [
+          {
+            jobId: id,
+            kind: 'CHARGE',
+            status: 'PENDING',
+            amount: chargeAmount,
+            currency,
+            accountUserId: existing.ownerId,
+          },
+          {
+            jobId: id,
+            kind: 'COMMISSION',
+            status: 'PENDING',
+            amount: commission,
+            currency,
+            accountUserId: null,
+          },
+          {
+            jobId: id,
+            kind: 'PAYOUT',
+            status: 'HELD',
+            amount: partnerCut,
+            currency,
+            accountUserId: partnerUserId,
+            cooldownUntil,
+          },
+        ],
+      });
+
       await this.audit.write(tx, {
         actorId: ctx.actorId,
         action: 'job.complete',
@@ -329,8 +391,18 @@ export class ServiceJobsService {
         meta: {
           previousStatus,
           finalAmount,
+          commission,
+          partnerCut,
           proofPhotosCount: proofPhotos.length,
         },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+      await this.audit.write(tx, {
+        actorId: ctx.actorId,
+        action: 'job.ledger_minted',
+        target: `ServiceJob:${id}`,
+        meta: { finalAmount, commission, partnerCut, currency },
         ip: ctx.ip,
         userAgent: ctx.userAgent,
       });
@@ -478,3 +550,18 @@ export class ServiceJobsService {
 
 export const SERVICE_JOB_OWNER_TRANSITIONS = OWNER_TRANSITIONS;
 export const SERVICE_JOB_PARTNER_TRANSITIONS = PARTNER_TRANSITIONS;
+
+/**
+ * Hardcoded platform commission rate in basis points.
+ *
+ * 1000 bps = 10%. Moves to a config table once the deferred
+ * "fee / commission config" Phase 3.4 item ships.
+ */
+export const PLATFORM_COMMISSION_BPS = 1000;
+export const PAYOUT_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** Floor toward zero so the partner picks up rounding remainders. */
+export function computeCommission(finalAmount: number): number {
+  if (finalAmount <= 0) return 0;
+  return Math.floor((finalAmount * PLATFORM_COMMISSION_BPS) / 10_000);
+}

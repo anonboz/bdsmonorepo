@@ -2,7 +2,12 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 
 import { env } from '../env.js';
-import { QUEUE_BILLS_GENERATE, QUEUE_BILLS_SWEEP, QUEUE_CAMPAIGNS_EXPIRY } from './queue-names.js';
+import {
+  QUEUE_BILLS_GENERATE,
+  QUEUE_BILLS_SWEEP,
+  QUEUE_CAMPAIGNS_EXPIRY,
+  QUEUE_PAYOUTS_RELEASE,
+} from './queue-names.js';
 
 /**
  * Single shared Redis connection for all BullMQ queues. ioredis auto-handles
@@ -31,6 +36,7 @@ import { QUEUE_BILLS_GENERATE, QUEUE_BILLS_SWEEP, QUEUE_CAMPAIGNS_EXPIRY } from 
       { name: QUEUE_BILLS_GENERATE },
       { name: QUEUE_BILLS_SWEEP },
       { name: QUEUE_CAMPAIGNS_EXPIRY },
+      { name: QUEUE_PAYOUTS_RELEASE },
     ),
   ],
   exports: [BullModule],

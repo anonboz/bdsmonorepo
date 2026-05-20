@@ -15,6 +15,7 @@ interface StubOpts {
 function makePrismaStub(opts: StubOpts) {
   const jobs: Record<string, unknown>[] = [];
   const auditRows: Record<string, unknown>[] = [];
+  const ledgerEntries: Record<string, unknown>[] = [];
   // Ticket fixture — tests that exercise the 5.3 path push their own rows
   // into this array and the create-call wires them in.
   const tickets: Record<string, unknown>[] = [];
@@ -112,6 +113,25 @@ function makePrismaStub(opts: StubOpts) {
         return Promise.resolve(row ?? null);
       }),
     },
+    jobLedgerEntry: {
+      count: vi.fn(({ where }: { where: { jobId: string; kind?: string } }) => {
+        return Promise.resolve(
+          ledgerEntries.filter(
+            (e) => e.jobId === where.jobId && (where.kind == null || e.kind === where.kind),
+          ).length,
+        );
+      }),
+      createMany: vi.fn(({ data }: { data: Record<string, unknown>[] }) => {
+        for (const row of data) {
+          ledgerEntries.push({
+            id: `led_${ledgerEntries.length + 1}`,
+            status: row.status ?? 'PENDING',
+            ...row,
+          });
+        }
+        return Promise.resolve({ count: data.length });
+      }),
+    },
     auditLog: {
       create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
         auditRows.push({ id: `log_${auditRows.length + 1}`, ...data });
@@ -120,7 +140,7 @@ function makePrismaStub(opts: StubOpts) {
     },
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
   });
-  return { stub, jobs, auditRows, partnerProfiles, users, tickets };
+  return { stub, jobs, auditRows, partnerProfiles, users, tickets, ledgerEntries };
 }
 
 const ownerCtx = { actorId: 'owner_1', ip: '127.0.0.1', userAgent: 'curl/test' };
@@ -204,7 +224,81 @@ describe('ServiceJobsService', () => {
       'job.accept',
       'job.start',
       'job.complete',
+      'job.ledger_minted',
     ]);
+  });
+
+  // ---- Ledger minting on complete (5.4) -----------------------------
+
+  async function bringJobToInProgress(): Promise<string> {
+    const j = await service.createForOwner(ownerId, { partnerId }, ownerCtx);
+    await service.quoteForPartner(
+      partnerUserId,
+      j.id,
+      { amount: 50_000, currency: 'VND' },
+      partnerCtx,
+    );
+    await service.acceptForOwner(ownerId, j.id, ownerCtx);
+    await service.startForPartner(partnerUserId, j.id, partnerCtx);
+    return j.id;
+  }
+
+  it('completing a job mints 3 ledger entries that sum to zero', async () => {
+    const id = await bringJobToInProgress();
+    await service.completeForPartner(partnerUserId, id, {}, partnerCtx);
+
+    const entries = store.ledgerEntries.filter((e) => e.jobId === id);
+    expect(entries).toHaveLength(3);
+    const sum = entries.reduce((acc, e) => acc + (e.amount as number), 0);
+    expect(sum).toBe(0);
+
+    const charge = entries.find((e) => e.kind === 'CHARGE')!;
+    const commission = entries.find((e) => e.kind === 'COMMISSION')!;
+    const payout = entries.find((e) => e.kind === 'PAYOUT')!;
+
+    // 10% commission on 50_000 → 5_000 platform cut, 45_000 partner cut.
+    expect(charge.amount).toBe(-50_000);
+    expect(charge.status).toBe('PENDING');
+    expect(charge.accountUserId).toBe(ownerId);
+    expect(commission.amount).toBe(5_000);
+    expect(commission.status).toBe('PENDING');
+    expect(commission.accountUserId).toBeNull();
+    expect(payout.amount).toBe(45_000);
+    expect(payout.status).toBe('HELD');
+    expect(payout.accountUserId).toBe(partnerUserId);
+    expect(payout.cooldownUntil).toBeInstanceOf(Date);
+  });
+
+  it('zero-amount job mints three zero-value entries', async () => {
+    const j = await service.createForOwner(ownerId, { partnerId }, ownerCtx);
+    await service.quoteForPartner(partnerUserId, j.id, { amount: 0, currency: 'VND' }, partnerCtx);
+    await service.acceptForOwner(ownerId, j.id, ownerCtx);
+    await service.startForPartner(partnerUserId, j.id, partnerCtx);
+    await service.completeForPartner(partnerUserId, j.id, {}, partnerCtx);
+
+    const entries = store.ledgerEntries.filter((e) => e.jobId === j.id);
+    expect(entries).toHaveLength(3);
+    for (const e of entries) expect(e.amount).toBe(0);
+  });
+
+  it('commission floors toward zero (partner picks up the remainder)', async () => {
+    const j = await service.createForOwner(ownerId, { partnerId }, ownerCtx);
+    // 1234 * 10% = 123.4 → commission floors to 123, partner = 1111.
+    await service.quoteForPartner(
+      partnerUserId,
+      j.id,
+      { amount: 1234, currency: 'VND' },
+      partnerCtx,
+    );
+    await service.acceptForOwner(ownerId, j.id, ownerCtx);
+    await service.startForPartner(partnerUserId, j.id, partnerCtx);
+    await service.completeForPartner(partnerUserId, j.id, {}, partnerCtx);
+
+    const entries = store.ledgerEntries.filter((e) => e.jobId === j.id);
+    const commission = entries.find((e) => e.kind === 'COMMISSION')!;
+    const payout = entries.find((e) => e.kind === 'PAYOUT')!;
+    expect(commission.amount).toBe(123);
+    expect(payout.amount).toBe(1111);
   });
 
   it('owner cancels a REQUESTED job → CANCELLED with reason + cancelledBy', async () => {

@@ -131,6 +131,18 @@ enum JobStatus {
   CANCELLED
 }
 
+enum PayoutEntryKind {
+  CHARGE
+  COMMISSION
+  PAYOUT
+}
+
+enum PayoutEntryStatus {
+  PENDING
+  HELD
+  RELEASED
+}
+
 enum NotificationChannel {
   IN_APP
   EMAIL
@@ -633,6 +645,8 @@ model ServiceJob {
   /// Partner-uploaded proof of work URLs. Populated on COMPLETED.
   proofPhotos String[] @default([])
 
+  ledgerEntries JobLedgerEntry[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -640,6 +654,40 @@ model ServiceJob {
   @@index([ownerId, status])
   @@index([ticketId])
   @@index([status, createdAt])
+}
+
+/// Per-job financial accruals. Three rows per COMPLETED job —
+/// CHARGE (owner debit), COMMISSION (platform credit), PAYOUT
+/// (partner credit). Sum is zero by construction; that's the
+/// "ledger entries balance" invariant from the Phase 5 acceptance.
+model JobLedgerEntry {
+  id     String     @id @default(cuid())
+  jobId  String
+  job    ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  kind   PayoutEntryKind
+  status PayoutEntryStatus @default(PENDING)
+
+  /// Minor units. Signed: negative for CHARGE, positive for
+  /// COMMISSION and PAYOUT.
+  amount   Int
+  currency String @db.Char(3)
+
+  /// For CHARGE: the owner. For PAYOUT: the partner's user id.
+  /// For COMMISSION: null (platform is the implicit account).
+  accountUserId String?
+
+  /// Only set on PAYOUT entries. Sweeper flips status → RELEASED
+  /// when `cooldownUntil <= now`.
+  cooldownUntil DateTime?
+  releasedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([jobId, kind])
+  @@index([accountUserId, status])
+  @@index([status, cooldownUntil])
 }
 
 // ---------- Cross-cutting ----------------------------------------------

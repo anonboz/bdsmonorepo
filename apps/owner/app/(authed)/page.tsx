@@ -93,8 +93,20 @@ export default async function HomePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Service charges</CardTitle>
+          <CardDescription>What completed partner jobs cost you.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/me/charges">Open</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>Payouts and partner ratings land next.</CardDescription>
+          <CardDescription>Partner ratings land next.</CardDescription>
         </CardHeader>
       </Card>
     </main>

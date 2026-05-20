@@ -17,7 +17,7 @@ export default async function HomePage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
@@ -53,12 +53,24 @@ export default async function HomePage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Payouts</CardTitle>
+            <CardDescription>Held + released balances.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link href="/payouts">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>Payouts and ratings land in the next Phase 5 slices.</CardDescription>
+          <CardDescription>Ratings land in the next Phase 5 slice.</CardDescription>
         </CardHeader>
       </Card>
     </main>

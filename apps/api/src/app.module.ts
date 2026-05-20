@@ -13,6 +13,7 @@ import { HousesModule } from './houses/houses.module.js';
 import { LeasesModule } from './leases/leases.module.js';
 import { OwnerDashboardModule } from './owner-dashboard/owner-dashboard.module.js';
 import { PartnersModule } from './partners/partners.module.js';
+import { PayoutsModule } from './payouts/payouts.module.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { RatingsModule } from './ratings/ratings.module.js';
 import { ServiceJobsModule } from './service-jobs/service-jobs.module.js';
@@ -57,6 +58,7 @@ import { UsersModule } from './users/users.module.js';
     ApplicationsModule,
     PartnersModule,
     ServiceJobsModule,
+    PayoutsModule,
     AdminModule,
   ],
 })
