@@ -53,6 +53,12 @@ export const ErrorCodes = {
   TICKET_LEASE_INVALID: 'tickets.lease_invalid',
   TICKET_THREAD_LOCKED: 'tickets.thread_locked',
 
+  // ---- campaigns ----------------------------------------------------
+  CAMPAIGN_NOT_FOUND: 'campaigns.not_found',
+  CAMPAIGN_NOT_DRAFT: 'campaigns.not_draft',
+  CAMPAIGN_INVALID_TRANSITION: 'campaigns.invalid_transition',
+  CAMPAIGN_UNIT_NOT_VACANT: 'campaigns.unit_not_vacant',
+
   // ---- ratings ------------------------------------------------------
   RATING_NOT_FOUND: 'ratings.not_found',
   RATING_ALREADY_GIVEN: 'ratings.already_given',

@@ -493,6 +493,10 @@ model Campaign {
   unitId    String
   unit      Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
+  /// Denormalized from `unit.house.ownerId` so we can index owner-side
+  /// queries without a join. Frozen on create.
+  ownerId String
+
   title     String         @db.VarChar(200)
   body      String         @db.VarChar(4000)
   price     Int            // minor units
@@ -500,6 +504,14 @@ model Campaign {
   status    CampaignStatus @default(DRAFT)
   publishedAt DateTime?
   expiresAt   DateTime?
+
+  /// Image URLs. v1 stores externally-hosted URLs; an S3 upload endpoint
+  /// lands when storage is wired (Phase 4.3 or later).
+  photos String[] @default([])
+
+  moderationReason    String?   @db.VarChar(500)
+  moderationDecidedAt DateTime?
+  moderationDecidedBy String?
 
   applications Application[]
 
@@ -509,6 +521,7 @@ model Campaign {
 
   @@index([status, publishedAt])
   @@index([unitId, status])
+  @@index([ownerId, status])
 }
 
 model Application {

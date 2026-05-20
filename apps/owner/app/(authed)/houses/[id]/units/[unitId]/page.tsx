@@ -7,6 +7,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from '@repo/ui';
 import { ApiError } from '../../../../../../lib/api';
 import { serverApi } from '../../../../../../lib/session';
 import { DeleteUnitButton } from '../_components/delete-unit-button';
+import { CampaignListCard } from './campaigns/_components/campaign-list-card';
 import { LeaseListCard } from './leases/_components/lease-list-card';
 
 export default async function UnitDetailPage({
@@ -55,6 +56,8 @@ export default async function UnitDetailPage({
       </Card>
 
       <LeaseListCard houseId={houseId} unitId={unitId} />
+
+      <CampaignListCard houseId={houseId} unitId={unitId} />
     </main>
   );
 }

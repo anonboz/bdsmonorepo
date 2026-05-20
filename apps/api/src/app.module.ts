@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillsModule } from './bills/bills.module.js';
+import { CampaignsModule } from './campaigns/campaigns.module.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { env } from './env.js';
 import { HealthModule } from './health/health.module.js';
@@ -49,6 +50,7 @@ import { UsersModule } from './users/users.module.js';
     OwnerDashboardModule,
     TicketsModule,
     RatingsModule,
+    CampaignsModule,
     AdminModule,
   ],
 })
