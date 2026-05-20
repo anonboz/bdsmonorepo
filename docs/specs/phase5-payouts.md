@@ -1,6 +1,6 @@
 # Spec: Payments + commission + payout ledger (phase 5.4)
 
-> Status: **draft**
+> Status: **implemented (sans Playwright e2e)**
 > Phase: 5
 > Owner: claude
 > Spec last updated: 2026-05-20
