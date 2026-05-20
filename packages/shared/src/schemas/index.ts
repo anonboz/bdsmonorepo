@@ -9,4 +9,5 @@ export * from './ticket-messages';
 export * from './ratings';
 export * from './users';
 export * from './owner-dashboard';
+export * from './platform-dashboard';
 export * from './admin';

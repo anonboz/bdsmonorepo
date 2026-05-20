@@ -17,15 +17,27 @@ export default async function HomePage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Dashboard</CardTitle>
+            <CardDescription>Users, GMV, overdue, ticket SLA.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/dashboard">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Users</CardTitle>
             <CardDescription>Search, suspend, review KYC.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild>
-              <Link href="/users">Open users</Link>
+            <Button asChild variant="outline">
+              <Link href="/users">Open</Link>
             </Button>
           </CardContent>
         </Card>
@@ -36,7 +48,7 @@ export default async function HomePage() {
             <CardDescription>Flag, clear, reject listings.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild>
+            <Button asChild variant="outline">
               <Link href="/houses?moderationStatus=FLAGGED">Open queue</Link>
             </Button>
           </CardContent>
@@ -58,7 +70,7 @@ export default async function HomePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>Fee config and platform dashboards land in follow-ups.</CardDescription>
+          <CardDescription>Fee config lands alongside Phase 5 partner payouts.</CardDescription>
         </CardHeader>
       </Card>
     </main>
