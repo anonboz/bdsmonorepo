@@ -74,6 +74,11 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
                     {p.serviceArea && (
                       <p className="text-xs text-muted-foreground">{p.serviceArea}</p>
                     )}
+                    <p className="text-xs text-muted-foreground">
+                      {p.ratingAverage !== null
+                        ? `★ ${p.ratingAverage.toFixed(1)} · ${p.ratingCount} rating${p.ratingCount === 1 ? '' : 's'}`
+                        : 'No ratings yet'}
+                    </p>
                   </div>
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${KYC_PALETTE[p.kycStatus]}`}

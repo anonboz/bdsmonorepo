@@ -167,6 +167,11 @@ enum RatingDirection {
   OWNER_TO_TENANT
 }
 
+enum JobRatingDirection {
+  OWNER_TO_PARTNER
+  PARTNER_TO_OWNER
+}
+
 // ---------- Core identity ----------------------------------------------
 
 model User {
@@ -200,6 +205,8 @@ model User {
   ticketMessages TicketMessage[] @relation("TicketMessageAuthor")
   ratingsGiven    LeaseRating[]  @relation("RatingRater")
   ratingsReceived LeaseRating[]  @relation("RatingRated")
+  jobRatingsGiven    JobRating[] @relation("JobRatingRater")
+  jobRatingsReceived JobRating[] @relation("JobRatingRated")
   partnerProfile PartnerProfile?
   notifications  Notification[]
   auditLog       AuditLog[]
@@ -646,6 +653,7 @@ model ServiceJob {
   proofPhotos String[] @default([])
 
   ledgerEntries JobLedgerEntry[]
+  ratings       JobRating[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -688,6 +696,32 @@ model JobLedgerEntry {
   @@index([jobId, kind])
   @@index([accountUserId, status])
   @@index([status, cooldownUntil])
+}
+
+/// Post-completion ratings between an owner and a partner on a single
+/// `ServiceJob`. One row per direction per job — `OWNER_TO_PARTNER` is
+/// the owner rating the partner, `PARTNER_TO_OWNER` the reverse.
+model JobRating {
+  id        String             @id @default(cuid())
+  jobId     String
+  job       ServiceJob         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  raterId   String
+  rater     User               @relation("JobRatingRater", fields: [raterId], references: [id], onDelete: Restrict)
+  ratedId   String
+  rated     User               @relation("JobRatingRated", fields: [ratedId], references: [id], onDelete: Restrict)
+  direction JobRatingDirection
+
+  /// 1..5. Range enforced by Zod at the API boundary.
+  score   Int
+  comment String? @db.VarChar(2000)
+
+  createdAt DateTime @default(now())
+
+  /// One rating per (job, direction). Stops double-submit and makes
+  /// "have I rated this?" a single index hit.
+  @@unique([jobId, direction])
+  @@index([ratedId, createdAt])
+  @@index([jobId])
 }
 
 // ---------- Cross-cutting ----------------------------------------------

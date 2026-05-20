@@ -71,10 +71,14 @@ export type ListPartnersQuery = z.infer<typeof listPartnersQuerySchema>;
 
 /**
  * Owner-side projection. Inlines the partner's active services so the
- * list view can render cards without an extra round trip.
+ * list view can render cards without an extra round trip. `ratingAverage`
+ * is `null` when the partner has zero ratings; the directory sort treats
+ * that as last so a rated partner always outranks an unrated one.
  */
 export const partnerSummarySchema = partnerProfileSchema.extend({
   activeServices: z.array(serviceSchema),
+  ratingAverage: z.number().nullable(),
+  ratingCount: z.number().int().nonnegative(),
 });
 
 export type PartnerSummary = z.infer<typeof partnerSummarySchema>;

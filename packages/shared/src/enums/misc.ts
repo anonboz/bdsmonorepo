@@ -108,6 +108,13 @@ export const RatingDirection = {
 export type RatingDirection = (typeof RatingDirection)[keyof typeof RatingDirection];
 export const ratingDirectionSchema = z.nativeEnum(RatingDirection);
 
+export const JobRatingDirection = {
+  OWNER_TO_PARTNER: 'OWNER_TO_PARTNER',
+  PARTNER_TO_OWNER: 'PARTNER_TO_OWNER',
+} as const;
+export type JobRatingDirection = (typeof JobRatingDirection)[keyof typeof JobRatingDirection];
+export const jobRatingDirectionSchema = z.nativeEnum(JobRatingDirection);
+
 export const BillLineKind = {
   RENT: 'RENT',
   DEPOSIT: 'DEPOSIT',

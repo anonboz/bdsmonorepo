@@ -10,6 +10,7 @@ import { PrismaModule } from './common/prisma/prisma.module.js';
 import { env } from './env.js';
 import { HealthModule } from './health/health.module.js';
 import { HousesModule } from './houses/houses.module.js';
+import { JobRatingsModule } from './job-ratings/job-ratings.module.js';
 import { LeasesModule } from './leases/leases.module.js';
 import { OwnerDashboardModule } from './owner-dashboard/owner-dashboard.module.js';
 import { PartnersModule } from './partners/partners.module.js';
@@ -59,6 +60,7 @@ import { UsersModule } from './users/users.module.js';
     PartnersModule,
     ServiceJobsModule,
     PayoutsModule,
+    JobRatingsModule,
     AdminModule,
   ],
 })

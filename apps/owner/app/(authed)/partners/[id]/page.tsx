@@ -47,6 +47,11 @@ export default async function PartnerDetailPage({
               </span>
               {partner.serviceArea ?? ''}
             </p>
+            <p className="text-xs text-muted-foreground">
+              {partner.ratingAverage !== null
+                ? `★ ${partner.ratingAverage.toFixed(1)} · ${partner.ratingCount} rating${partner.ratingCount === 1 ? '' : 's'}`
+                : 'No ratings yet'}
+            </p>
           </div>
         </div>
       </div>

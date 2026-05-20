@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import type { JobStatus, ServiceJob } from '@repo/shared';
+import type { JobRatingsForJob, JobStatus, ServiceJob } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { JobActions } from './job-actions';
+import { PartnerRatingPanel } from './partner-rating-panel';
 import { ApiError } from '../../../../lib/api';
 import { formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
@@ -27,6 +28,7 @@ export default async function PartnerJobDetailPage({
   const { id } = await params;
   const job = await fetchJob(id);
   if (!job) notFound();
+  const ratings = job.status === 'COMPLETED' ? await fetchRatings(id) : null;
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -96,6 +98,18 @@ export default async function PartnerJobDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {ratings && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Rating</CardTitle>
+            <CardDescription>How was working with this owner?</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PartnerRatingPanel jobId={job.id} initial={ratings} />
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
 }
@@ -103,6 +117,15 @@ export default async function PartnerJobDetailPage({
 async function fetchJob(id: string): Promise<ServiceJob | null> {
   try {
     return await serverApi<ServiceJob>(`/v1/me/jobs/${id}`);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+async function fetchRatings(id: string): Promise<JobRatingsForJob | null> {
+  try {
+    return await serverApi<JobRatingsForJob>(`/v1/me/jobs/${id}/ratings`);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
     throw err;

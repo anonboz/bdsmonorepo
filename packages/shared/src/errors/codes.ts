@@ -77,6 +77,8 @@ export const ErrorCodes = {
   JOB_INVALID_TRANSITION: 'jobs.invalid_transition',
   JOB_PARTNER_NOT_BOOKABLE: 'jobs.partner_not_bookable',
   JOB_TICKET_NOT_BOOKABLE: 'jobs.ticket_not_bookable',
+  JOB_RATING_NOT_DECIDABLE: 'jobs.rating_not_decidable',
+  JOB_RATING_ALREADY_GIVEN: 'jobs.rating_already_given',
 
   // ---- ratings ------------------------------------------------------
   RATING_NOT_FOUND: 'ratings.not_found',

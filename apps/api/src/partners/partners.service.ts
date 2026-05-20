@@ -163,7 +163,6 @@ export class PartnersService {
     const hasMore = rows.length > limit;
     const items = hasMore ? rows.slice(0, limit) : rows;
 
-    // Pull active services for the resulting partners in one query.
     const partnerIds = items.map((r) => r.id);
     const services =
       partnerIds.length === 0
@@ -179,11 +178,33 @@ export class PartnersService {
       byPartner.set(s.partnerId, list);
     }
 
-    return {
-      items: items.map((r) => ({
+    const ratings = await this.aggregateRatings(items.map((r) => r.userId));
+
+    const summaries: PartnerSummary[] = items.map((r) => {
+      const agg = ratings.get(r.userId);
+      return {
         ...this.toProfile(r),
         activeServices: byPartner.get(r.id) ?? [],
-      })),
+        ratingAverage: agg?.average ?? null,
+        ratingCount: agg?.count ?? 0,
+      };
+    });
+
+    // Rating-aware sort within the page. Cross-page ordering still uses
+    // createdAt — acceptable for v1 since the directory is small.
+    summaries.sort((a, b) => {
+      const aAvg = a.ratingAverage;
+      const bAvg = b.ratingAverage;
+      if (aAvg !== bAvg) {
+        if (aAvg === null) return 1;
+        if (bAvg === null) return -1;
+        return bAvg - aAvg;
+      }
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+
+    return {
+      items: summaries,
       nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null,
     };
   }
@@ -200,10 +221,39 @@ export class PartnersService {
       where: { partnerId: id, deletedAt: null, isActive: true },
       orderBy: [{ createdAt: 'desc' }],
     });
+    const ratings = await this.aggregateRatings([row.userId]);
+    const agg = ratings.get(row.userId);
     return {
       ...this.toProfile(row),
       activeServices: services.map((s) => this.toService(s)),
+      ratingAverage: agg?.average ?? null,
+      ratingCount: agg?.count ?? 0,
     };
+  }
+
+  /**
+   * Per-user (rated-id) rating aggregate. Returns a map so callers can
+   * look up by userId without re-scanning. Empty input → empty map.
+   */
+  private async aggregateRatings(
+    userIds: string[],
+  ): Promise<Map<string, { average: number; count: number }>> {
+    if (userIds.length === 0) return new Map();
+    const grouped = await this.prisma.jobRating.groupBy({
+      by: ['ratedId'],
+      where: { ratedId: { in: userIds } },
+      _avg: { score: true },
+      _count: { score: true },
+    });
+    const map = new Map<string, { average: number; count: number }>();
+    for (const g of grouped) {
+      const count = g._count.score ?? 0;
+      if (count === 0) continue;
+      const avg = g._avg.score;
+      if (avg === null || avg === undefined) continue;
+      map.set(g.ratedId, { average: avg, count });
+    }
+    return map;
   }
 
   // ---- helpers -----------------------------------------------------
