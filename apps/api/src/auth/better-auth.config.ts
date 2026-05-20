@@ -1,10 +1,41 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { emailOTP, magicLink } from 'better-auth/plugins';
+import { Prisma } from '@prisma/client';
 
 import { prisma } from '@repo/db';
 
 import { env } from '../env.js';
+
+/**
+ * Best-effort audit write. Better-Auth runs us from outside Nest's DI
+ * graph so we call Prisma directly. Failures are logged but do NOT
+ * propagate — an audit hiccup must not block sign-in / sign-out.
+ */
+async function writeAuthAudit(entry: {
+  actorId: string | null;
+  action: 'auth.login' | 'auth.logout';
+  target: string | null;
+  meta: Record<string, unknown>;
+  ip: string | null;
+  userAgent: string | null;
+}): Promise<void> {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        actorId: entry.actorId,
+        action: entry.action,
+        target: entry.target,
+        meta: entry.meta as Prisma.InputJsonValue,
+        ip: entry.ip,
+        userAgent: entry.userAgent,
+      },
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[auth] failed to write audit row', err);
+  }
+}
 
 /**
  * Better-Auth instance. Mounted under `/v1/auth/*` by AuthController.
@@ -44,6 +75,41 @@ export const auth = betterAuth({
     crossSubDomainCookies: {
       enabled: env.NODE_ENV === 'production',
       domain: env.AUTH_COOKIE_DOMAIN,
+    },
+  },
+
+  /**
+   * Phase 3.5: emit auth.login / auth.logout into AuditLog whenever a
+   * session is created or explicitly deleted. Session lazy-expiry does
+   * NOT trigger delete in better-auth, so this maps cleanly to "user
+   * pressed sign-in / sign-out".
+   */
+  databaseHooks: {
+    session: {
+      create: {
+        after: async (session) => {
+          await writeAuthAudit({
+            actorId: session.userId,
+            action: 'auth.login',
+            target: `User:${session.userId}`,
+            meta: { sessionId: session.id },
+            ip: session.ipAddress ?? null,
+            userAgent: session.userAgent ?? null,
+          });
+        },
+      },
+      delete: {
+        after: async (session) => {
+          await writeAuthAudit({
+            actorId: session.userId,
+            action: 'auth.logout',
+            target: `User:${session.userId}`,
+            meta: { sessionId: session.id },
+            ip: session.ipAddress ?? null,
+            userAgent: session.userAgent ?? null,
+          });
+        },
+      },
     },
   },
 

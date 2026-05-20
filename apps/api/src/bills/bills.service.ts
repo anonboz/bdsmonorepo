@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 
 import { ErrorCodes, type Bill, type BillLine, type Page, type Role } from '@repo/shared';
 
+import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 
@@ -18,6 +19,16 @@ export interface GenerateOptions {
    * current calendar month for MONTHLY leases (other cycles map similarly).
    */
   periodStart?: string;
+}
+
+export type BillGenerationSource = 'owner' | 'sweeper';
+
+export interface GenerationContext {
+  /** Authenticated user when initiated by a human; `null` for worker calls. */
+  actorId: string | null;
+  source: BillGenerationSource;
+  ip?: string | null;
+  userAgent?: string | null;
 }
 
 export interface GenerationResult {
@@ -43,11 +54,18 @@ export interface GenerationResult {
 export class BillsService {
   private readonly logger = new Logger(BillsService.name);
 
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaInstance) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaInstance,
+    private readonly audit: AuditLogger,
+  ) {}
 
   // ---- Generation ---------------------------------------------------
 
-  async generateForLease(leaseId: string, opts: GenerateOptions = {}): Promise<GenerationResult> {
+  async generateForLease(
+    leaseId: string,
+    opts: GenerateOptions = {},
+    ctx: GenerationContext = { actorId: null, source: 'sweeper' },
+  ): Promise<GenerationResult> {
     const lease = await this.prisma.lease.findUnique({ where: { id: leaseId } });
     if (!lease || lease.deletedAt) {
       throw new ProblemError({
@@ -75,30 +93,49 @@ export class BillsService {
     const idempotencyKey = buildIdempotencyKey(lease.rentCycle, periodStart);
 
     try {
-      const created = await this.prisma.bill.create({
-        data: {
-          leaseId,
-          idempotencyKey,
-          periodStart,
-          periodEnd,
-          dueDate,
-          issuedAt: new Date(),
-          status: 'ISSUED',
-          currency: lease.currency,
-          subtotal: lease.rentAmount,
-          total: lease.rentAmount,
-          lines: {
-            create: [
-              {
-                kind: 'RENT',
-                label: `Rent · ${formatPeriod(periodStart, periodEnd)}`,
-                amount: lease.rentAmount,
-                quantity: 1,
-              },
-            ],
+      // Create the bill + audit row atomically. Audit only fires on a
+      // genuinely-new bill — the duplicate branch below intentionally
+      // skips writing so a retry doesn't double-log the same period.
+      const created = await this.prisma.$transaction(async (tx) => {
+        const row = await tx.bill.create({
+          data: {
+            leaseId,
+            idempotencyKey,
+            periodStart,
+            periodEnd,
+            dueDate,
+            issuedAt: new Date(),
+            status: 'ISSUED',
+            currency: lease.currency,
+            subtotal: lease.rentAmount,
+            total: lease.rentAmount,
+            lines: {
+              create: [
+                {
+                  kind: 'RENT',
+                  label: `Rent · ${formatPeriod(periodStart, periodEnd)}`,
+                  amount: lease.rentAmount,
+                  quantity: 1,
+                },
+              ],
+            },
           },
-        },
-        ...BILL_WITH_LINES,
+          ...BILL_WITH_LINES,
+        });
+        await this.audit.write(tx, {
+          actorId: ctx.actorId,
+          action: 'bill.generate',
+          target: `Bill:${row.id}`,
+          meta: {
+            leaseId,
+            idempotencyKey,
+            periodStart: periodStart.toISOString().slice(0, 10),
+            source: ctx.source,
+          },
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+        });
+        return row;
       });
       this.logger.log(`created bill ${created.id} for lease ${leaseId} period ${idempotencyKey}`);
       return { bill: this.toResponse(created), status: 'created' };

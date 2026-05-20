@@ -9,6 +9,8 @@ import type {
   TransitionLeaseDto,
   UpdateLeaseDto,
 } from './dto/leases.dto.js';
+import { AuditLogger } from '../common/audit/audit-logger.service.js';
+import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 
@@ -29,6 +31,13 @@ const ALLOWED_TRANSITIONS: Record<LeaseStatus, LeaseStatus[]> = {
   TERMINATED: [],
 };
 
+/** Audit action code per terminal status. */
+const ACTION_FOR_TRANSITION: Record<'ACTIVE' | 'ENDED' | 'TERMINATED', string> = {
+  ACTIVE: 'lease.activate',
+  ENDED: 'lease.end',
+  TERMINATED: 'lease.terminate',
+};
+
 /**
  * Leases service.
  *
@@ -45,7 +54,10 @@ const ALLOWED_TRANSITIONS: Record<LeaseStatus, LeaseStatus[]> = {
  */
 @Injectable()
 export class LeasesService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaInstance) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaInstance,
+    private readonly audit: AuditLogger,
+  ) {}
 
   // ---- Owner-scoped (nested under unit) -----------------------------
 
@@ -149,6 +161,7 @@ export class LeasesService {
     unitId: string,
     id: string,
     input: TransitionLeaseDto,
+    ctx: RequestContext,
   ): Promise<Lease> {
     await this.assertOwnerOfUnit(actor, houseId, unitId);
     const existing = await this.findLeaseOnUnit(id, unitId);
@@ -177,7 +190,11 @@ export class LeasesService {
       }
     }
 
-    // Update lease + flip unit status atomically.
+    // Snapshot the previous status before opening the transaction. We
+    // can't read it back from inside — the mutation overwrites it.
+    const previousStatus = existing.status;
+
+    // Update lease + flip unit status + audit row atomically.
     const updated = await this.prisma.$transaction(async (tx) => {
       const leaseUpdate = await tx.lease.update({
         where: { id },
@@ -197,6 +214,19 @@ export class LeasesService {
         // — overlap guard above should make this always true).
         await tx.unit.update({ where: { id: unitId }, data: { status: 'VACANT' } });
       }
+
+      const meta: Record<string, unknown> = { previousStatus, unitId, houseId };
+      if (input.to === 'TERMINATED' && input.terminationReason) {
+        meta.terminationReason = input.terminationReason;
+      }
+      await this.audit.write(tx, {
+        actorId: ctx.actorId,
+        action: ACTION_FOR_TRANSITION[input.to],
+        target: `Lease:${id}`,
+        meta,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
 
       return leaseUpdate;
     });

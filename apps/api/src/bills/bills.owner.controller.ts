@@ -1,6 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { FastifyReply } from 'fastify';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import type { Bill, Page } from '@repo/shared';
 
@@ -31,6 +31,7 @@ export class BillsOwnerController {
   @HttpCode(201)
   async generateNow(
     @CurrentUser() user: AuthenticatedUser,
+    @Req() req: FastifyRequest,
     @Param('houseId') houseId: string,
     @Param('unitId') unitId: string,
     @Param('leaseId') leaseId: string,
@@ -39,7 +40,12 @@ export class BillsOwnerController {
     // assertOwner-of-lease via list call's auth (cheap) — service throws
     // 404 otherwise.
     await this.bills.listForLease(user, houseId, unitId, leaseId, { limit: 1, sort: 'desc' });
-    return this.bills.generateForLease(leaseId, body);
+    return this.bills.generateForLease(leaseId, body, {
+      actorId: user.id,
+      source: 'owner',
+      ip: req.ip ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
   }
 
   @Get()

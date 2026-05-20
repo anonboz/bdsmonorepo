@@ -7,6 +7,7 @@ import {
   currentPeriodStart,
   periodEndFor,
 } from './bills.service.js';
+import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 
 function makePrismaStub(opts: {
@@ -17,7 +18,9 @@ function makePrismaStub(opts: {
   rentCycle?: 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
 }) {
   const bills: Record<string, unknown>[] = [];
-  const stub = {
+  const auditRows: Record<string, unknown>[] = [];
+  const stub: Record<string, unknown> = {};
+  Object.assign(stub, {
     lease: {
       findUnique: vi.fn(({ where }: { where: { id: string } }) =>
         where.id === opts.leaseId
@@ -81,8 +84,15 @@ function makePrismaStub(opts: {
         },
       ),
     },
-  };
-  return { stub, bills };
+    auditLog: {
+      create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
+        auditRows.push({ id: `log_${auditRows.length + 1}`, ...data });
+        return Promise.resolve(auditRows.at(-1));
+      }),
+    },
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
+  });
+  return { stub, bills, auditRows };
 }
 
 describe('BillsService.generateForLease', () => {
@@ -92,7 +102,7 @@ describe('BillsService.generateForLease', () => {
 
   beforeEach(() => {
     prismaStub = makePrismaStub({ leaseId, tenantId: 'tenant_1' });
-    service = new BillsService(prismaStub.stub as never);
+    service = new BillsService(prismaStub.stub as never, new AuditLogger(prismaStub.stub as never));
   });
 
   it('creates a bill with one RENT line at the lease amount', async () => {
@@ -116,12 +126,43 @@ describe('BillsService.generateForLease', () => {
 
   it('rejects on non-ACTIVE lease', async () => {
     prismaStub = makePrismaStub({ leaseId, tenantId: 'tenant_1', status: 'DRAFT' });
-    service = new BillsService(prismaStub.stub as never);
+    service = new BillsService(prismaStub.stub as never, new AuditLogger(prismaStub.stub as never));
     await expect(service.generateForLease(leaseId)).rejects.toBeInstanceOf(ProblemError);
   });
 
   it('rejects on missing lease', async () => {
     await expect(service.generateForLease('nope')).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  it('writes a bill.generate audit row with the supplied source + actor', async () => {
+    await service.generateForLease(
+      leaseId,
+      { periodStart: '2026-06-01' },
+      { actorId: 'owner_1', source: 'owner', ip: '127.0.0.1', userAgent: 'curl/test' },
+    );
+    expect(prismaStub.auditRows).toHaveLength(1);
+    expect(prismaStub.auditRows[0]).toMatchObject({
+      action: 'bill.generate',
+      actorId: 'owner_1',
+    });
+    const meta = prismaStub.auditRows[0]?.meta as Record<string, unknown>;
+    expect(meta.source).toBe('owner');
+    expect(meta.leaseId).toBe(leaseId);
+    expect(meta.idempotencyKey).toBe('MONTHLY:2026-06-01');
+    expect(meta.periodStart).toBe('2026-06-01');
+  });
+
+  it('default ctx (worker call) writes source=sweeper with null actor', async () => {
+    await service.generateForLease(leaseId, { periodStart: '2026-07-01' });
+    const meta = prismaStub.auditRows[0]?.meta as Record<string, unknown>;
+    expect(meta.source).toBe('sweeper');
+    expect(prismaStub.auditRows[0]?.actorId).toBeNull();
+  });
+
+  it('idempotent second call does NOT write a second audit row', async () => {
+    await service.generateForLease(leaseId, { periodStart: '2026-06-01' });
+    await service.generateForLease(leaseId, { periodStart: '2026-06-01' });
+    expect(prismaStub.auditRows).toHaveLength(1);
   });
 });
 

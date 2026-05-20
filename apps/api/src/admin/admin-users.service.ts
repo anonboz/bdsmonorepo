@@ -3,22 +3,19 @@ import { Prisma } from '@prisma/client';
 
 import { ErrorCodes, type AdminUser, type Page } from '@repo/shared';
 
-import { AuditLogger } from './audit-logger.service.js';
 import type {
   KycDecisionDto,
   ListAdminUsersQueryDto,
   SuspendUserDto,
   UnsuspendUserDto,
 } from './dto/admin.dto.js';
+import { AuditLogger } from '../common/audit/audit-logger.service.js';
+import { type RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 
-export interface RequestContext {
-  /** Authenticated admin's user id. */
-  actorId: string;
-  ip?: string | null;
-  userAgent?: string | null;
-}
+// Re-export so existing controller imports keep working.
+export type { RequestContext } from '../common/audit/request-context.js';
 
 type UserRow = Prisma.UserGetPayload<Record<string, never>>;
 

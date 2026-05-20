@@ -8,22 +8,16 @@ import { AdminHousesController } from './admin-houses.controller.js';
 import { AdminHousesService } from './admin-houses.service.js';
 import { AdminUsersController } from './admin-users.controller.js';
 import { AdminUsersService } from './admin-users.service.js';
-import { AuditLogger } from './audit-logger.service.js';
+import { AuditModule } from '../common/audit/audit.module.js';
 
 @Module({
+  imports: [AuditModule],
   controllers: [
     AdminUsersController,
     AdminHousesController,
     AdminDashboardController,
     AdminAuditController,
   ],
-  providers: [
-    AdminUsersService,
-    AdminHousesService,
-    AdminDashboardService,
-    AdminAuditService,
-    AuditLogger,
-  ],
-  exports: [AuditLogger],
+  providers: [AdminUsersService, AdminHousesService, AdminDashboardService, AdminAuditService],
 })
 export class AdminModule {}

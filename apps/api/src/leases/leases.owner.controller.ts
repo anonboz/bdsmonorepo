@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import type { FastifyRequest } from 'fastify';
 
 import type { Lease, Page } from '@repo/shared';
 
@@ -13,6 +14,7 @@ import {
 import { LeasesService } from './leases.service.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { requestContextFrom } from '../common/audit/request-context.js';
 
 /**
  * Owner-scoped lease routes. Nested under `/houses/:houseId/units/:unitId`
@@ -73,11 +75,12 @@ export class LeasesOwnerController {
   @Roles('OWNER')
   transition(
     @CurrentUser() user: AuthenticatedUser,
+    @Req() req: FastifyRequest,
     @Param('houseId') houseId: string,
     @Param('unitId') unitId: string,
     @Param('id') id: string,
     @Body() body: TransitionLeaseDto,
   ): Promise<Lease> {
-    return this.service.transition(user, houseId, unitId, id, body);
+    return this.service.transition(user, houseId, unitId, id, body, requestContextFrom(user, req));
   }
 }

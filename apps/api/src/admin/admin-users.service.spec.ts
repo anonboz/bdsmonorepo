@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminUsersService } from './admin-users.service.js';
-import { AuditLogger } from './audit-logger.service.js';
+import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 
 function makePrismaStub(opts: {

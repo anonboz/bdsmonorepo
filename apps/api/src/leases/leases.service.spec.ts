@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Role } from '@repo/shared';
 
 import { LeasesService } from './leases.service.js';
+import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 
 // In-memory stub for the four tables this service touches.
@@ -19,6 +20,7 @@ function makePrismaStub(opts: {
   const houses: Record<string, unknown>[] = [
     { id: opts.houseId, ownerId: opts.ownerId, deletedAt: null },
   ];
+  const auditRows: Record<string, unknown>[] = [];
   const tenant = {
     id: opts.tenantId,
     roles: ['TENANT'],
@@ -92,10 +94,18 @@ function makePrismaStub(opts: {
           ),
       ),
     },
+    auditLog: {
+      create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
+        auditRows.push({ id: `log_${auditRows.length + 1}`, ...data });
+        return Promise.resolve(auditRows.at(-1));
+      }),
+    },
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
   };
-  return { stub, leases, units };
+  return { stub, leases, units, auditRows };
 }
+
+const ctx = { actorId: 'owner_1', ip: '127.0.0.1', userAgent: 'curl/test' };
 
 describe('LeasesService', () => {
   const ownerId = 'owner_1';
@@ -111,7 +121,10 @@ describe('LeasesService', () => {
 
   beforeEach(() => {
     prismaStub = makePrismaStub({ ownerId, tenantId, houseId, unitId });
-    service = new LeasesService(prismaStub.stub as never);
+    service = new LeasesService(
+      prismaStub.stub as never,
+      new AuditLogger(prismaStub.stub as never),
+    );
   });
 
   const draftInput = {
@@ -138,33 +151,37 @@ describe('LeasesService', () => {
 
   it('DRAFT → ACTIVE flips unit status to OCCUPIED', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' });
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
     expect(prismaStub.units[0]?.status).toBe('OCCUPIED');
   });
 
   it('ACTIVE → ENDED flips unit status back to VACANT', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' });
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ENDED' });
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'ENDED' }, ctx);
     expect(prismaStub.units[0]?.status).toBe('VACANT');
   });
 
   it('activating a second lease while one is active → 409 dates_overlap', async () => {
     const first = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, first.id, { to: 'ACTIVE' });
+    await service.transition(owner, houseId, unitId, first.id, { to: 'ACTIVE' }, ctx);
     const second = await service.createForUnit(owner, houseId, unitId, draftInput);
     await expect(
-      service.transition(owner, houseId, unitId, second.id, { to: 'ACTIVE' }),
+      service.transition(owner, houseId, unitId, second.id, { to: 'ACTIVE' }, ctx),
     ).rejects.toBeInstanceOf(ProblemError);
   });
 
   it('TERMINATED requires a reason — set inline by the transition handler', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' });
-    const terminated = await service.transition(owner, houseId, unitId, lease.id, {
-      to: 'TERMINATED',
-      terminationReason: 'tenant moved out early',
-    });
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    const terminated = await service.transition(
+      owner,
+      houseId,
+      unitId,
+      lease.id,
+      { to: 'TERMINATED', terminationReason: 'tenant moved out early' },
+      ctx,
+    );
     expect(terminated.status).toBe('TERMINATED');
     expect(terminated.terminationReason).toBe('tenant moved out early');
   });
@@ -173,13 +190,13 @@ describe('LeasesService', () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
     // DRAFT → ENDED is not allowed.
     await expect(
-      service.transition(owner, houseId, unitId, lease.id, { to: 'ENDED' }),
+      service.transition(owner, houseId, unitId, lease.id, { to: 'ENDED' }, ctx),
     ).rejects.toBeInstanceOf(ProblemError);
   });
 
   it('rejects edit on non-DRAFT lease', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' });
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
     await expect(
       service.updateDraft(owner, houseId, unitId, lease.id, { rentAmount: 999 }),
     ).rejects.toBeInstanceOf(ProblemError);
@@ -206,5 +223,46 @@ describe('LeasesService', () => {
     await service.createForUnit(owner, houseId, unitId, draftInput);
     const page = await service.listForUnit(admin, houseId, unitId, { limit: 20, sort: 'desc' });
     expect(page.items).toHaveLength(1);
+  });
+
+  it('successful transitions write a paired audit row', async () => {
+    const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    expect(prismaStub.auditRows).toHaveLength(1);
+    expect(prismaStub.auditRows[0]).toMatchObject({
+      action: 'lease.activate',
+      target: `Lease:${lease.id}`,
+      actorId: ctx.actorId,
+    });
+    const meta = prismaStub.auditRows[0]?.meta as Record<string, unknown>;
+    expect(meta.previousStatus).toBe('DRAFT');
+    expect(meta.unitId).toBe(unitId);
+    expect(meta.houseId).toBe(houseId);
+  });
+
+  it('terminate audit row includes the termination reason', async () => {
+    const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    await service.transition(
+      owner,
+      houseId,
+      unitId,
+      lease.id,
+      { to: 'TERMINATED', terminationReason: 'tenant moved out early' },
+      ctx,
+    );
+    const terminateRow = prismaStub.auditRows.find((r) => r.action === 'lease.terminate');
+    expect(terminateRow).toBeDefined();
+    const meta = terminateRow?.meta as Record<string, unknown>;
+    expect(meta.terminationReason).toBe('tenant moved out early');
+    expect(meta.previousStatus).toBe('ACTIVE');
+  });
+
+  it('rejected transition does NOT write an audit row', async () => {
+    const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
+    await expect(
+      service.transition(owner, houseId, unitId, lease.id, { to: 'ENDED' }, ctx),
+    ).rejects.toBeInstanceOf(ProblemError);
+    expect(prismaStub.auditRows).toHaveLength(0);
   });
 });

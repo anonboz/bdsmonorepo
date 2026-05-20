@@ -3,14 +3,14 @@ import { Prisma } from '@prisma/client';
 
 import { ErrorCodes, type House, type Page } from '@repo/shared';
 
-import type { RequestContext } from './admin-users.service.js';
-import { AuditLogger } from './audit-logger.service.js';
 import type {
   ClearHouseModerationDto,
   FlagHouseDto,
   ListAdminHousesQueryDto,
   RejectHouseDto,
 } from './dto/admin-houses.dto.js';
+import { AuditLogger } from '../common/audit/audit-logger.service.js';
+import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 

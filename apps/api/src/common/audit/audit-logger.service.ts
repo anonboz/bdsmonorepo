@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 
-import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
+import { PRISMA, type PrismaInstance } from '../prisma/prisma.token.js';
 
 export interface AuditEntry {
   actorId: string | null;
