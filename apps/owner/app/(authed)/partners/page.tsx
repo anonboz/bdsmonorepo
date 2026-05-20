@@ -8,7 +8,7 @@ import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Partners' };
 
-type SearchParams = Promise<{ q?: string }>;
+type SearchParams = Promise<{ q?: string; fromTicket?: string }>;
 
 const KYC_PALETTE: Record<KycStatus, string> = {
   NONE: 'bg-zinc-100 text-zinc-700',
@@ -23,15 +23,20 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
   if (sp.q) qs.set('q', sp.q);
 
   const page = await serverApi<Page<PartnerSummary>>(`/v1/partners?${qs}`);
+  const fromTicket = sp.fromTicket;
+  const detailHref = (id: string): string =>
+    fromTicket ? `/partners/${id}?fromTicket=${fromTicket}` : `/partners/${id}`;
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Partners</h1>
         <p className="text-sm text-muted-foreground">
-          {page.items.length === 0
-            ? 'No partners match.'
-            : `${page.items.length} matching · filter via ?q=`}
+          {fromTicket
+            ? 'Booking on behalf of a ticket — pick a partner to send the request to.'
+            : page.items.length === 0
+              ? 'No partners match.'
+              : `${page.items.length} matching · filter via ?q=`}
         </p>
       </header>
 
@@ -42,6 +47,8 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
           placeholder="Search business name or service area"
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
+        {/* Preserve the ticket context across filter form submits. */}
+        {fromTicket && <input type="hidden" name="fromTicket" value={fromTicket} />}
       </form>
 
       {page.items.length === 0 ? (
@@ -58,7 +65,7 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
           {page.items.map((p) => (
             <li key={p.id}>
               <Link
-                href={`/partners/${p.id}`}
+                href={detailHref(p.id)}
                 className="block rounded-lg border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:border-foreground/20"
               >
                 <div className="flex items-start justify-between gap-3">

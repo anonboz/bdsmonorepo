@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { Page, Ticket, TicketMessage, TicketStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { PartnerJobsCard } from './partner-jobs-card';
 import { TicketThread } from './ticket-thread';
 import { TicketTransitions } from './ticket-transitions';
 import { ApiError } from '../../../../lib/api';
@@ -82,6 +83,11 @@ export default async function OwnerTicketDetailPage({
           <TicketTransitions ticketId={ticket.id} currentStatus={ticket.status} />
         </CardContent>
       </Card>
+
+      <PartnerJobsCard
+        ticketId={ticket.id}
+        bookable={ticket.status !== 'RESOLVED' && ticket.status !== 'CLOSED'}
+      />
 
       <Card>
         <CardHeader>

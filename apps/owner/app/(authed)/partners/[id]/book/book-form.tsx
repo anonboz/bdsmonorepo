@@ -16,7 +16,7 @@ import {
 
 import { ApiError, api } from '../../../../../lib/api';
 
-export function BookForm({ partner }: { partner: PartnerSummary }) {
+export function BookForm({ partner, ticketId }: { partner: PartnerSummary; ticketId?: string }) {
   const router = useRouter();
   const [description, setDescription] = useState('');
   const [serviceId, setServiceId] = useState<string>('');
@@ -32,6 +32,7 @@ export function BookForm({ partner }: { partner: PartnerSummary }) {
       const body: Record<string, unknown> = { partnerId: partner.id };
       if (trimmed) body.description = trimmed;
       if (serviceId) body.serviceId = serviceId;
+      if (ticketId) body.ticketId = ticketId;
       const created = await api.post<ServiceJob>('/v1/me/service-jobs', body);
       router.push(`/me/service-jobs/${created.id}`);
       router.refresh();

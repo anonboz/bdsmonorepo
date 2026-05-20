@@ -36,6 +36,12 @@ export const createServiceJobSchema = z.object({
   partnerId: idSchema,
   serviceId: idSchema.optional(),
   unitId: idSchema.optional(),
+  /**
+   * Set to route the job through a ticket (Phase 5.3). The service
+   * derives `unitId` from the ticket's lease, so any client-supplied
+   * `unitId` is ignored when this is present.
+   */
+  ticketId: idSchema.optional(),
   description: z.string().trim().min(1).max(2000).optional(),
   scheduledFor: isoDateTimeSchema.optional(),
 });
@@ -65,6 +71,8 @@ export type CancelServiceJobInput = z.infer<typeof cancelServiceJobSchema>;
 
 export const listServiceJobsQuerySchema = paginationQuerySchema.extend({
   status: jobStatusSchema.optional(),
+  /** Filter to jobs linked to a specific ticket. */
+  ticketId: idSchema.optional(),
 });
 
 export type ListServiceJobsQuery = z.infer<typeof listServiceJobsQuerySchema>;

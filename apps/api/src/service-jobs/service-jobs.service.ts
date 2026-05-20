@@ -91,13 +91,42 @@ export class ServiceJobsService {
       });
     }
 
+    // Ticket-routed booking (5.3): validate the ticket belongs to this
+    // owner and is in a bookable state; derive the unit from its lease
+    // (server is source-of-truth, client-supplied unitId is ignored).
+    let resolvedUnitId: string | null = input.unitId ?? null;
+    if (input.ticketId !== undefined) {
+      const ticket = await this.prisma.ticket.findUnique({
+        where: { id: input.ticketId },
+        select: {
+          id: true,
+          status: true,
+          deletedAt: true,
+          lease: { select: { ownerId: true, unitId: true } },
+        },
+      });
+      if (!ticket || ticket.deletedAt || ticket.lease.ownerId !== ownerId) {
+        throw this.notFound();
+      }
+      if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') {
+        throw new ProblemError({
+          status: 422,
+          type: ErrorCodes.JOB_TICKET_NOT_BOOKABLE,
+          title: 'Ticket is not bookable',
+          detail: 'Re-open the ticket before requesting a partner.',
+        });
+      }
+      resolvedUnitId = ticket.lease.unitId;
+    }
+
     const created = await this.prisma.$transaction(async (tx) => {
       const row = await tx.serviceJob.create({
         data: {
           ownerId,
           partnerId: input.partnerId,
           serviceId: input.serviceId ?? null,
-          unitId: input.unitId ?? null,
+          unitId: resolvedUnitId,
+          ticketId: input.ticketId ?? null,
           description: input.description ?? null,
           scheduledFor: input.scheduledFor ? new Date(input.scheduledFor) : null,
           status: 'REQUESTED',
@@ -111,7 +140,8 @@ export class ServiceJobsService {
         meta: {
           partnerId: input.partnerId,
           serviceId: input.serviceId ?? null,
-          unitId: input.unitId ?? null,
+          unitId: resolvedUnitId,
+          ticketId: input.ticketId ?? null,
         },
         ip: ctx.ip,
         userAgent: ctx.userAgent,
@@ -126,6 +156,7 @@ export class ServiceJobsService {
       {
         ownerId,
         ...(query.status !== undefined && { status: query.status }),
+        ...(query.ticketId !== undefined && { ticketId: query.ticketId }),
       },
       query,
     );

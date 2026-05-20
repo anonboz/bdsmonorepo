@@ -15,6 +15,9 @@ interface StubOpts {
 function makePrismaStub(opts: StubOpts) {
   const jobs: Record<string, unknown>[] = [];
   const auditRows: Record<string, unknown>[] = [];
+  // Ticket fixture — tests that exercise the 5.3 path push their own rows
+  // into this array and the create-call wires them in.
+  const tickets: Record<string, unknown>[] = [];
   const partnerProfiles: Record<string, unknown>[] = [
     {
       id: opts.partnerId,
@@ -66,7 +69,7 @@ function makePrismaStub(opts: StubOpts) {
           ...data,
           serviceId: data.serviceId ?? null,
           unitId: data.unitId ?? null,
-          ticketId: null,
+          ticketId: data.ticketId ?? null,
           description: data.description ?? null,
           quotedAmount: null,
           finalAmount: null,
@@ -91,6 +94,7 @@ function makePrismaStub(opts: StubOpts) {
           if (where.ownerId !== undefined && j.ownerId !== where.ownerId) return false;
           if (where.partnerId !== undefined && j.partnerId !== where.partnerId) return false;
           if (where.status !== undefined && j.status !== where.status) return false;
+          if (where.ticketId !== undefined && j.ticketId !== where.ticketId) return false;
           return true;
         });
         return Promise.resolve(filtered.map(withRelations));
@@ -102,6 +106,12 @@ function makePrismaStub(opts: StubOpts) {
         return Promise.resolve(withRelations(row));
       }),
     },
+    ticket: {
+      findUnique: vi.fn(({ where }: { where: { id: string } }) => {
+        const row = tickets.find((t) => t.id === where.id);
+        return Promise.resolve(row ?? null);
+      }),
+    },
     auditLog: {
       create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
         auditRows.push({ id: `log_${auditRows.length + 1}`, ...data });
@@ -110,7 +120,7 @@ function makePrismaStub(opts: StubOpts) {
     },
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
   });
-  return { stub, jobs, auditRows, partnerProfiles, users };
+  return { stub, jobs, auditRows, partnerProfiles, users, tickets };
 }
 
 const ownerCtx = { actorId: 'owner_1', ip: '127.0.0.1', userAgent: 'curl/test' };
@@ -268,5 +278,73 @@ describe('ServiceJobsService', () => {
     await expect(
       service.quoteForPartner('unknown_user', j.id, { amount: 1, currency: 'VND' }, partnerCtx),
     ).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  // ---- Ticket-routed booking (5.3) -----------------------------------
+
+  function seedOwnerTicket(opts: { id: string; status?: string; ownerId?: string }): void {
+    store.tickets.push({
+      id: opts.id,
+      status: opts.status ?? 'OPEN',
+      deletedAt: null,
+      lease: { ownerId: opts.ownerId ?? ownerId, unitId: 'unit_from_ticket' },
+    });
+  }
+
+  it('ticket-routed booking sets ticketId + derives unitId from the ticket lease', async () => {
+    seedOwnerTicket({ id: 'ticket_a', status: 'OPEN' });
+    const j = await service.createForOwner(ownerId, { partnerId, ticketId: 'ticket_a' }, ownerCtx);
+    expect(j.ticketId).toBe('ticket_a');
+    expect(j.unitId).toBe('unit_from_ticket');
+    const submit = store.auditRows.find((r) => r.action === 'job.request');
+    expect((submit?.meta as Record<string, unknown>).ticketId).toBe('ticket_a');
+    expect((submit?.meta as Record<string, unknown>).unitId).toBe('unit_from_ticket');
+  });
+
+  it('cross-owner ticket id → 404', async () => {
+    seedOwnerTicket({ id: 'ticket_b', status: 'OPEN', ownerId: 'someone_else' });
+    await expect(
+      service.createForOwner(ownerId, { partnerId, ticketId: 'ticket_b' }, ownerCtx),
+    ).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  it('booking on a RESOLVED ticket → 422 ticket_not_bookable', async () => {
+    seedOwnerTicket({ id: 'ticket_resolved', status: 'RESOLVED' });
+    await expect(
+      service.createForOwner(ownerId, { partnerId, ticketId: 'ticket_resolved' }, ownerCtx),
+    ).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  it('booking on a CLOSED ticket → 422', async () => {
+    seedOwnerTicket({ id: 'ticket_closed', status: 'CLOSED' });
+    await expect(
+      service.createForOwner(ownerId, { partnerId, ticketId: 'ticket_closed' }, ownerCtx),
+    ).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  it('client-supplied unitId is ignored when ticketId is set', async () => {
+    seedOwnerTicket({ id: 'ticket_override', status: 'OPEN' });
+    const j = await service.createForOwner(
+      ownerId,
+      { partnerId, ticketId: 'ticket_override', unitId: 'unit_client' },
+      ownerCtx,
+    );
+    expect(j.unitId).toBe('unit_from_ticket');
+  });
+
+  it('listForOwner filters by ticketId', async () => {
+    seedOwnerTicket({ id: 'ticket_filter', status: 'OPEN' });
+    const linked = await service.createForOwner(
+      ownerId,
+      { partnerId, ticketId: 'ticket_filter' },
+      ownerCtx,
+    );
+    await service.createForOwner(ownerId, { partnerId }, ownerCtx); // unrelated
+    const page = await service.listForOwner(ownerId, {
+      limit: 20,
+      sort: 'desc',
+      ticketId: 'ticket_filter',
+    });
+    expect(page.items.map((j) => j.id)).toEqual([linked.id]);
   });
 });

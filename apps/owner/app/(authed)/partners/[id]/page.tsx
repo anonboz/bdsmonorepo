@@ -15,16 +15,26 @@ const KYC_PALETTE: Record<KycStatus, string> = {
   REJECTED: 'bg-rose-100 text-rose-900',
 };
 
-export default async function PartnerDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function PartnerDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ fromTicket?: string }>;
+}) {
+  const [{ id }, { fromTicket }] = await Promise.all([params, searchParams]);
   const partner = await fetchPartner(id);
   if (!partner) notFound();
+  const bookHref = fromTicket
+    ? `/partners/${partner.id}/book?fromTicket=${fromTicket}`
+    : `/partners/${partner.id}/book`;
+  const backHref = fromTicket ? `/partners?fromTicket=${fromTicket}` : '/partners';
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/partners">← Back to partners</Link>
+          <Link href={backHref}>← Back to partners</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -88,12 +98,14 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
         <CardHeader>
           <CardTitle className="text-lg">Book</CardTitle>
           <CardDescription>
-            Send a request — the partner will come back with a quote.
+            {fromTicket
+              ? 'Booking on behalf of a ticket — the new job will be linked automatically.'
+              : 'Send a request — the partner will come back with a quote.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href={`/partners/${partner.id}/book`}>Book this partner</Link>
+            <Link href={bookHref}>Book this partner</Link>
           </Button>
         </CardContent>
       </Card>
