@@ -11,6 +11,7 @@ interface StubOpts {
   houseId: string;
   unitId: string;
   unitStatus?: 'VACANT' | 'OCCUPIED' | 'MAINTENANCE';
+  houseModerationStatus?: 'OK' | 'FLAGGED' | 'REJECTED';
 }
 
 function makePrismaStub(opts: StubOpts) {
@@ -21,10 +22,22 @@ function makePrismaStub(opts: StubOpts) {
       houseId: opts.houseId,
       status: opts.unitStatus ?? 'VACANT',
       deletedAt: null,
+      label: 'A1',
+      bedrooms: 1,
+      bathrooms: 1,
+      sqm: 20,
     },
   ];
   const houses: Record<string, unknown>[] = [
-    { id: opts.houseId, ownerId: opts.ownerId, deletedAt: null },
+    {
+      id: opts.houseId,
+      ownerId: opts.ownerId,
+      deletedAt: null,
+      name: 'Test House',
+      city: 'Hanoi',
+      country: 'VN',
+      moderationStatus: opts.houseModerationStatus ?? 'OK',
+    },
   ];
   const auditRows: Record<string, unknown>[] = [];
 
@@ -37,7 +50,25 @@ function makePrismaStub(opts: StubOpts) {
 
   function withUnit(row: Record<string, unknown>) {
     const u = units.find((x) => x.id === row.unitId);
-    return { ...row, unit: { houseId: u?.houseId } };
+    const h = houses.find((x) => x.id === u?.houseId);
+    return {
+      ...row,
+      unit: {
+        houseId: u?.houseId,
+        label: u?.label,
+        bedrooms: u?.bedrooms,
+        bathrooms: u?.bathrooms,
+        sqm: u?.sqm,
+        ...(h && {
+          house: {
+            name: h.name,
+            city: h.city,
+            country: h.country,
+            moderationStatus: h.moderationStatus,
+          },
+        }),
+      },
+    };
   }
 
   const stub: Record<string, unknown> = {};
@@ -70,11 +101,39 @@ function makePrismaStub(opts: StubOpts) {
         return Promise.resolve(row ? withUnit(row) : null);
       }),
       findMany: vi.fn(({ where }: { where: Record<string, unknown> }) => {
+        const orClauses = where.OR as Record<string, unknown>[] | undefined;
+        const unitWhere = where.unit as { house?: { moderationStatus?: unknown } } | undefined;
+        const expiresAt = where.expiresAt as { lt?: Date; gt?: Date; not?: unknown } | undefined;
         const filtered = campaigns.filter((c) => {
           if (c.deletedAt) return false;
           if (where.unitId !== undefined && c.unitId !== where.unitId) return false;
           if (where.ownerId !== undefined && c.ownerId !== where.ownerId) return false;
           if (where.status !== undefined && c.status !== where.status) return false;
+          // Public visibility OR clause: expiresAt null OR expiresAt > now.
+          if (orClauses && orClauses.length > 0) {
+            const ok = orClauses.some((clause) => {
+              const ea = clause.expiresAt as { gt?: Date } | null | undefined;
+              if (ea === null) return c.expiresAt == null;
+              const gt = ea?.gt;
+              if (gt) {
+                return c.expiresAt != null && (c.expiresAt as Date).getTime() > gt.getTime();
+              }
+              return false;
+            });
+            if (!ok) return false;
+          }
+          // expireOverdue: expiresAt < now.
+          if (expiresAt?.lt) {
+            if (c.expiresAt == null) return false;
+            if ((c.expiresAt as Date).getTime() >= expiresAt.lt.getTime()) return false;
+          }
+          // Public REJECTED-house hide. Resolve house via unit.
+          if (unitWhere?.house?.moderationStatus) {
+            const u = units.find((x) => x.id === c.unitId);
+            const h = houses.find((x) => x.id === u?.houseId);
+            const ms = (unitWhere.house.moderationStatus as { not?: string }).not;
+            if (ms && h?.moderationStatus === ms) return false;
+          }
           return true;
         });
         return Promise.resolve(filtered.map(withUnit));
@@ -115,7 +174,7 @@ function makePrismaStub(opts: StubOpts) {
     },
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
   });
-  return { stub, campaigns, units, auditRows };
+  return { stub, campaigns, units, houses, auditRows };
 }
 
 const ctx = { actorId: 'owner_1', ip: '127.0.0.1', userAgent: 'curl/test' };
@@ -349,5 +408,75 @@ describe('CampaignsService', () => {
 
     const all = await service.listAsAdmin({ limit: 20, sort: 'desc' });
     expect(all.items.map((x) => x.id).sort()).toEqual([a.id, b.id].sort());
+  });
+
+  // ---- Public read (4.3) ----------------------------------------------
+
+  // Plant a LIVE campaign directly via the stub so multiple co-exist on
+  // one unit. The submit guard rejects two LIVE on a single unit at
+  // service level (correctly), but for read-side fixtures the direct
+  // poke is the simplest path.
+  async function plantLive(opts: { expiresAt?: Date | null } = {}) {
+    const c = await service.createForUnit(owner, houseId, unitId, draft);
+    const row = store.campaigns.find((x) => x.id === c.id)!;
+    row.status = 'LIVE';
+    row.publishedAt = new Date();
+    if (opts.expiresAt !== undefined) row.expiresAt = opts.expiresAt;
+    return c.id;
+  }
+
+  it('listPublic returns only LIVE non-expired non-REJECTED-house campaigns', async () => {
+    const live = await plantLive();
+    // Add a DRAFT (not visible)
+    await service.createForUnit(owner, houseId, unitId, draft);
+    const page = await service.listPublic({ limit: 50, sort: 'desc' });
+    expect(page.items.map((x) => x.id)).toEqual([live]);
+  });
+
+  it('listPublic hides expired campaigns', async () => {
+    const yesterday = new Date(Date.now() - 24 * 3600_000);
+    await plantLive({ expiresAt: yesterday });
+    const page = await service.listPublic({ limit: 50, sort: 'desc' });
+    expect(page.items).toHaveLength(0);
+  });
+
+  it('listPublic hides campaigns whose house is REJECTED', async () => {
+    await plantLive();
+    store.houses[0]!.moderationStatus = 'REJECTED';
+    const page = await service.listPublic({ limit: 50, sort: 'desc' });
+    expect(page.items).toHaveLength(0);
+  });
+
+  it('getPublic returns 404 on non-LIVE / expired / REJECTED-house', async () => {
+    const live = await plantLive();
+    const got = await service.getPublic(live);
+    expect(got.id).toBe(live);
+    expect(got.house.city).toBe('Hanoi');
+
+    // Expired
+    store.campaigns.find((x) => x.id === live)!.expiresAt = new Date(Date.now() - 1000);
+    await expect(service.getPublic(live)).rejects.toBeInstanceOf(ProblemError);
+
+    // Restore + flip house to REJECTED
+    store.campaigns.find((x) => x.id === live)!.expiresAt = null;
+    store.houses[0]!.moderationStatus = 'REJECTED';
+    await expect(service.getPublic(live)).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  it('expireOverdue flips eligible LIVE rows to EXPIRED and audits each', async () => {
+    const expired = await plantLive({ expiresAt: new Date(Date.now() - 24 * 3600_000) });
+    const fresh = await plantLive({ expiresAt: new Date(Date.now() + 24 * 3600_000) });
+
+    const before = store.auditRows.length;
+    const count = await service.expireOverdue();
+    expect(count).toBe(1);
+    expect(store.campaigns.find((x) => x.id === expired)?.status).toBe('EXPIRED');
+    expect(store.campaigns.find((x) => x.id === fresh)?.status).toBe('LIVE');
+
+    const expireRow = store.auditRows.slice(before).find((r) => r.action === 'campaign.expire');
+    expect(expireRow).toBeDefined();
+    expect(expireRow?.actorId).toBeNull();
+    expect((expireRow?.meta as Record<string, unknown>).source).toBe('sweeper');
+    expect((expireRow?.meta as Record<string, unknown>).previousStatus).toBe('LIVE');
   });
 });

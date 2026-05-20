@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { LoginForm } from './login-form';
@@ -15,6 +16,13 @@ export default async function LoginPage() {
         <p className="text-sm text-muted-foreground">Sign in to continue.</p>
       </header>
       <LoginForm />
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Just looking?{' '}
+        <Link href="/browse" className="font-medium underline">
+          Browse listings
+        </Link>{' '}
+        without an account.
+      </p>
     </main>
   );
 }

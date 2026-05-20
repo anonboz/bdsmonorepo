@@ -60,3 +60,48 @@ export const listCampaignsQuerySchema = paginationQuerySchema.extend({
 });
 
 export type ListCampaignsQuery = z.infer<typeof listCampaignsQuerySchema>;
+
+// ---- Public projection (Phase 4.3) -----------------------------------
+
+/**
+ * What the public feed returns. Strips moderation fields, internal
+ * timestamps, and `status` (it's always `LIVE` for a visible row), and
+ * inlines the small bits of house + unit a listing card needs so the
+ * UI doesn't have to chase extra requests.
+ */
+export const publicCampaignSchema = z.object({
+  id: idSchema,
+  ownerId: idSchema,
+  unitId: idSchema,
+  houseId: idSchema,
+  title: z.string().min(1).max(200),
+  body: z.string().min(1).max(4000),
+  price: z.number().int().nonnegative(),
+  currency: currencySchema,
+  photos: z.array(z.string().url()).max(20),
+  publishedAt: isoDateTimeSchema,
+  expiresAt: isoDateTimeSchema.nullable(),
+  house: z.object({
+    name: z.string(),
+    city: z.string(),
+    country: z.string().length(2),
+  }),
+  unit: z.object({
+    label: z.string(),
+    bedrooms: z.number().int().nullable(),
+    bathrooms: z.number().int().nullable(),
+    sqm: z.number().int().nullable(),
+  }),
+});
+
+export type PublicCampaign = z.infer<typeof publicCampaignSchema>;
+
+export const listPublicCampaignsQuerySchema = paginationQuerySchema.extend({
+  q: z.string().trim().max(100).optional(),
+  city: z.string().trim().max(100).optional(),
+  country: z.string().length(2).toUpperCase().optional(),
+  minPrice: z.coerce.number().int().nonnegative().optional(),
+  maxPrice: z.coerce.number().int().nonnegative().optional(),
+});
+
+export type ListPublicCampaignsQuery = z.infer<typeof listPublicCampaignsQuerySchema>;

@@ -1,7 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { type Campaign, type CampaignStatus, ErrorCodes, type Page, type Role } from '@repo/shared';
+import {
+  type Campaign,
+  type CampaignStatus,
+  ErrorCodes,
+  type Page,
+  type PublicCampaign,
+  type Role,
+} from '@repo/shared';
 
 import type {
   CreateCampaignDto,
@@ -19,6 +26,29 @@ const CAMPAIGN_WITH_UNIT = {
 } satisfies Prisma.CampaignDefaultArgs;
 
 type CampaignRow = Prisma.CampaignGetPayload<typeof CAMPAIGN_WITH_UNIT>;
+
+/**
+ * Shape needed by the public projection. Joins house + unit so listing
+ * cards render without follow-up queries.
+ */
+const CAMPAIGN_FOR_PUBLIC = {
+  include: {
+    unit: {
+      select: {
+        label: true,
+        bedrooms: true,
+        bathrooms: true,
+        sqm: true,
+        houseId: true,
+        house: {
+          select: { name: true, city: true, country: true, moderationStatus: true },
+        },
+      },
+    },
+  },
+} satisfies Prisma.CampaignDefaultArgs;
+
+type PublicCampaignRow = Prisma.CampaignGetPayload<typeof CAMPAIGN_FOR_PUBLIC>;
 
 /**
  * Owner-side transitions only. Admin transitions (PENDING → LIVE /
@@ -330,6 +360,104 @@ export class CampaignsService {
     return this.toResponse(row);
   }
 
+  // ---- Public (no auth) ---------------------------------------------
+
+  async listPublic(query: {
+    limit: number;
+    sort: 'asc' | 'desc';
+    cursor?: string;
+    q?: string;
+    city?: string;
+    country?: string;
+    minPrice?: number;
+    maxPrice?: number;
+  }): Promise<Page<PublicCampaign>> {
+    // Clamp the public page size — the authenticated lists allow 100 but
+    // anonymous traffic gets a lower ceiling to make abuse less attractive.
+    const limit = Math.min(query.limit, 50);
+    const where: Prisma.CampaignWhereInput = {
+      ...publicVisibleWhere(new Date()),
+      ...(query.q && { title: { contains: query.q, mode: 'insensitive' as const } }),
+      ...(query.city && {
+        unit: { house: { city: { equals: query.city, mode: 'insensitive' as const } } },
+      }),
+      ...(query.country && { unit: { house: { country: query.country } } }),
+      ...(query.minPrice !== undefined && { price: { gte: query.minPrice } }),
+      ...(query.maxPrice !== undefined && {
+        price: {
+          ...(query.minPrice !== undefined && { gte: query.minPrice }),
+          lte: query.maxPrice,
+        },
+      }),
+    };
+
+    const findArgs: Prisma.CampaignFindManyArgs = {
+      where,
+      orderBy: [{ publishedAt: query.sort }, { id: query.sort }],
+      take: limit + 1,
+      ...CAMPAIGN_FOR_PUBLIC,
+    };
+    if (query.cursor) {
+      findArgs.cursor = { id: query.cursor };
+      findArgs.skip = 1;
+    }
+    const rows = (await this.prisma.campaign.findMany(findArgs)) as PublicCampaignRow[];
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    return {
+      items: items.map((r) => this.toPublic(r)),
+      nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null,
+    };
+  }
+
+  async getPublic(id: string): Promise<PublicCampaign> {
+    const row = await this.prisma.campaign.findUnique({
+      where: { id },
+      ...CAMPAIGN_FOR_PUBLIC,
+    });
+    if (!row || !this.isPubliclyVisible(row, new Date())) throw this.notFound();
+    return this.toPublic(row);
+  }
+
+  // ---- Sweeper (worker-facing) --------------------------------------
+
+  /**
+   * Flip every `LIVE` campaign whose `expiresAt` has passed to `EXPIRED`.
+   * Each row's status flip and audit write commit (or roll back)
+   * together. Returns how many rows were expired.
+   *
+   * Called from the BullMQ sweeper; safe to invoke from a unit spec.
+   */
+  async expireOverdue(now: Date = new Date()): Promise<number> {
+    const due = await this.prisma.campaign.findMany({
+      where: { status: 'LIVE', deletedAt: null, expiresAt: { lt: now, not: null } },
+      select: { id: true, expiresAt: true, unitId: true, unit: { select: { houseId: true } } },
+    });
+    let expired = 0;
+    for (const row of due) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.campaign.update({
+          where: { id: row.id },
+          data: { status: 'EXPIRED' },
+        });
+        await this.audit.write(tx, {
+          actorId: null,
+          action: 'campaign.expire',
+          target: `Campaign:${row.id}`,
+          meta: {
+            previousStatus: 'LIVE',
+            expiresAt: row.expiresAt?.toISOString() ?? null,
+            unitId: row.unitId,
+            houseId: row.unit.houseId,
+            source: 'sweeper',
+          },
+        });
+      });
+      expired += 1;
+    }
+    return expired;
+  }
+
   // ---- helpers ------------------------------------------------------
 
   private async paginate(
@@ -453,6 +581,42 @@ export class CampaignsService {
     });
   }
 
+  private isPubliclyVisible(row: PublicCampaignRow, now: Date): boolean {
+    if (row.deletedAt) return false;
+    if (row.status !== 'LIVE') return false;
+    if (row.expiresAt && row.expiresAt.getTime() <= now.getTime()) return false;
+    if (row.unit.house.moderationStatus === 'REJECTED') return false;
+    return true;
+  }
+
+  private toPublic(row: PublicCampaignRow): PublicCampaign {
+    return {
+      id: row.id,
+      ownerId: row.ownerId,
+      unitId: row.unitId,
+      houseId: row.unit.houseId,
+      title: row.title,
+      body: row.body,
+      price: row.price,
+      currency: row.currency,
+      photos: row.photos,
+      // publishedAt is non-null in this projection — only LIVE rows reach it.
+      publishedAt: row.publishedAt!.toISOString(),
+      expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+      house: {
+        name: row.unit.house.name,
+        city: row.unit.house.city,
+        country: row.unit.house.country,
+      },
+      unit: {
+        label: row.unit.label,
+        bedrooms: row.unit.bedrooms,
+        bathrooms: row.unit.bathrooms,
+        sqm: row.unit.sqm,
+      },
+    };
+  }
+
   private async loadForAdminOrFail(id: string): Promise<CampaignRow> {
     const row = await this.prisma.campaign.findUnique({ where: { id }, ...CAMPAIGN_WITH_UNIT });
     if (!row || row.deletedAt) {
@@ -508,3 +672,18 @@ export class CampaignsService {
 }
 
 export const CAMPAIGN_OWNER_TRANSITIONS = OWNER_TRANSITIONS;
+
+/**
+ * The visibility filter used by every public read. Exported so the
+ * sweeper + a future feed-only controller can share one definition.
+ */
+export function publicVisibleWhere(now: Date): Prisma.CampaignWhereInput {
+  return {
+    status: 'LIVE',
+    deletedAt: null,
+    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    // REJECTED-house takedown: skip the unit's parent if admin has
+    // hard-rejected the house. FLAGGED still shows.
+    unit: { house: { moderationStatus: { not: 'REJECTED' } } },
+  };
+}
