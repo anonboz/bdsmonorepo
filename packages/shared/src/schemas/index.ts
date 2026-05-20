@@ -6,6 +6,7 @@ export * from './leases';
 export * from './bills';
 export * from './tickets';
 export * from './ticket-messages';
+export * from './ratings';
 export * from './users';
 export * from './owner-dashboard';
 export * from './admin';

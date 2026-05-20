@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import type { Lease, LeaseStatus } from '@repo/shared';
+import type { Lease, LeaseRatingState, LeaseStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { BillsCard } from './_components/bills-card';
+import { RatingsCard } from './_components/ratings-card';
 import { ApiError } from '../../../../../../../../lib/api';
 import { formatDate, formatMoney } from '../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../lib/session';
@@ -18,6 +19,7 @@ export default async function LeaseDetailPage({
   const { id: houseId, unitId, leaseId } = await params;
   const lease = await fetchLease(houseId, unitId, leaseId);
   if (!lease) notFound();
+  const ratingState = await fetchRatingState(houseId, unitId, leaseId);
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -87,8 +89,40 @@ export default async function LeaseDetailPage({
       </Card>
 
       <BillsCard houseId={houseId} unitId={unitId} leaseId={leaseId} leaseStatus={lease.status} />
+
+      {ratingState && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Rate your tenant</CardTitle>
+            <CardDescription>
+              Quick 1–5 star rating at each lease milestone. Comments are optional.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RatingsCard
+              state={ratingState}
+              submitPath={`/v1/houses/${houseId}/units/${unitId}/leases/${lease.id}/ratings`}
+            />
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
+}
+
+async function fetchRatingState(
+  houseId: string,
+  unitId: string,
+  leaseId: string,
+): Promise<LeaseRatingState | null> {
+  try {
+    return await serverApi<LeaseRatingState>(
+      `/v1/houses/${houseId}/units/${unitId}/leases/${leaseId}/rating-state`,
+    );
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

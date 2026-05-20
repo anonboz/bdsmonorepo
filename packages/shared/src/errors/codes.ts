@@ -53,6 +53,12 @@ export const ErrorCodes = {
   TICKET_LEASE_INVALID: 'tickets.lease_invalid',
   TICKET_THREAD_LOCKED: 'tickets.thread_locked',
 
+  // ---- ratings ------------------------------------------------------
+  RATING_NOT_FOUND: 'ratings.not_found',
+  RATING_ALREADY_GIVEN: 'ratings.already_given',
+  RATING_MILESTONE_LOCKED: 'ratings.milestone_locked',
+  RATING_LEASE_INVALID: 'ratings.lease_invalid',
+
   // ---- admin --------------------------------------------------------
   ADMIN_USER_NOT_FOUND: 'admin.user_not_found',
   ADMIN_USER_ALREADY_IN_STATE: 'admin.user_already_in_state',

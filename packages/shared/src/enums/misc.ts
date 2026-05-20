@@ -84,6 +84,21 @@ export const NotificationChannel = {
 export type NotificationChannel = (typeof NotificationChannel)[keyof typeof NotificationChannel];
 export const notificationChannelSchema = z.nativeEnum(NotificationChannel);
 
+export const RatingMilestone = {
+  MOVE_IN: 'MOVE_IN',
+  MID_LEASE: 'MID_LEASE',
+  MOVE_OUT: 'MOVE_OUT',
+} as const;
+export type RatingMilestone = (typeof RatingMilestone)[keyof typeof RatingMilestone];
+export const ratingMilestoneSchema = z.nativeEnum(RatingMilestone);
+
+export const RatingDirection = {
+  TENANT_TO_OWNER: 'TENANT_TO_OWNER',
+  OWNER_TO_TENANT: 'OWNER_TO_TENANT',
+} as const;
+export type RatingDirection = (typeof RatingDirection)[keyof typeof RatingDirection];
+export const ratingDirectionSchema = z.nativeEnum(RatingDirection);
+
 export const BillLineKind = {
   RENT: 'RENT',
   DEPOSIT: 'DEPOSIT',

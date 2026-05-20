@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import type { Lease, LeaseStatus } from '@repo/shared';
+import type { Lease, LeaseRatingState, LeaseStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { RatingsCard } from './ratings-card';
 import { ApiError } from '../../../../lib/api';
 import { formatDate, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
@@ -16,6 +17,7 @@ export default async function MyLeaseDetailPage({
   const { leaseId } = await params;
   const lease = await fetchLease(leaseId);
   if (!lease) notFound();
+  const ratingState = await fetchRatingState(leaseId);
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -57,16 +59,34 @@ export default async function MyLeaseDetailPage({
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Bills</CardTitle>
-          <CardDescription>
-            Bills land in Phase 2.3. You will see issued and paid bills here.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      {ratingState && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Rate your owner</CardTitle>
+            <CardDescription>
+              Quick 1–5 star rating at each lease milestone. Comments are optional.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RatingsCard
+              state={ratingState}
+              submitPath={`/v1/me/leases/${lease.id}/ratings`}
+              counterpartyLabel="owner"
+            />
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
+}
+
+async function fetchRatingState(id: string): Promise<LeaseRatingState | null> {
+  try {
+    return await serverApi<LeaseRatingState>(`/v1/me/leases/${id}/rating-state`);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

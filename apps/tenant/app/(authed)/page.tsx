@@ -57,8 +57,20 @@ export default async function HomePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>My ratings</CardTitle>
+          <CardDescription>See what landlords have said about you.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link href="/me/ratings">Open</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>Online payments and ratings land in upcoming phases.</CardDescription>
+          <CardDescription>Online payments land in upcoming phases.</CardDescription>
         </CardHeader>
       </Card>
     </main>

@@ -138,6 +138,17 @@ enum NotificationChannel {
   SMS
 }
 
+enum RatingMilestone {
+  MOVE_IN
+  MID_LEASE
+  MOVE_OUT
+}
+
+enum RatingDirection {
+  TENANT_TO_OWNER
+  OWNER_TO_TENANT
+}
+
 // ---------- Core identity ----------------------------------------------
 
 model User {
@@ -169,6 +180,8 @@ model User {
   ticketsRaised  Ticket[]        @relation("TicketReporter")
   ticketsAssigned Ticket[]       @relation("TicketAssignee")
   ticketMessages TicketMessage[] @relation("TicketMessageAuthor")
+  ratingsGiven    LeaseRating[]  @relation("RatingRater")
+  ratingsReceived LeaseRating[]  @relation("RatingRated")
   partnerProfile PartnerProfile?
   notifications  Notification[]
   auditLog       AuditLog[]
@@ -306,6 +319,7 @@ model Lease {
 
   bills   Bill[]
   tickets Ticket[]
+  ratings LeaseRating[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -414,6 +428,30 @@ model Ticket {
   @@index([reporterId, status])
   @@index([assigneeId, status])
   @@index([status, createdAt])
+}
+
+model LeaseRating {
+  id        String          @id @default(cuid())
+  leaseId   String
+  lease     Lease           @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  raterId   String
+  rater     User            @relation("RatingRater", fields: [raterId], references: [id], onDelete: Restrict)
+  ratedId   String
+  rated     User            @relation("RatingRated", fields: [ratedId], references: [id], onDelete: Restrict)
+  direction RatingDirection
+  milestone RatingMilestone
+
+  /// 1..5. Range enforced by Zod at the API boundary.
+  score   Int
+  comment String? @db.VarChar(2000)
+
+  createdAt DateTime @default(now())
+
+  /// One rating per (lease, direction, milestone). Stops double-submit and
+  /// makes "have I rated this?" a single index hit.
+  @@unique([leaseId, direction, milestone])
+  @@index([ratedId, createdAt])
+  @@index([leaseId])
 }
 
 model TicketMessage {
