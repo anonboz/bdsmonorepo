@@ -17,7 +17,7 @@ export default async function HomePage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Users</CardTitle>
@@ -26,6 +26,18 @@ export default async function HomePage() {
           <CardContent>
             <Button asChild>
               <Link href="/users">Open users</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Houses</CardTitle>
+            <CardDescription>Flag, clear, reject listings.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/houses?moderationStatus=FLAGGED">Open queue</Link>
             </Button>
           </CardContent>
         </Card>
@@ -46,9 +58,7 @@ export default async function HomePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>
-            House moderation, fee config, and platform dashboards land in follow-ups.
-          </CardDescription>
+          <CardDescription>Fee config and platform dashboards land in follow-ups.</CardDescription>
         </CardHeader>
       </Card>
     </main>

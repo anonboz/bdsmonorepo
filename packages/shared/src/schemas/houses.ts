@@ -7,6 +7,7 @@ import {
   isoDateTimeSchema,
   paginationQuerySchema,
 } from './common';
+import { houseModerationStatusSchema } from '../enums/misc';
 
 export const houseSchema = z.object({
   id: idSchema,
@@ -17,6 +18,10 @@ export const houseSchema = z.object({
   geo: geoSchema.nullable(),
   unitCount: z.number().int().nonnegative(),
   isPublished: z.boolean(),
+  moderationStatus: houseModerationStatusSchema,
+  moderationReason: z.string().max(500).nullable(),
+  moderationDecidedAt: isoDateTimeSchema.nullable(),
+  moderationDecidedBy: idSchema.nullable(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
   deletedAt: isoDateTimeSchema.nullable(),

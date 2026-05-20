@@ -7,7 +7,7 @@ import {
   paginationQuerySchema,
   phoneSchema,
 } from './common';
-import { kycStatusSchema } from '../enums/misc';
+import { houseModerationStatusSchema, kycStatusSchema } from '../enums/misc';
 import { roleSchema } from '../enums/role';
 
 export const adminUserSchema = z.object({
@@ -84,3 +84,29 @@ export const listAuditLogQuerySchema = paginationQuerySchema.extend({
 });
 
 export type ListAuditLogQuery = z.infer<typeof listAuditLogQuerySchema>;
+
+// ---- House moderation -------------------------------------------------
+
+export const listAdminHousesQuerySchema = paginationQuerySchema.extend({
+  /** Substring match against name and city. */
+  q: z.string().trim().max(100).optional(),
+  ownerId: idSchema.optional(),
+  moderationStatus: houseModerationStatusSchema.optional(),
+});
+
+export type ListAdminHousesQuery = z.infer<typeof listAdminHousesQuerySchema>;
+
+export const flagHouseSchema = z.object({
+  reason: z.string().trim().min(1).max(500),
+});
+export type FlagHouseInput = z.infer<typeof flagHouseSchema>;
+
+export const clearHouseModerationSchema = z.object({
+  reason: z.string().trim().min(1).max(500),
+});
+export type ClearHouseModerationInput = z.infer<typeof clearHouseModerationSchema>;
+
+export const rejectHouseSchema = z.object({
+  reason: z.string().trim().min(1).max(500),
+});
+export type RejectHouseInput = z.infer<typeof rejectHouseSchema>;

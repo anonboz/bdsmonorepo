@@ -138,6 +138,12 @@ enum NotificationChannel {
   SMS
 }
 
+enum HouseModerationStatus {
+  OK
+  FLAGGED
+  REJECTED
+}
+
 enum RatingMilestone {
   MOVE_IN
   MID_LEASE
@@ -264,6 +270,13 @@ model House {
 
   isPublished Boolean @default(false)
 
+  moderationStatus    HouseModerationStatus @default(OK)
+  moderationReason    String?               @db.VarChar(500)
+  moderationDecidedAt DateTime?
+  /// Admin user id at decision time. Frozen — admin user lookup happens
+  /// on read if a name is needed (rare in v1).
+  moderationDecidedBy String?
+
   units Unit[]
 
   createdAt DateTime  @default(now())
@@ -273,6 +286,7 @@ model House {
   @@index([ownerId, deletedAt])
   @@index([country, city])
   @@index([isPublished, deletedAt])
+  @@index([moderationStatus, createdAt])
 }
 
 model Unit {

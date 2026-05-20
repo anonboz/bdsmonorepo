@@ -84,6 +84,15 @@ export const NotificationChannel = {
 export type NotificationChannel = (typeof NotificationChannel)[keyof typeof NotificationChannel];
 export const notificationChannelSchema = z.nativeEnum(NotificationChannel);
 
+export const HouseModerationStatus = {
+  OK: 'OK',
+  FLAGGED: 'FLAGGED',
+  REJECTED: 'REJECTED',
+} as const;
+export type HouseModerationStatus =
+  (typeof HouseModerationStatus)[keyof typeof HouseModerationStatus];
+export const houseModerationStatusSchema = z.nativeEnum(HouseModerationStatus);
+
 export const RatingMilestone = {
   MOVE_IN: 'MOVE_IN',
   MID_LEASE: 'MID_LEASE',

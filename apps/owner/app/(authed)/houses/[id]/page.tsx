@@ -5,6 +5,7 @@ import type { House } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApiError } from '../../../../lib/api';
+import { formatDateTime } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 import { DeleteHouseButton } from '../_components/delete-house-button';
 
@@ -35,6 +36,8 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
       </div>
+
+      <ModerationBanner house={house} />
 
       <Card>
         <CardHeader>
@@ -81,6 +84,38 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function ModerationBanner({ house }: { house: House }) {
+  if (house.moderationStatus === 'OK') return null;
+  const palette =
+    house.moderationStatus === 'REJECTED'
+      ? 'border-rose-300 bg-rose-50 text-rose-900'
+      : 'border-amber-300 bg-amber-50 text-amber-900';
+  const heading =
+    house.moderationStatus === 'REJECTED'
+      ? 'Listing rejected by an admin'
+      : 'Listing flagged for review';
+  const followup =
+    house.moderationStatus === 'REJECTED'
+      ? 'Your listing has been removed from publication. Address the reason below and contact support to re-list.'
+      : 'You can still manage the house, but it will be hidden from public listings until the issue is resolved.';
+  return (
+    <div className={`rounded-lg border px-4 py-3 ${palette}`} role="status">
+      <p className="text-sm font-semibold">{heading}</p>
+      {house.moderationReason && (
+        <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
+          Reason: {house.moderationReason}
+        </p>
+      )}
+      <p className="mt-1 text-xs opacity-80">
+        {followup}
+        {house.moderationDecidedAt
+          ? ` · Decided ${formatDateTime(house.moderationDecidedAt)}.`
+          : ''}
+      </p>
+    </div>
   );
 }
 
