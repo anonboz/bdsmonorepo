@@ -87,8 +87,15 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Book</CardTitle>
-          <CardDescription>Direct booking lands in 5.2.</CardDescription>
+          <CardDescription>
+            Send a request — the partner will come back with a quote.
+          </CardDescription>
         </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link href={`/partners/${partner.id}/book`}>Book this partner</Link>
+          </Button>
+        </CardContent>
       </Card>
     </main>
   );

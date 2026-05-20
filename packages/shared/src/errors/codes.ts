@@ -72,6 +72,11 @@ export const ErrorCodes = {
   PARTNER_PROFILE_ALREADY_EXISTS: 'partners.profile_already_exists',
   PARTNER_SERVICE_NOT_FOUND: 'partners.service_not_found',
 
+  // ---- service jobs -------------------------------------------------
+  JOB_NOT_FOUND: 'jobs.not_found',
+  JOB_INVALID_TRANSITION: 'jobs.invalid_transition',
+  JOB_PARTNER_NOT_BOOKABLE: 'jobs.partner_not_bookable',
+
   // ---- ratings ------------------------------------------------------
   RATING_NOT_FOUND: 'ratings.not_found',
   RATING_ALREADY_GIVEN: 'ratings.already_given',

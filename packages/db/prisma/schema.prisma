@@ -608,19 +608,36 @@ model ServiceJob {
   ticketId  String?
   ticket    Ticket?   @relation(fields: [ticketId], references: [id], onDelete: SetNull)
 
+  /// Denormalized from the booking owner. Frozen on create — direct
+  /// bookings set this from the authenticated owner; ticket-routed
+  /// bookings (5.3) set it from the ticket's lease owner.
+  ownerId String
+
+  /// Optional unit context. Direct bookings can leave this null.
+  unitId String?
+
+  /// Owner's free-form request note.
+  description String? @db.VarChar(2000)
+
   status        JobStatus @default(REQUESTED)
   quotedAmount  Int?      // minor units
   finalAmount   Int?
   currency      String?   @db.Char(3)
 
   cancelReason  String?   @db.VarChar(200)
+  /// Actor user id who cancelled.
+  cancelledBy   String?
   scheduledFor  DateTime?
   completedAt   DateTime?
+
+  /// Partner-uploaded proof of work URLs. Populated on COMPLETED.
+  proofPhotos String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([partnerId, status])
+  @@index([ownerId, status])
   @@index([ticketId])
   @@index([status, createdAt])
 }

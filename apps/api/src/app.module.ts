@@ -15,6 +15,7 @@ import { OwnerDashboardModule } from './owner-dashboard/owner-dashboard.module.j
 import { PartnersModule } from './partners/partners.module.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { RatingsModule } from './ratings/ratings.module.js';
+import { ServiceJobsModule } from './service-jobs/service-jobs.module.js';
 import { TicketsModule } from './tickets/tickets.module.js';
 import { UnitsModule } from './units/units.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -55,6 +56,7 @@ import { UsersModule } from './users/users.module.js';
     CampaignsModule,
     ApplicationsModule,
     PartnersModule,
+    ServiceJobsModule,
     AdminModule,
   ],
 })

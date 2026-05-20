@@ -81,8 +81,20 @@ export default async function HomePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>My partner bookings</CardTitle>
+          <CardDescription>Track requests, quotes, and completed jobs.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/me/service-jobs">Open</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>Booking + payouts land in upcoming Phase 5 slices.</CardDescription>
+          <CardDescription>Payouts and partner ratings land next.</CardDescription>
         </CardHeader>
       </Card>
     </main>

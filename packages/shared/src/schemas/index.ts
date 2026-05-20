@@ -7,6 +7,7 @@ export * from './bills';
 export * from './campaigns';
 export * from './applications';
 export * from './partners';
+export * from './service-jobs';
 export * from './tickets';
 export * from './ticket-messages';
 export * from './ratings';

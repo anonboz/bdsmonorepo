@@ -1,6 +1,8 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
+import Link from 'next/link';
 
-import { APP_NAME, APP_ROLE } from '../../lib/app-config';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
+
+import { APP_NAME } from '../../lib/app-config';
 import { getSession } from '../../lib/session';
 
 export default async function HomePage() {
@@ -11,23 +13,53 @@ export default async function HomePage() {
       <header className="space-y-1">
         <h1 className="text-3xl font-semibold">{APP_NAME}</h1>
         <p className="text-muted-foreground">
-          Signed in as <strong>{session.user.displayName}</strong> ({APP_ROLE}).
+          Signed in as <strong>{session.user.displayName}</strong>.
         </p>
       </header>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile</CardTitle>
+            <CardDescription>How owners see you.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/profile">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Services</CardTitle>
+            <CardDescription>Manage your catalog + pricing.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/services">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Jobs</CardTitle>
+            <CardDescription>Incoming requests + in-flight work.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/jobs">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Welcome</CardTitle>
-          <CardDescription>
-            Phase 1 landing page. Real admin dashboards land in Phase 3.
-          </CardDescription>
+          <CardTitle className="text-lg">Coming soon</CardTitle>
+          <CardDescription>Payouts and ratings land in the next Phase 5 slices.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <p>
-            This app is gated to the <code>ADMIN</code> role. Other roles see the access-denied
-            page.
-          </p>
-        </CardContent>
       </Card>
     </main>
   );
