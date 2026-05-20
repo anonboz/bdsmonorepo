@@ -59,6 +59,14 @@ export const ErrorCodes = {
   CAMPAIGN_INVALID_TRANSITION: 'campaigns.invalid_transition',
   CAMPAIGN_UNIT_NOT_VACANT: 'campaigns.unit_not_vacant',
 
+  // ---- applications -------------------------------------------------
+  APPLICATION_NOT_FOUND: 'applications.not_found',
+  APPLICATION_CAMPAIGN_NOT_LIVE: 'applications.campaign_not_live',
+  APPLICATION_DUPLICATE: 'applications.duplicate',
+  APPLICATION_RATE_LIMITED: 'applications.rate_limited',
+  APPLICATION_NOT_DECIDABLE: 'applications.not_decidable',
+  APPLICATION_SELF: 'applications.self',
+
   // ---- ratings ------------------------------------------------------
   RATING_NOT_FOUND: 'ratings.not_found',
   RATING_ALREADY_GIVEN: 'ratings.already_given',

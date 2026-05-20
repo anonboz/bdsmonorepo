@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 
 import { AdminModule } from './admin/admin.module.js';
+import { ApplicationsModule } from './applications/applications.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillsModule } from './bills/bills.module.js';
 import { CampaignsModule } from './campaigns/campaigns.module.js';
@@ -51,6 +52,7 @@ import { UsersModule } from './users/users.module.js';
     TicketsModule,
     RatingsModule,
     CampaignsModule,
+    ApplicationsModule,
     AdminModule,
   ],
 })

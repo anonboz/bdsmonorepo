@@ -335,6 +335,9 @@ model Lease {
   tickets Ticket[]
   ratings LeaseRating[]
 
+  /// Back-reference for application → lease provenance (Phase 4.4).
+  application Application? @relation("ApplicationLease")
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -531,9 +534,20 @@ model Application {
   applicantId String
   applicant  User              @relation(fields: [applicantId], references: [id], onDelete: Restrict)
 
+  /// Denormalized from `campaign.unit.house.ownerId` so owner-side
+  /// queries don't need a three-level join. Frozen on create.
+  ownerId String
+
   status     ApplicationStatus @default(SUBMITTED)
   message    String?           @db.VarChar(2000)
-  decidedAt  DateTime?
+
+  decidedAt       DateTime?
+  decidedBy       String?
+  rejectionReason String?  @db.VarChar(500)
+
+  /// Lease created on accept. One application → at most one lease.
+  createdLeaseId String? @unique
+  createdLease   Lease?  @relation("ApplicationLease", fields: [createdLeaseId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -541,6 +555,7 @@ model Application {
   @@unique([campaignId, applicantId])
   @@index([applicantId, status])
   @@index([campaignId, status])
+  @@index([ownerId, status])
 }
 
 // ---------- Partner marketplace ----------------------------------------

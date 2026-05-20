@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { PublicCampaign } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { ApplyForm } from './apply-form';
 import { ApiError, apiFetch } from '../../../lib/api';
 import { formatDate, formatMoney } from '../../../lib/format';
 import { getSession } from '../../../lib/session';
@@ -15,10 +16,8 @@ export default async function BrowseDetailPage({ params }: { params: Promise<{ i
   const [campaign, session] = await Promise.all([fetchPublic(id), getSession()]);
   if (!campaign) notFound();
 
-  // 4.4 will land the apply form; for now the CTA either invites sign-in
-  // or shows a placeholder for tenants until applications go live.
-  const applyHref = session ? '#' : `/login?next=${encodeURIComponent(`/browse/${id}`)}`;
-  const applyDisabled = Boolean(session);
+  const isTenant = Boolean(session?.user.roles.includes('TENANT'));
+  const isOwnerOfCampaign = session?.user.id === campaign.ownerId;
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -62,15 +61,27 @@ export default async function BrowseDetailPage({ params }: { params: Promise<{ i
         <CardHeader>
           <CardTitle className="text-lg">Apply</CardTitle>
           <CardDescription>
-            {session
-              ? 'Applications open up here in the next release.'
-              : 'Sign in to apply for this listing.'}
+            {isOwnerOfCampaign
+              ? 'You own this listing — applications are not available on your own campaigns.'
+              : isTenant
+                ? 'Send the owner a short note and they will get back to you.'
+                : session
+                  ? 'Switch to a tenant account to apply.'
+                  : 'Sign in to apply for this listing.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild disabled={applyDisabled}>
-            <Link href={applyHref}>{session ? 'Apply (coming soon)' : 'Sign in to apply'}</Link>
-          </Button>
+          {isTenant && !isOwnerOfCampaign ? (
+            <ApplyForm campaignId={campaign.id} />
+          ) : (
+            !session && (
+              <Button asChild>
+                <Link href={`/login?next=${encodeURIComponent(`/browse/${id}`)}`}>
+                  Sign in to apply
+                </Link>
+              </Button>
+            )
+          )}
         </CardContent>
       </Card>
     </main>

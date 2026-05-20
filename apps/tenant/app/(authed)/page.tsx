@@ -81,6 +81,18 @@ export default async function HomePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>My applications</CardTitle>
+          <CardDescription>Track listings you&apos;ve applied to.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/me/applications">Open</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
           <CardDescription>Online payments land in upcoming phases.</CardDescription>
         </CardHeader>

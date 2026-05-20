@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { Campaign } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { ApplicationsPanel } from './_components/applications-panel';
 import { CampaignActions } from './_components/campaign-actions';
 import { DeleteCampaignButton } from './_components/delete-campaign-button';
 import { ApiError } from '../../../../../../../../lib/api';
@@ -106,6 +107,8 @@ export default async function CampaignDetailPage({
           <CampaignActions houseId={houseId} unitId={unitId} campaign={campaign} />
         </CardContent>
       </Card>
+
+      <ApplicationsPanel houseId={houseId} unitId={unitId} campaign={campaign} />
     </main>
   );
 }
