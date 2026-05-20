@@ -1,26 +1,31 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import type { Ticket, TicketStatus } from '@repo/shared';
+import type { Page, Ticket, TicketMessage, TicketStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ReopenButton } from './reopen-button';
+import { TicketThread } from './ticket-thread';
 import { ApiError } from '../../../../lib/api';
 import { formatDate } from '../../../../lib/format';
-import { serverApi } from '../../../../lib/session';
+import { getSession, serverApi } from '../../../../lib/session';
 
 const REOPEN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default async function MyTicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const ticket = await fetchTicket(id);
-  if (!ticket) notFound();
+  const [ticket, messages, session] = await Promise.all([
+    fetchTicket(id),
+    fetchMessages(id),
+    getSession(),
+  ]);
+  if (!ticket || !session) notFound();
 
   const reference = ticket.closedAt ?? ticket.resolvedAt;
-  const canReopen =
-    (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') &&
-    reference != null &&
-    Date.now() - new Date(reference).getTime() <= REOPEN_WINDOW_MS;
+  const inReopenWindow =
+    reference != null && Date.now() - new Date(reference).getTime() <= REOPEN_WINDOW_MS;
+  const canReopen = (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') && inReopenWindow;
+  const threadOpen = ticket.status !== 'CLOSED' || inReopenWindow;
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -52,8 +57,21 @@ export default async function MyTicketDetailPage({ params }: { params: Promise<{
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Conversation</CardTitle>
-          <CardDescription>Threaded messages land in Phase 3.2.</CardDescription>
+          <CardDescription>
+            Messages between you and the owner. Stays open for 7 days after closure.
+          </CardDescription>
         </CardHeader>
+        <CardContent>
+          <TicketThread
+            ticketId={ticket.id}
+            basePath="/v1/me/tickets"
+            viewerRole="TENANT"
+            viewerId={session.user.id}
+            canPost={threadOpen}
+            lockedReason="This ticket is closed and past the 7-day reopen window."
+            initialItems={messages}
+          />
+        </CardContent>
       </Card>
     </main>
   );
@@ -80,6 +98,18 @@ async function fetchTicket(id: string): Promise<Ticket | null> {
     return await serverApi<Ticket>(`/v1/me/tickets/${id}`);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+async function fetchMessages(id: string): Promise<TicketMessage[]> {
+  try {
+    const page = await serverApi<Page<TicketMessage>>(
+      `/v1/me/tickets/${id}/messages?limit=100&sort=asc`,
+    );
+    return page.items;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return [];
     throw err;
   }
 }

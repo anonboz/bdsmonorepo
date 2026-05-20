@@ -1,9 +1,11 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import type { Page, Ticket } from '@repo/shared';
+import type { Page, Ticket, TicketMessage } from '@repo/shared';
 
+import { ListTicketMessagesQueryDto } from './dto/ticket-messages.dto.js';
 import { ListTicketsQueryDto } from './dto/tickets.dto.js';
+import { TicketMessagesService } from './ticket-messages.service.js';
 import { TicketsService } from './tickets.service.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 
@@ -11,7 +13,10 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 @ApiBearerAuth()
 @Controller('tickets')
 export class TicketsAdminController {
-  constructor(private readonly service: TicketsService) {}
+  constructor(
+    private readonly service: TicketsService,
+    private readonly messages: TicketMessagesService,
+  ) {}
 
   @Get()
   @Roles('ADMIN')
@@ -23,5 +28,14 @@ export class TicketsAdminController {
   @Roles('ADMIN')
   getOne(@Param('id') id: string): Promise<Ticket> {
     return this.service.getAny(id);
+  }
+
+  @Get(':id/messages')
+  @Roles('ADMIN')
+  listMessages(
+    @Param('id') id: string,
+    @Query() query: ListTicketMessagesQueryDto,
+  ): Promise<Page<TicketMessage>> {
+    return this.messages.listForAdmin(id, query);
   }
 }

@@ -168,6 +168,7 @@ model User {
   applications   Application[]
   ticketsRaised  Ticket[]        @relation("TicketReporter")
   ticketsAssigned Ticket[]       @relation("TicketAssignee")
+  ticketMessages TicketMessage[] @relation("TicketMessageAuthor")
   partnerProfile PartnerProfile?
   notifications  Notification[]
   auditLog       AuditLog[]
@@ -403,6 +404,7 @@ model Ticket {
   closedAt   DateTime?
 
   serviceJobs ServiceJob[]
+  messages    TicketMessage[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -412,6 +414,24 @@ model Ticket {
   @@index([reporterId, status])
   @@index([assigneeId, status])
   @@index([status, createdAt])
+}
+
+model TicketMessage {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation("TicketMessageAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  /// Role the author held when the message was written. Frozen at write time
+  /// so a later role change does not re-attribute the message.
+  authorRole Role
+  body       String @db.VarChar(4000)
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
 }
 
 // ---------- Campaigns & applications -----------------------------------

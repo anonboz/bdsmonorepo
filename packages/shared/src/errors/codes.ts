@@ -51,6 +51,7 @@ export const ErrorCodes = {
   TICKET_INVALID_TRANSITION: 'tickets.invalid_transition',
   TICKET_REOPEN_WINDOW_EXPIRED: 'tickets.reopen_window_expired',
   TICKET_LEASE_INVALID: 'tickets.lease_invalid',
+  TICKET_THREAD_LOCKED: 'tickets.thread_locked',
 
   // ---- admin --------------------------------------------------------
   ADMIN_USER_NOT_FOUND: 'admin.user_not_found',
