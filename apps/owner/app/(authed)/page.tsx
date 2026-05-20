@@ -69,10 +69,20 @@ export default async function HomePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Partners</CardTitle>
+          <CardDescription>Browse service providers in your area.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/partners">Browse</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>
-            Campaigns and the partner marketplace land in Phases 4 and 5.
-          </CardDescription>
+          <CardDescription>Booking + payouts land in upcoming Phase 5 slices.</CardDescription>
         </CardHeader>
       </Card>
     </main>

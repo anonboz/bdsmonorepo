@@ -67,6 +67,11 @@ export const ErrorCodes = {
   APPLICATION_NOT_DECIDABLE: 'applications.not_decidable',
   APPLICATION_SELF: 'applications.self',
 
+  // ---- partners -----------------------------------------------------
+  PARTNER_PROFILE_NOT_FOUND: 'partners.profile_not_found',
+  PARTNER_PROFILE_ALREADY_EXISTS: 'partners.profile_already_exists',
+  PARTNER_SERVICE_NOT_FOUND: 'partners.service_not_found',
+
   // ---- ratings ------------------------------------------------------
   RATING_NOT_FOUND: 'ratings.not_found',
   RATING_ALREADY_GIVEN: 'ratings.already_given',

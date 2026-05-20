@@ -12,6 +12,7 @@ import { HealthModule } from './health/health.module.js';
 import { HousesModule } from './houses/houses.module.js';
 import { LeasesModule } from './leases/leases.module.js';
 import { OwnerDashboardModule } from './owner-dashboard/owner-dashboard.module.js';
+import { PartnersModule } from './partners/partners.module.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { RatingsModule } from './ratings/ratings.module.js';
 import { TicketsModule } from './tickets/tickets.module.js';
@@ -53,6 +54,7 @@ import { UsersModule } from './users/users.module.js';
     RatingsModule,
     CampaignsModule,
     ApplicationsModule,
+    PartnersModule,
     AdminModule,
   ],
 })
