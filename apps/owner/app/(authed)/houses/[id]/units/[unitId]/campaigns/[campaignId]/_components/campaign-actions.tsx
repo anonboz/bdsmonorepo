@@ -76,9 +76,16 @@ export function CampaignActions({
             Close
           </Button>
         )}
-        {(campaign.status === 'CLOSED' ||
-          campaign.status === 'REJECTED' ||
-          campaign.status === 'EXPIRED') && (
+        {campaign.status === 'REJECTED' && (
+          <Button
+            disabled={busy != null}
+            onClick={() => handle('PENDING', 'Re-submit this campaign for admin review?')}
+          >
+            {busy === 'PENDING' && <Spinner />}
+            Re-submit for review
+          </Button>
+        )}
+        {(campaign.status === 'CLOSED' || campaign.status === 'EXPIRED') && (
           <p className="text-sm text-muted-foreground">
             No further owner actions on this campaign.
           </p>

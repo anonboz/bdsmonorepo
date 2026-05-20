@@ -30,9 +30,17 @@ const OWNER_TRANSITIONS: Record<CampaignStatus, CampaignStatus[]> = {
   PENDING: ['DRAFT'],
   LIVE: ['CLOSED'],
   CLOSED: [],
-  REJECTED: [],
+  // 4.2: rejected campaigns can be edited + re-submitted without
+  // recreating from scratch.
+  REJECTED: ['PENDING'],
   EXPIRED: [],
 };
+
+/** Statuses where PATCH is allowed. */
+const EDITABLE_STATUSES: ReadonlySet<CampaignStatus> = new Set<CampaignStatus>([
+  'DRAFT',
+  'REJECTED',
+]);
 
 const ACTION_FOR_TRANSITION: Record<CampaignStatus, string> = {
   PENDING: 'campaign.submit',
@@ -123,12 +131,12 @@ export class CampaignsService {
   ): Promise<Campaign> {
     await this.assertOwnerOfUnit(actor, houseId, unitId);
     const existing = await this.findCampaignOnUnit(id, unitId);
-    if (existing.status !== 'DRAFT') {
+    if (!EDITABLE_STATUSES.has(existing.status)) {
       throw new ProblemError({
         status: 422,
         type: ErrorCodes.CAMPAIGN_NOT_DRAFT,
         title: 'Campaign is not editable',
-        detail: 'Only DRAFT campaigns can be edited.',
+        detail: 'Only DRAFT or REJECTED campaigns can be edited.',
       });
     }
 
@@ -173,7 +181,17 @@ export class CampaignsService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.campaign.update({
         where: { id },
-        data: { status: input.to },
+        data: {
+          status: input.to,
+          // Re-submitting (DRAFT or REJECTED → PENDING) starts a fresh
+          // review cycle — clear the stale moderation snapshot so the
+          // UI doesn't display the previous rejection reason.
+          ...(input.to === 'PENDING' && {
+            moderationReason: null,
+            moderationDecidedAt: null,
+            moderationDecidedBy: null,
+          }),
+        },
         ...CAMPAIGN_WITH_UNIT,
       });
       await this.audit.write(tx, {
@@ -187,6 +205,100 @@ export class CampaignsService {
       return row;
     });
     return this.toResponse(updated);
+  }
+
+  // ---- Admin-scoped moderation --------------------------------------
+
+  async listAsAdmin(query: {
+    limit: number;
+    sort: 'asc' | 'desc';
+    cursor?: string;
+    status?: CampaignStatus;
+    ownerId?: string;
+    q?: string;
+  }): Promise<Page<Campaign>> {
+    const where: Prisma.CampaignWhereInput = {
+      deletedAt: null,
+      ...(query.status !== undefined && { status: query.status }),
+      ...(query.ownerId !== undefined && { ownerId: query.ownerId }),
+      ...(query.q && {
+        OR: [
+          { title: { contains: query.q, mode: 'insensitive' as const } },
+          { unit: { house: { city: { contains: query.q, mode: 'insensitive' as const } } } },
+        ],
+      }),
+    };
+    return this.paginate(where, query);
+  }
+
+  async approveAsAdmin(id: string, ctx: RequestContext): Promise<Campaign> {
+    const existing = await this.loadForAdminOrFail(id);
+    if (existing.status !== 'PENDING') throw this.notPendingForAdmin();
+
+    const previousStatus = existing.status;
+    const decidedAt = new Date();
+    const row = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.campaign.update({
+        where: { id },
+        data: {
+          status: 'LIVE',
+          publishedAt: decidedAt,
+          moderationReason: null,
+          moderationDecidedAt: decidedAt,
+          moderationDecidedBy: ctx.actorId,
+        },
+        ...CAMPAIGN_WITH_UNIT,
+      });
+      await this.audit.write(tx, {
+        actorId: ctx.actorId,
+        action: 'campaign.approve',
+        target: `Campaign:${id}`,
+        meta: { previousStatus, unitId: existing.unitId, houseId: existing.unit.houseId },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+      return updated;
+    });
+    return this.toResponse(row);
+  }
+
+  async rejectAsAdmin(
+    id: string,
+    input: { reason: string },
+    ctx: RequestContext,
+  ): Promise<Campaign> {
+    const existing = await this.loadForAdminOrFail(id);
+    if (existing.status !== 'PENDING') throw this.notPendingForAdmin();
+
+    const previousStatus = existing.status;
+    const decidedAt = new Date();
+    const row = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.campaign.update({
+        where: { id },
+        data: {
+          status: 'REJECTED',
+          moderationReason: input.reason,
+          moderationDecidedAt: decidedAt,
+          moderationDecidedBy: ctx.actorId,
+        },
+        ...CAMPAIGN_WITH_UNIT,
+      });
+      await this.audit.write(tx, {
+        actorId: ctx.actorId,
+        action: 'campaign.reject',
+        target: `Campaign:${id}`,
+        meta: {
+          previousStatus,
+          reason: input.reason,
+          unitId: existing.unitId,
+          houseId: existing.unit.houseId,
+        },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+      return updated;
+    });
+    return this.toResponse(row);
   }
 
   async softDelete(
@@ -211,14 +323,10 @@ export class CampaignsService {
     });
   }
 
-  // ---- Admin-scoped (read-only here; mutations in 4.2) --------------
+  // ---- Admin-scoped (read-any) --------------------------------------
 
   async getAny(id: string): Promise<Campaign> {
-    const row = await this.prisma.campaign.findUnique({
-      where: { id },
-      ...CAMPAIGN_WITH_UNIT,
-    });
-    if (!row || row.deletedAt) throw this.notFound();
+    const row = await this.loadForAdminOrFail(id);
     return this.toResponse(row);
   }
 
@@ -342,6 +450,27 @@ export class CampaignsService {
       status: 404,
       type: ErrorCodes.CAMPAIGN_NOT_FOUND,
       title: 'Campaign not found',
+    });
+  }
+
+  private async loadForAdminOrFail(id: string): Promise<CampaignRow> {
+    const row = await this.prisma.campaign.findUnique({ where: { id }, ...CAMPAIGN_WITH_UNIT });
+    if (!row || row.deletedAt) {
+      throw new ProblemError({
+        status: 404,
+        type: ErrorCodes.ADMIN_CAMPAIGN_NOT_FOUND,
+        title: 'Campaign not found',
+      });
+    }
+    return row;
+  }
+
+  private notPendingForAdmin(): ProblemError {
+    return new ProblemError({
+      status: 422,
+      type: ErrorCodes.ADMIN_CAMPAIGN_NOT_PENDING,
+      title: 'Campaign is not pending review',
+      detail: 'Only PENDING campaigns can be approved or rejected.',
     });
   }
 

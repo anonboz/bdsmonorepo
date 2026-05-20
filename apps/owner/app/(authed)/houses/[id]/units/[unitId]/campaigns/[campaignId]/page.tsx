@@ -20,7 +20,9 @@ export default async function CampaignDetailPage({
   const campaign = await fetchCampaign(houseId, unitId, campaignId);
   if (!campaign) notFound();
 
-  const canEdit = campaign.status === 'DRAFT';
+  // 4.2: REJECTED is also editable so the owner can fix + re-submit
+  // without recreating the listing.
+  const canEdit = campaign.status === 'DRAFT' || campaign.status === 'REJECTED';
   const canDelete = campaign.status === 'DRAFT' || campaign.status === 'CLOSED';
 
   return (

@@ -17,7 +17,7 @@ export default async function HomePage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Dashboard</CardTitle>
@@ -26,6 +26,18 @@ export default async function HomePage() {
           <CardContent>
             <Button asChild>
               <Link href="/dashboard">Open</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Campaigns</CardTitle>
+            <CardDescription>Approve / reject pending listings.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/campaigns?status=PENDING">Open queue</Link>
             </Button>
           </CardContent>
         </Card>

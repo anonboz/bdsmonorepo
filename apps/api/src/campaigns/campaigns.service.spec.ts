@@ -73,6 +73,7 @@ function makePrismaStub(opts: StubOpts) {
         const filtered = campaigns.filter((c) => {
           if (c.deletedAt) return false;
           if (where.unitId !== undefined && c.unitId !== where.unitId) return false;
+          if (where.ownerId !== undefined && c.ownerId !== where.ownerId) return false;
           if (where.status !== undefined && c.status !== where.status) return false;
           return true;
         });
@@ -222,12 +223,48 @@ describe('CampaignsService', () => {
     ).rejects.toBeInstanceOf(ProblemError);
   });
 
-  it('PATCH only allowed on DRAFT', async () => {
+  it('PATCH allowed on DRAFT but not on PENDING / LIVE / CLOSED / EXPIRED', async () => {
     const c = await service.createForUnit(owner, houseId, unitId, draft);
     await service.transition(owner, houseId, unitId, c.id, { to: 'PENDING' }, ctx);
     await expect(
       service.updateDraft(owner, houseId, unitId, c.id, { title: 'Updated' }),
     ).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  it('PATCH also allowed on REJECTED (re-submit recovery)', async () => {
+    const c = await service.createForUnit(owner, houseId, unitId, draft);
+    store.campaigns.find((x) => x.id === c.id)!.status = 'REJECTED';
+    const updated = await service.updateDraft(owner, houseId, unitId, c.id, {
+      title: 'Fixed photos',
+    });
+    expect(updated.title).toBe('Fixed photos');
+    expect(updated.status).toBe('REJECTED');
+  });
+
+  it('owner re-submit (REJECTED → PENDING) succeeds and clears moderation snapshot', async () => {
+    const c = await service.createForUnit(owner, houseId, unitId, draft);
+    // Stage a prior rejection.
+    const row = store.campaigns.find((x) => x.id === c.id)!;
+    row.status = 'REJECTED';
+    row.moderationReason = 'no photos';
+    row.moderationDecidedAt = new Date();
+    row.moderationDecidedBy = 'admin_1';
+
+    const resubmitted = await service.transition(
+      owner,
+      houseId,
+      unitId,
+      c.id,
+      { to: 'PENDING' },
+      ctx,
+    );
+    expect(resubmitted.status).toBe('PENDING');
+    expect(resubmitted.moderationReason).toBeNull();
+    expect(resubmitted.moderationDecidedAt).toBeNull();
+    expect(resubmitted.moderationDecidedBy).toBeNull();
+    const submitRow = store.auditRows.at(-1);
+    expect(submitRow?.action).toBe('campaign.submit');
+    expect((submitRow?.meta as Record<string, unknown>).previousStatus).toBe('REJECTED');
   });
 
   it('delete allowed on DRAFT and CLOSED, blocked on PENDING/LIVE', async () => {
@@ -255,5 +292,62 @@ describe('CampaignsService', () => {
       service.transition(owner, houseId, unitId, c.id, { to: 'CLOSED' }, ctx),
     ).rejects.toBeInstanceOf(ProblemError);
     expect(store.auditRows).toHaveLength(0);
+  });
+
+  // ---- Admin moderation (4.2) -----------------------------------------
+
+  const adminCtx = { actorId: 'admin_1', ip: '10.0.0.1', userAgent: 'admin-ui/1.0' };
+
+  it('admin approves a PENDING campaign — flips LIVE, sets publishedAt, audits', async () => {
+    const c = await service.createForUnit(owner, houseId, unitId, draft);
+    await service.transition(owner, houseId, unitId, c.id, { to: 'PENDING' }, ctx);
+
+    const approved = await service.approveAsAdmin(c.id, adminCtx);
+    expect(approved.status).toBe('LIVE');
+    expect(approved.publishedAt).not.toBeNull();
+    expect(approved.moderationDecidedBy).toBe(adminCtx.actorId);
+    expect(store.auditRows.at(-1)?.action).toBe('campaign.approve');
+  });
+
+  it('admin rejects a PENDING campaign — stores reason + audits', async () => {
+    const c = await service.createForUnit(owner, houseId, unitId, draft);
+    await service.transition(owner, houseId, unitId, c.id, { to: 'PENDING' }, ctx);
+
+    const rejected = await service.rejectAsAdmin(c.id, { reason: 'no photos' }, adminCtx);
+    expect(rejected.status).toBe('REJECTED');
+    expect(rejected.moderationReason).toBe('no photos');
+    expect(rejected.moderationDecidedBy).toBe(adminCtx.actorId);
+    const last = store.auditRows.at(-1);
+    expect(last?.action).toBe('campaign.reject');
+    expect((last?.meta as Record<string, unknown>).reason).toBe('no photos');
+  });
+
+  it('approve / reject on a non-PENDING campaign → 422 admin.campaign_not_pending', async () => {
+    const c = await service.createForUnit(owner, houseId, unitId, draft);
+    // Still DRAFT.
+    await expect(service.approveAsAdmin(c.id, adminCtx)).rejects.toBeInstanceOf(ProblemError);
+    await expect(service.rejectAsAdmin(c.id, { reason: 'x' }, adminCtx)).rejects.toBeInstanceOf(
+      ProblemError,
+    );
+  });
+
+  it('admin list filters by status and ownerId', async () => {
+    const a = await service.createForUnit(owner, houseId, unitId, draft);
+    await service.transition(owner, houseId, unitId, a.id, { to: 'PENDING' }, ctx);
+    const b = await service.createForUnit(owner, houseId, unitId, draft);
+    // b stays DRAFT — exercises status filter.
+
+    const onlyPending = await service.listAsAdmin({ limit: 20, sort: 'desc', status: 'PENDING' });
+    expect(onlyPending.items.map((x) => x.id)).toEqual([a.id]);
+
+    const wrongOwner = await service.listAsAdmin({
+      limit: 20,
+      sort: 'desc',
+      ownerId: 'someone_else',
+    });
+    expect(wrongOwner.items).toHaveLength(0);
+
+    const all = await service.listAsAdmin({ limit: 20, sort: 'desc' });
+    expect(all.items.map((x) => x.id).sort()).toEqual([a.id, b.id].sort());
   });
 });

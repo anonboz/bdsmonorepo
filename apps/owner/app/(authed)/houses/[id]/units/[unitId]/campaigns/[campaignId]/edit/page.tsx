@@ -17,7 +17,7 @@ export default async function EditCampaignPage({
 }) {
   const { id: houseId, unitId, campaignId } = await params;
   const campaign = await fetchCampaign(houseId, unitId, campaignId);
-  if (campaign?.status !== 'DRAFT') notFound();
+  if (!campaign || (campaign.status !== 'DRAFT' && campaign.status !== 'REJECTED')) notFound();
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">

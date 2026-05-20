@@ -7,7 +7,7 @@ import {
   paginationQuerySchema,
   phoneSchema,
 } from './common';
-import { houseModerationStatusSchema, kycStatusSchema } from '../enums/misc';
+import { campaignStatusSchema, houseModerationStatusSchema, kycStatusSchema } from '../enums/misc';
 import { roleSchema } from '../enums/role';
 
 export const adminUserSchema = z.object({
@@ -110,3 +110,22 @@ export const rejectHouseSchema = z.object({
   reason: z.string().trim().min(1).max(500),
 });
 export type RejectHouseInput = z.infer<typeof rejectHouseSchema>;
+
+// ---- Campaign moderation ---------------------------------------------
+
+export const listAdminCampaignsQuerySchema = paginationQuerySchema.extend({
+  /** Substring match against title and unit city. */
+  q: z.string().trim().max(100).optional(),
+  ownerId: idSchema.optional(),
+  status: campaignStatusSchema.optional(),
+});
+
+export type ListAdminCampaignsQuery = z.infer<typeof listAdminCampaignsQuerySchema>;
+
+export const approveCampaignSchema = z.object({}).strict();
+export type ApproveCampaignInput = z.infer<typeof approveCampaignSchema>;
+
+export const rejectCampaignSchema = z.object({
+  reason: z.string().trim().min(1).max(500),
+});
+export type RejectCampaignInput = z.infer<typeof rejectCampaignSchema>;

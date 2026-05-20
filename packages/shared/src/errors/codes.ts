@@ -71,6 +71,8 @@ export const ErrorCodes = {
   ADMIN_CANNOT_ACT_ON_SELF: 'admin.cannot_act_on_self',
   ADMIN_HOUSE_NOT_FOUND: 'admin.house_not_found',
   ADMIN_HOUSE_ALREADY_IN_STATE: 'admin.house_already_in_state',
+  ADMIN_CAMPAIGN_NOT_FOUND: 'admin.campaign_not_found',
+  ADMIN_CAMPAIGN_NOT_PENDING: 'admin.campaign_not_pending',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
