@@ -475,6 +475,183 @@ export class PaymentsService {
     return { url, sessionId: txnRef, paymentId: payment.id };
   }
 
+  // ---- Refunds (owner) --------------------------------------------
+
+  /**
+   * Owner-issued refund of a SUCCEEDED Payment. Inserts a new Payment
+   * row with `amount = -input.amount`, links it via
+   * `refundOfPaymentId`, and recomputes the bill — refunds net out of
+   * `SUM(SUCCEEDED.amount)` naturally because the column is signed.
+   *
+   * Provider behavior:
+   *   - MANUAL: local row only. Owner has already moved the money
+   *     back out-of-band.
+   *   - STRIPE: calls `stripe.refunds.create({ payment_intent })`.
+   *     Requires `providerCaptureRef` (the PaymentIntent id we
+   *     captured in the 7.3 webhook).
+   *   - VNPAY: 501 `payments.refund_not_supported`. VNPay's refund
+   *     API is out of scope for v1 — owners process through the
+   *     VNPay dashboard, then record a MANUAL refund here for books.
+   */
+  async refundForOwner(
+    actor: { id: string; roles: Role[] },
+    houseId: string,
+    unitId: string,
+    leaseId: string,
+    billId: string,
+    paymentId: string,
+    input: { amount: number; reason?: string },
+    ctx: RequestContext,
+  ): Promise<RecordPaymentResponse> {
+    await this.assertOwnerOfLease(actor, houseId, unitId, leaseId);
+
+    const original = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+    if (original?.billId !== billId) throw this.billNotFound();
+
+    if (original.status !== 'SUCCEEDED' || original.amount <= 0) {
+      // Reject refunds of PENDING, FAILED, REFUNDED, CANCELLED rows AND
+      // refund-of-refund attempts (negative-amount rows).
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_NOT_REFUNDABLE,
+        title: 'Payment is not refundable',
+        detail: `Only SUCCEEDED charges with positive amounts can be refunded; this is ${original.status} (amount=${original.amount}).`,
+      });
+    }
+
+    // Sum of all refund rows already issued against this original.
+    // Returns a non-positive number (negative-summing toward zero).
+    const refundAgg = await this.prisma.payment.aggregate({
+      where: { refundOfPaymentId: original.id, status: 'SUCCEEDED' },
+      _sum: { amount: true },
+    });
+    const alreadyRefunded = refundAgg._sum.amount ?? 0; // ≤ 0
+    const refundable = original.amount + alreadyRefunded;
+    if (input.amount > refundable) {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_REFUND_EXCEEDS_REMAINING,
+        title: 'Refund exceeds remaining balance on this payment',
+        detail: `Refundable balance on payment ${paymentId} is ${refundable} ${original.currency}; refund was ${input.amount}.`,
+      });
+    }
+
+    // Provider-side refund call BEFORE we insert the local row — if
+    // the provider rejects, we don't want a phantom refund on the
+    // books. MANUAL has no provider call.
+    let providerRefundRef: string | null = null;
+    switch (original.provider) {
+      case 'MANUAL':
+        break;
+      case 'STRIPE': {
+        if (!this.stripe.isEnabled()) {
+          throw new ProblemError({
+            status: 503,
+            type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+            title: 'Stripe is not configured on this deployment',
+          });
+        }
+        if (!original.providerCaptureRef) {
+          throw new ProblemError({
+            status: 422,
+            type: ErrorCodes.PAYMENT_REFUND_MISSING_CAPTURE_REF,
+            title: 'Stripe PaymentIntent missing for this payment',
+            detail:
+              'This Stripe payment landed before we captured the PaymentIntent id. Refund via the Stripe dashboard, then record a MANUAL refund here.',
+          });
+        }
+        const refund = await this.stripe.createRefund({
+          paymentIntentId: original.providerCaptureRef,
+          amount: input.amount,
+          reason: 'requested_by_customer',
+          metadata: { billId, originalPaymentId: original.id },
+        });
+        providerRefundRef = refund.id;
+        break;
+      }
+      case 'VNPAY':
+        throw new ProblemError({
+          status: 501,
+          type: ErrorCodes.PAYMENT_REFUND_NOT_SUPPORTED,
+          title: 'VNPay refunds are not supported',
+          detail:
+            'Process the refund via the VNPay dashboard, then record a MANUAL refund here so the bill stays in sync.',
+        });
+      case 'MOMO':
+        throw new ProblemError({
+          status: 501,
+          type: ErrorCodes.PAYMENT_REFUND_NOT_SUPPORTED,
+          title: 'MoMo refunds are not supported',
+        });
+    }
+
+    const { payment: refundRow, bill: updatedBill } = await this.prisma.$transaction(async (tx) => {
+      // Lock the bill row so a concurrent record-payment doesn't
+      // race with the recompute. Same belt as 7.1.
+      await tx.$queryRaw`SELECT id FROM "Bill" WHERE id = ${billId} FOR UPDATE`;
+
+      const created = await tx.payment.create({
+        data: {
+          billId,
+          amount: -input.amount,
+          currency: original.currency,
+          status: 'SUCCEEDED',
+          provider: original.provider,
+          providerRef: providerRefundRef,
+          providerCaptureRef: null,
+          note: input.reason ?? null,
+          receivedAt: new Date(),
+          refundOfPaymentId: original.id,
+        },
+      });
+
+      // Recompute the bill from scratch. The signed sum nets refunds
+      // automatically; we just decide PAID vs PARTIALLY_PAID vs
+      // ISSUED based on the net total.
+      const agg = await tx.payment.aggregate({
+        where: { billId, status: 'SUCCEEDED' },
+        _sum: { amount: true },
+      });
+      const sum = agg._sum.amount ?? 0;
+      const billRow = await tx.bill.findUnique({
+        where: { id: billId },
+        ...BILL_WITH_LINES,
+      });
+      if (!billRow) throw this.billNotFound();
+      const previousStatus = billRow.status;
+      const nextStatus: typeof billRow.status =
+        sum <= 0 ? 'ISSUED' : sum >= billRow.total ? 'PAID' : 'PARTIALLY_PAID';
+      const bill = await tx.bill.update({
+        where: { id: billId },
+        data: { status: nextStatus },
+        ...BILL_WITH_LINES,
+      });
+
+      await this.audit.write(tx, {
+        actorId: ctx.actorId,
+        action: 'bill.payment.refund',
+        target: `Payment:${created.id}`,
+        meta: {
+          originalPaymentId: original.id,
+          amount: input.amount,
+          currency: original.currency,
+          provider: original.provider,
+          providerRefundRef,
+          billPreviousStatus: previousStatus,
+          billNextStatus: nextStatus,
+        },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+
+      return { payment: created, bill };
+    });
+
+    return { payment: this.toPaymentResponse(refundRow), bill: this.toBillResponse(updatedBill) };
+  }
+
   // ---- Reads -------------------------------------------------------
 
   async listForOwnerBill(
@@ -579,9 +756,11 @@ export class PaymentsService {
       status: row.status,
       provider: row.provider,
       providerRef: row.providerRef,
+      providerCaptureRef: row.providerCaptureRef,
       note: row.note,
       receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null,
       failureReason: row.failureReason,
+      refundOfPaymentId: row.refundOfPaymentId,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

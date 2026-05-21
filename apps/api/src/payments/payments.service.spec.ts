@@ -23,17 +23,30 @@ function makeVnpayStub(opts: { enabled?: boolean } = {}): VnpayService {
 interface StripeStub {
   service: StripeService;
   createCheckoutSession: ReturnType<typeof vi.fn>;
+  createRefund: ReturnType<typeof vi.fn>;
 }
 
 /** Mock StripeService — narrow to the methods PaymentsService calls. */
 function makeStripeStub(
-  opts: { enabled?: boolean; throwOnCreate?: Error; nullUrl?: boolean } = {},
+  opts: {
+    enabled?: boolean;
+    throwOnCreate?: Error;
+    nullUrl?: boolean;
+    refundThrows?: Error;
+  } = {},
 ): StripeStub {
   const createCheckoutSession = vi.fn((): Promise<{ id: string; url: string | null }> => {
     if (opts.throwOnCreate) return Promise.reject(opts.throwOnCreate);
     const id = `cs_test_${Math.random().toString(36).slice(2, 10)}`;
     const url = opts.nullUrl ? null : `https://checkout.stripe.com/c/pay/${id}`;
     return Promise.resolve({ id, url });
+  });
+  const createRefund = vi.fn((): Promise<{ id: string; status: string | null }> => {
+    if (opts.refundThrows) return Promise.reject(opts.refundThrows);
+    return Promise.resolve({
+      id: `re_${Math.random().toString(36).slice(2, 8)}`,
+      status: 'succeeded',
+    });
   });
   const stub: StripeService = {
     isEnabled: vi.fn((): boolean => opts.enabled ?? true),
@@ -43,8 +56,9 @@ function makeStripeStub(
     constructEvent: vi.fn(() => {
       throw new Error('constructEvent not stubbed in this test context');
     }),
+    createRefund,
   };
-  return { service: stub, createCheckoutSession };
+  return { service: stub, createCheckoutSession, createRefund };
 }
 
 interface BillSeed {
@@ -71,11 +85,36 @@ interface PaymentRow {
   status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
   provider: 'STRIPE' | 'VNPAY' | 'MOMO' | 'MANUAL';
   providerRef: string | null;
+  providerCaptureRef: string | null;
   note: string | null;
   receivedAt: Date | null;
   failureReason: string | null;
+  refundOfPaymentId: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Helper for refund-suite seeds that don't care about every field —
+ * fills the structural defaults so callers can spell only what's
+ * interesting to the test.
+ */
+function buildPaymentRow(
+  partial: Partial<PaymentRow> &
+    Pick<PaymentRow, 'id' | 'billId' | 'amount' | 'currency' | 'provider'>,
+): PaymentRow {
+  return {
+    status: 'SUCCEEDED',
+    providerRef: null,
+    providerCaptureRef: null,
+    note: null,
+    receivedAt: null,
+    failureReason: null,
+    refundOfPaymentId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...partial,
+  };
 }
 
 function makePrismaStub(leases: LeaseSeed[], bills: BillSeed[]) {
@@ -153,12 +192,54 @@ function makePrismaStub(leases: LeaseSeed[], bills: BillSeed[]) {
       ),
     },
     payment: {
-      aggregate: vi.fn(({ where }: { where: { billId: string; status: 'SUCCEEDED' } }) => {
-        const rows = payments.filter((p) => p.billId === where.billId && p.status === where.status);
-        const sum = rows.reduce((a, r) => a + r.amount, 0);
-        return Promise.resolve({ _sum: { amount: sum } });
-      }),
-      create: vi.fn(({ data }: { data: Omit<PaymentRow, 'id' | 'createdAt' | 'updatedAt'> }) => {
+      aggregate: vi.fn(
+        ({
+          where,
+        }: {
+          where: {
+            billId?: string;
+            status: 'SUCCEEDED';
+            refundOfPaymentId?: string;
+          };
+        }) => {
+          const rows = payments.filter((p) => {
+            if (p.status !== where.status) return false;
+            if (where.billId !== undefined && p.billId !== where.billId) return false;
+            if (
+              where.refundOfPaymentId !== undefined &&
+              p.refundOfPaymentId !== where.refundOfPaymentId
+            ) {
+              return false;
+            }
+            return true;
+          });
+          const sum = rows.reduce((a, r) => a + r.amount, 0);
+          return Promise.resolve({ _sum: { amount: sum } });
+        },
+      ),
+      findUnique: vi.fn(
+        ({
+          where,
+        }: {
+          where: {
+            id?: string;
+            provider_providerRef?: { provider: string; providerRef: string };
+          };
+        }) => {
+          if (where.id) {
+            return Promise.resolve(payments.find((p) => p.id === where.id) ?? null);
+          }
+          if (where.provider_providerRef) {
+            const { provider, providerRef } = where.provider_providerRef;
+            return Promise.resolve(
+              payments.find((p) => p.provider === provider && p.providerRef === providerRef) ??
+                null,
+            );
+          }
+          return Promise.resolve(null);
+        },
+      ),
+      create: vi.fn(({ data }: { data: Partial<PaymentRow> }) => {
         if (data.providerRef) {
           const dup = payments.some(
             (p) => p.provider === data.provider && p.providerRef === data.providerRef,
@@ -173,7 +254,17 @@ function makePrismaStub(leases: LeaseSeed[], bills: BillSeed[]) {
         }
         const row: PaymentRow = {
           id: `pay_${payments.length + 1}`,
-          ...data,
+          billId: data.billId!,
+          amount: data.amount!,
+          currency: data.currency!,
+          status: data.status ?? 'PENDING',
+          provider: data.provider!,
+          providerRef: data.providerRef ?? null,
+          providerCaptureRef: data.providerCaptureRef ?? null,
+          note: data.note ?? null,
+          receivedAt: data.receivedAt ?? null,
+          failureReason: data.failureReason ?? null,
+          refundOfPaymentId: data.refundOfPaymentId ?? null,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -461,20 +552,16 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
   it('charges only the outstanding balance after a partial MANUAL', async () => {
     const store = makePrismaStub(seed.leases, [{ ...seed.bills[0]!, status: 'PARTIALLY_PAID' }]);
     // Pre-seed one SUCCEEDED MANUAL payment.
-    store.payments.push({
-      id: 'pay_seed',
-      billId,
-      amount: 200_000,
-      currency: 'VND',
-      status: 'SUCCEEDED',
-      provider: 'MANUAL',
-      providerRef: null,
-      note: null,
-      receivedAt: new Date(),
-      failureReason: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    store.payments.push(
+      buildPaymentRow({
+        id: 'pay_seed',
+        billId,
+        amount: 200_000,
+        currency: 'VND',
+        provider: 'MANUAL',
+        receivedAt: new Date(),
+      }),
+    );
 
     const stripe = makeStripeStub();
     const service = new PaymentsService(
@@ -542,5 +629,283 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
     ).rejects.toThrow('Stripe down');
     expect(store.payments).toHaveLength(0);
+  });
+});
+
+describe('PaymentsService.refundForOwner', () => {
+  const owner = { id: 'user_owner_1', roles: ['OWNER' as const] };
+  const leaseId = 'lease_1';
+  const billId = 'bill_1';
+  const paymentId = 'pay_orig';
+  const ctx = { actorId: owner.id, ip: null, userAgent: null };
+
+  function seedFor(provider: 'MANUAL' | 'STRIPE' | 'VNPAY' | 'MOMO' = 'MANUAL') {
+    return {
+      leases: [
+        {
+          id: leaseId,
+          unitId: 'unit_1',
+          houseId: 'house_1',
+          ownerId: owner.id,
+          tenantId: 'user_tenant_1',
+        },
+      ],
+      bills: [
+        {
+          id: billId,
+          leaseId,
+          total: 500_000,
+          currency: 'VND',
+          status: 'PAID' as const,
+        },
+      ],
+      preExistingPayments: [
+        {
+          id: paymentId,
+          billId,
+          amount: 500_000,
+          currency: 'VND',
+          status: 'SUCCEEDED' as const,
+          provider,
+          providerRef: 'ref-1',
+          providerCaptureRef: provider === 'STRIPE' ? 'pi_test_1' : null,
+          refundOfPaymentId: null,
+        },
+      ],
+    };
+  }
+
+  it('MANUAL: partial refund flips PAID → PARTIALLY_PAID + writes negative-amount row', async () => {
+    const store = makePrismaStub(seedFor('MANUAL').leases, seedFor('MANUAL').bills);
+    // Seed the original SUCCEEDED Payment row.
+    store.payments.push(buildPaymentRow(seedFor('MANUAL').preExistingPayments[0]!));
+    const stripe = makeStripeStub();
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      stripe.service,
+      makeVnpayStub(),
+    );
+    const res = await service.refundForOwner(
+      owner,
+      'house_1',
+      'unit_1',
+      leaseId,
+      billId,
+      paymentId,
+      { amount: 200_000, reason: 'tenant overpaid' },
+      ctx,
+    );
+    expect(res.payment.amount).toBe(-200_000);
+    expect(res.payment.refundOfPaymentId).toBe(paymentId);
+    expect(res.bill.status).toBe('PARTIALLY_PAID');
+    expect(stripe.createRefund).not.toHaveBeenCalled();
+    expect(store.auditRows.some((r) => r.action === 'bill.payment.refund')).toBe(true);
+  });
+
+  it('MANUAL: full refund flips bill back to ISSUED', async () => {
+    const store = makePrismaStub(seedFor('MANUAL').leases, seedFor('MANUAL').bills);
+    store.payments.push(buildPaymentRow(seedFor('MANUAL').preExistingPayments[0]!));
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      makeVnpayStub(),
+    );
+    const res = await service.refundForOwner(
+      owner,
+      'house_1',
+      'unit_1',
+      leaseId,
+      billId,
+      paymentId,
+      { amount: 500_000 },
+      ctx,
+    );
+    expect(res.bill.status).toBe('ISSUED');
+  });
+
+  it('rejects refund exceeding remaining balance', async () => {
+    const store = makePrismaStub(seedFor('MANUAL').leases, seedFor('MANUAL').bills);
+    store.payments.push(buildPaymentRow(seedFor('MANUAL').preExistingPayments[0]!));
+    // Seed an existing partial refund (-200_000).
+    store.payments.push(
+      buildPaymentRow({
+        id: 'pay_ref1',
+        billId,
+        amount: -200_000,
+        currency: 'VND',
+        provider: 'MANUAL',
+        refundOfPaymentId: paymentId,
+      }),
+    );
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      makeVnpayStub(),
+    );
+    await expect(
+      service.refundForOwner(
+        owner,
+        'house_1',
+        'unit_1',
+        leaseId,
+        billId,
+        paymentId,
+        { amount: 400_000 },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('rejects refund of a non-SUCCEEDED Payment', async () => {
+    const seed = seedFor('MANUAL');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(buildPaymentRow({ ...seed.preExistingPayments[0]!, status: 'PENDING' }));
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      makeVnpayStub(),
+    );
+    await expect(
+      service.refundForOwner(
+        owner,
+        'house_1',
+        'unit_1',
+        leaseId,
+        billId,
+        paymentId,
+        { amount: 1 },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('rejects refunding a refund row', async () => {
+    const seed = seedFor('MANUAL');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(buildPaymentRow({ ...seed.preExistingPayments[0]!, amount: -100_000 }));
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      makeVnpayStub(),
+    );
+    await expect(
+      service.refundForOwner(
+        owner,
+        'house_1',
+        'unit_1',
+        leaseId,
+        billId,
+        paymentId,
+        { amount: 1 },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('STRIPE: calls Stripe Refunds API + stores refund id', async () => {
+    const seed = seedFor('STRIPE');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(buildPaymentRow(seed.preExistingPayments[0]!));
+    const stripe = makeStripeStub();
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      stripe.service,
+      makeVnpayStub(),
+    );
+    const res = await service.refundForOwner(
+      owner,
+      'house_1',
+      'unit_1',
+      leaseId,
+      billId,
+      paymentId,
+      { amount: 500_000 },
+      ctx,
+    );
+    expect(stripe.createRefund).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentIntentId: 'pi_test_1', amount: 500_000 }),
+    );
+    expect(res.payment.providerRef).toMatch(/^re_/);
+    expect(res.bill.status).toBe('ISSUED');
+  });
+
+  it('STRIPE: 422 when providerCaptureRef is missing (legacy payment)', async () => {
+    const seed = seedFor('STRIPE');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(
+      buildPaymentRow({ ...seed.preExistingPayments[0]!, providerCaptureRef: null }),
+    );
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      makeVnpayStub(),
+    );
+    await expect(
+      service.refundForOwner(
+        owner,
+        'house_1',
+        'unit_1',
+        leaseId,
+        billId,
+        paymentId,
+        { amount: 1 },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('VNPAY: 501 payments.refund_not_supported', async () => {
+    const seed = seedFor('VNPAY');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(buildPaymentRow(seed.preExistingPayments[0]!));
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      makeVnpayStub(),
+    );
+    await expect(
+      service.refundForOwner(
+        owner,
+        'house_1',
+        'unit_1',
+        leaseId,
+        billId,
+        paymentId,
+        { amount: 1 },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ status: 501 });
+  });
+
+  it('cross-owner refund → 404', async () => {
+    const seed = seedFor('MANUAL');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(buildPaymentRow(seed.preExistingPayments[0]!));
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      makeVnpayStub(),
+    );
+    await expect(
+      service.refundForOwner(
+        { id: 'user_other_owner', roles: ['OWNER'] },
+        'house_1',
+        'unit_1',
+        leaseId,
+        billId,
+        paymentId,
+        { amount: 1 },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

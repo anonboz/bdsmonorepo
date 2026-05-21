@@ -49,6 +49,9 @@ function makeStripeStub(opts: {
         StripeService['constructEvent']
       >;
     }),
+    createRefund: vi.fn(() => {
+      throw new Error('createRefund not used in this suite');
+    }),
   };
   return stub;
 }

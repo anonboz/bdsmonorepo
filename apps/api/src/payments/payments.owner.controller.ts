@@ -4,7 +4,7 @@ import type { FastifyRequest } from 'fastify';
 
 import type { Page, Payment, RecordPaymentResponse } from '@repo/shared';
 
-import { RecordManualPaymentDto } from './dto/payments.dto.js';
+import { RecordManualPaymentDto, RefundPaymentDto } from './dto/payments.dto.js';
 import { PaymentsService } from './payments.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
@@ -50,5 +50,30 @@ export class PaymentsOwnerController {
     @Param('billId') billId: string,
   ): Promise<Page<Payment>> {
     return this.service.listForOwnerBill(user, houseId, unitId, leaseId, billId);
+  }
+
+  @Post(':paymentId/refund')
+  @Roles('OWNER')
+  @HttpCode(201)
+  refund(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: FastifyRequest,
+    @Param('houseId') houseId: string,
+    @Param('unitId') unitId: string,
+    @Param('leaseId') leaseId: string,
+    @Param('billId') billId: string,
+    @Param('paymentId') paymentId: string,
+    @Body() body: RefundPaymentDto,
+  ): Promise<RecordPaymentResponse> {
+    return this.service.refundForOwner(
+      user,
+      houseId,
+      unitId,
+      leaseId,
+      billId,
+      paymentId,
+      body,
+      requestContextFrom(user, req),
+    );
   }
 }

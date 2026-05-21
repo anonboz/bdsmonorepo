@@ -51,4 +51,30 @@ export class StripeService {
     }
     return client.webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
   }
+
+  /**
+   * Issues a refund against a Stripe PaymentIntent (Phase 7.5).
+   * Returns the minimum we need locally — the refund id and its sync
+   * status. Stripe's synchronous response is `succeeded` for most
+   * card-not-present flows; rarer `pending` cases get a follow-up
+   * `charge.refunded` event we don't process in v1.
+   */
+  async createRefund(args: {
+    paymentIntentId: string;
+    amount: number;
+    reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer';
+    metadata?: Record<string, string>;
+  }): Promise<{ id: string; status: string | null }> {
+    const client = getStripeClient();
+    if (!client) {
+      throw new Error('Stripe client not initialised — STRIPE_SECRET_KEY is unset.');
+    }
+    const refund = await client.refunds.create({
+      payment_intent: args.paymentIntentId,
+      amount: args.amount,
+      reason: args.reason ?? 'requested_by_customer',
+      metadata: args.metadata,
+    });
+    return { id: refund.id, status: refund.status };
+  }
 }

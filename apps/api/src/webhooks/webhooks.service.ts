@@ -144,12 +144,21 @@ export class WebhooksService {
   }
 
   private async onCheckoutSessionCompleted(event: {
-    data: { object: { id: string } };
+    data: { object: { id: string; payment_intent?: string | { id: string } | null } };
     id: string;
     type: string;
   }): Promise<void> {
     const session = event.data.object;
     const sessionId = session.id;
+    // Stripe types `payment_intent` as `string | PaymentIntent | null`.
+    // In real deliveries it's a string; the PaymentIntent object only
+    // appears when the caller passes `expand`. Coerce strings; warn on
+    // null (would only happen on a $0 session, which we shouldn't be
+    // creating).
+    const paymentIntentId =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : (session.payment_intent?.id ?? null);
 
     await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
@@ -167,10 +176,20 @@ export class WebhooksService {
         // re-deliveries). Idempotent no-op.
         return;
       }
+      if (!paymentIntentId) {
+        this.logger.warn(
+          `stripe session ${sessionId} completed with no payment_intent — refunds won't work for this payment`,
+        );
+      }
 
       await tx.payment.update({
         where: { id: payment.id },
-        data: { status: 'SUCCEEDED', receivedAt: new Date() },
+        data: {
+          status: 'SUCCEEDED',
+          receivedAt: new Date(),
+          // Capture the PaymentIntent id for the refund path (7.5).
+          providerCaptureRef: paymentIntentId,
+        },
       });
 
       const agg = await tx.payment.aggregate({
@@ -312,8 +331,11 @@ export class WebhooksService {
         data: {
           status: 'SUCCEEDED',
           receivedAt: new Date(),
-          // Carry the bank's transaction number for ops correlation —
-          // VNPay surfaces it in their dashboard.
+          // Mirror the bank's transaction number into the structured
+          // `providerCaptureRef` (used by the 7.5 refund path) AND keep
+          // it in `note` for backwards compatibility — earlier ops
+          // scripts may grep the note column.
+          providerCaptureRef: query.vnp_TransactionNo ?? null,
           note: query.vnp_TransactionNo
             ? `vnp_TransactionNo=${query.vnp_TransactionNo}`
             : payment.note,

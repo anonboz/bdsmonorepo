@@ -53,6 +53,10 @@ export const ErrorCodes = {
   PAYMENT_PROVIDER_REF_TAKEN: 'payments.provider_ref_taken',
   PAYMENT_PROVIDER_DISABLED: 'payments.provider_disabled',
   PAYMENT_RECEIVED_AT_FUTURE: 'payments.received_at_future',
+  PAYMENT_NOT_REFUNDABLE: 'payments.not_refundable',
+  PAYMENT_REFUND_EXCEEDS_REMAINING: 'payments.refund_exceeds_remaining',
+  PAYMENT_REFUND_NOT_SUPPORTED: 'payments.refund_not_supported',
+  PAYMENT_REFUND_MISSING_CAPTURE_REF: 'payments.refund_missing_capture_ref',
 
   // ---- tickets ------------------------------------------------------
   TICKET_NOT_FOUND: 'tickets.not_found',

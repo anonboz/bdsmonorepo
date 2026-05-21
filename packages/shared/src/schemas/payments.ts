@@ -12,21 +12,27 @@ import { paymentProviderSchema, paymentStatusSchema } from '../enums/misc';
 export const paymentSchema = z.object({
   id: idSchema,
   billId: idSchema,
-  /** Minor units; always positive. Refunds (Phase 7.5) are separate
-   *  Payment rows with negative amounts. */
-  amount: z.number().int().positive(),
+  /** Minor units. Signed: charges are positive, refunds are negative
+   *  and link back via `refundOfPaymentId`. */
+  amount: z.number().int(),
   currency: currencySchema,
   status: paymentStatusSchema,
   provider: paymentProviderSchema,
-  /** Bank ref, Stripe payment intent id, VNPay txn ref. Null for
-   *  unattributed offline payments. */
+  /** Session / checkout / IPN-time reference (Stripe session id,
+   *  VNPay TxnRef, MANUAL bank reference). */
   providerRef: z.string().nullable(),
+  /** Settled-transaction reference (Stripe PaymentIntent id, VNPay
+   *  `vnp_TransactionNo`). Populated by webhooks; required to issue
+   *  a refund via the provider API. */
+  providerCaptureRef: z.string().nullable(),
   /** Owner's free-form context — kept out of audit meta. */
   note: z.string().max(500).nullable(),
   /** When the money actually moved. Distinct from `createdAt` (when
    *  this row was inserted). */
   receivedAt: isoDateTimeSchema.nullable(),
   failureReason: z.string().nullable(),
+  /** Original Payment id this row reverses. NULL on regular charges. */
+  refundOfPaymentId: idSchema.nullable(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
 });
@@ -75,3 +81,16 @@ export const createCheckoutSessionResponseSchema = z.object({
 });
 
 export type CreateCheckoutSessionResponse = z.infer<typeof createCheckoutSessionResponseSchema>;
+
+/**
+ * Body for the owner's refund action on a SUCCEEDED Payment row.
+ * Always positive — the service negates the amount before insert.
+ * `reason` is owner-only context kept off the audit meta (same
+ * pattern as `note` on the manual-record path).
+ */
+export const refundPaymentSchema = z.object({
+  amount: z.number().int().positive(),
+  reason: z.string().trim().min(1).max(500).optional(),
+});
+
+export type RefundPaymentInput = z.infer<typeof refundPaymentSchema>;
