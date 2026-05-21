@@ -1,0 +1,57 @@
+name: Backup — Postgres nightly dump
+
+on:
+  # 03:00 UTC nightly — 1h before bills.daily-sweep (02:00) to keep the
+  # nightly load profile predictable.
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: backup-postgres
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: pg_dump → S3
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+      BACKUP_S3_PREFIX: ${{ secrets.BACKUP_S3_PREFIX }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.BACKUP_S3_REGION }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Postgres 16 client
+        run: |
+          # ubuntu-latest already has psql 16 in the postgresql-client-16
+          # apt package — pin the major to match the prod server version.
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client-16
+
+      - name: Verify required secrets are set
+        run: |
+          for v in BACKUP_DATABASE_URL BACKUP_S3_BUCKET AWS_ACCESS_KEY_ID \
+                  AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::$v is empty — set the matching repository secret." >&2
+              exit 1
+            fi
+          done
+
+      - name: Run backup
+        env:
+          BACKUP_SHORT_SHA: ${{ github.sha }}
+        run: |
+          # GITHUB_SHA is the full 40-char hash; trim for the filename.
+          export BACKUP_SHORT_SHA="${BACKUP_SHORT_SHA:0:8}"
+          bash scripts/backup-postgres.sh
