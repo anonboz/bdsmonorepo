@@ -100,6 +100,33 @@ const envSchema = z.object({
   VNPAY_PAYMENT_URL: url().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
   /** Locale for VNPay's hosted page (`"vn"` or `"en"`). */
   VNPAY_LOCALE: z.string().default('vn'),
+
+  /**
+   * S3-compatible storage config — points at the local MinIO by
+   * default (see docker-compose.yml). All four are required for
+   * StorageService to be considered "enabled"; when any is missing
+   * the service throws 503 `storage.disabled` on every call.
+   */
+  S3_ENDPOINT: url().default('http://localhost:9000'),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_ACCESS_KEY_ID: z.string().default('minioadmin'),
+  S3_SECRET_ACCESS_KEY: z.string().default('minioadmin'),
+  S3_BUCKET_UPLOADS: z.string().default('bds-uploads'),
+  /** Path-style URLs are required for MinIO; production S3 prefers vhost-style. */
+  S3_FORCE_PATH_STYLE: z
+    .union([z.literal('true'), z.literal('false')])
+    .default('true')
+    .transform((v) => v === 'true'),
+  /**
+   * Public-facing URL prefix for embeds. When set, the client gets
+   * `${S3_PUBLIC_BASE}/${bucket}/${key}` instead of the SDK endpoint —
+   * useful in prod where the SDK talks to the bucket directly but
+   * embeds go through CloudFront / an internal proxy. Empty string
+   * means "use S3_ENDPOINT".
+   */
+  S3_PUBLIC_BASE: z.string().default(''),
+  /** Lifetime of presigned PUT URLs, seconds. Default 5 minutes. */
+  S3_PRESIGN_EXPIRES_SEC: z.coerce.number().int().positive().default(300),
 });
 
 export const env = loadEnv(envSchema);

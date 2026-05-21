@@ -19,3 +19,4 @@ export * from './owner-dashboard';
 export * from './platform-dashboard';
 export * from './admin';
 export * from './notifications';
+export * from './media';

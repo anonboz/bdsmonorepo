@@ -116,6 +116,12 @@ export const ErrorCodes = {
 
   // ---- notifications -----------------------------------------------
   NOTIFICATION_NOT_FOUND: 'notifications.not_found',
+
+  // ---- media --------------------------------------------------------
+  MEDIA_NOT_FOUND: 'media.not_found',
+  MEDIA_NOT_PENDING: 'media.not_pending',
+  MEDIA_UPLOAD_NOT_FOUND: 'media.upload_not_found',
+  MEDIA_SIZE_MISMATCH: 'media.size_mismatch',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

@@ -222,6 +222,7 @@ model User {
   partnerProfile PartnerProfile?
   notifications  Notification[]
   auditLog       AuditLog[]
+  mediaAssets    MediaAsset[]
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -835,4 +836,59 @@ model WebhookEvent {
   @@unique([provider, eventId])
   @@index([provider, type, receivedAt])
   @@index([status, receivedAt])
+}
+
+/// Pre-signed-upload-backed image asset. Created PENDING when the API
+/// hands out a signed PUT URL; flipped to UPLOADED once the confirm
+/// endpoint HEAD-checks the bucket. DELETED is set by the GDPR/erasure
+/// flow — the row stays for audit even after the S3 object is purged.
+///
+/// Existing `Campaign.photos` / `ServiceJob.proofPhotos` columns keep
+/// holding URL strings; an asset's `publicUrl` is what the client
+/// embeds. The MediaAsset row is the source of truth for ownership +
+/// revocation, not for rendering — see `docs/specs/phase8-media-uploads.md`.
+model MediaAsset {
+  id          String       @id @default(cuid())
+  ownerUserId String
+  owner       User         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  purpose     MediaPurpose
+  status      MediaStatus  @default(PENDING)
+
+  /// "s3" today; reserved for future providers (e.g. cloudflare R2).
+  provider    String       @default("s3") @db.VarChar(20)
+  bucket      String       @db.VarChar(120)
+  key         String       @db.VarChar(500)
+
+  filename    String       @db.VarChar(200)
+  contentType String       @db.VarChar(120)
+  sizeBytes   Int          @default(0)
+
+  /// Cached canonical URL clients embed. May be a public-read S3 path or
+  /// a CDN-fronted URL — depends on deploy config. Stored so callers
+  /// don't have to re-derive it from bucket + key.
+  publicUrl   String       @db.VarChar(800)
+
+  uploadedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  @@index([ownerUserId, createdAt])
+  @@index([status, createdAt])
+  @@index([provider, bucket, key])
+}
+
+enum MediaPurpose {
+  CAMPAIGN_PHOTO
+  JOB_PROOF
+}
+
+enum MediaStatus {
+  /// Signed PUT issued; client hasn't confirmed yet.
+  PENDING
+  /// Confirm endpoint HEAD-verified the object exists in S3.
+  UPLOADED
+  /// S3 object purged; row kept for audit / link integrity.
+  DELETED
 }
