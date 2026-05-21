@@ -61,3 +61,17 @@ export const recordPaymentResponseSchema = z.object({
 });
 
 export type RecordPaymentResponse = z.infer<typeof recordPaymentResponseSchema>;
+
+/**
+ * Response shape for `POST /v1/me/bills/:id/checkout` — the client
+ * redirects to `url` to hit the hosted Stripe Checkout page. The
+ * `paymentId` is the local PENDING row created at session time; the
+ * webhook (Phase 7.3) flips it to `SUCCEEDED` and the bill to PAID.
+ */
+export const createCheckoutSessionResponseSchema = z.object({
+  url: z.string().url(),
+  sessionId: z.string().min(1),
+  paymentId: idSchema,
+});
+
+export type CreateCheckoutSessionResponse = z.infer<typeof createCheckoutSessionResponseSchema>;

@@ -51,6 +51,7 @@ export const ErrorCodes = {
   PAYMENT_OVERPAYMENT: 'payments.overpayment',
   PAYMENT_CURRENCY_MISMATCH: 'payments.currency_mismatch',
   PAYMENT_PROVIDER_REF_TAKEN: 'payments.provider_ref_taken',
+  PAYMENT_PROVIDER_DISABLED: 'payments.provider_disabled',
   PAYMENT_RECEIVED_AT_FUTURE: 'payments.received_at_future',
 
   // ---- tickets ------------------------------------------------------

@@ -59,6 +59,24 @@ const envSchema = z.object({
   /** Tag passed to Sentry for release-based grouping. Free-form. */
   SENTRY_RELEASE: z.string().optional(),
   POSTHOG_KEY: z.string().optional(),
+
+  /**
+   * Stripe secret key. When unset the checkout endpoint returns 503
+   * `payments.provider_disabled` so devs running without a Stripe
+   * test account aren't blocked from booting the API.
+   */
+  STRIPE_SECRET_KEY: z.string().optional(),
+  /**
+   * Used by 7.3's webhook handler to verify the `Stripe-Signature`
+   * header. Documented now so the env shape is fully declared in
+   * one place.
+   */
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  /**
+   * Origin of the tenant app — surfaces in Stripe Checkout's success
+   * + cancel URLs. Defaults to the local dev port.
+   */
+  TENANT_APP_URL: url().default('http://localhost:3020'),
 });
 
 export const env = loadEnv(envSchema);

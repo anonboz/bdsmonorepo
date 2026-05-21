@@ -2,8 +2,31 @@ import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PaymentsService } from './payments.service.js';
+import type { StripeService } from './stripe.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
+
+interface StripeStub {
+  service: StripeService;
+  createCheckoutSession: ReturnType<typeof vi.fn>;
+}
+
+/** Mock StripeService — narrow to the methods PaymentsService calls. */
+function makeStripeStub(
+  opts: { enabled?: boolean; throwOnCreate?: Error; nullUrl?: boolean } = {},
+): StripeStub {
+  const createCheckoutSession = vi.fn((): Promise<{ id: string; url: string | null }> => {
+    if (opts.throwOnCreate) return Promise.reject(opts.throwOnCreate);
+    const id = `cs_test_${Math.random().toString(36).slice(2, 10)}`;
+    const url = opts.nullUrl ? null : `https://checkout.stripe.com/c/pay/${id}`;
+    return Promise.resolve({ id, url });
+  });
+  const stub = {
+    isEnabled: vi.fn((): boolean => opts.enabled ?? true),
+    createCheckoutSession,
+  };
+  return { service: stub satisfies StripeService, createCheckoutSession };
+}
 
 interface BillSeed {
   id: string;
@@ -63,11 +86,19 @@ function makePrismaStub(leases: LeaseSeed[], bills: BillSeed[]) {
         const b = billsState.find((x) => x.id === where.id);
         if (!b) return Promise.resolve(null);
         if (select) {
-          // Tenant-list path selects { id, lease: { select: { tenantId } } }.
+          // Tenant-list + Stripe-checkout paths select { lease: { tenantId } }.
+          // The checkout path also asks for status / currency / total /
+          // periodStart / periodEnd — return everything; Prisma would
+          // narrow but the mock is friendlier.
           const lease = leases.find((l) => l.id === b.leaseId);
           return Promise.resolve({
             id: b.id,
             leaseId: b.leaseId,
+            status: b.status,
+            currency: b.currency,
+            total: b.total,
+            periodStart: new Date('2026-05-01'),
+            periodEnd: new Date('2026-05-31'),
             lease: { tenantId: lease?.tenantId ?? null },
           });
         }
@@ -133,6 +164,18 @@ function makePrismaStub(leases: LeaseSeed[], bills: BillSeed[]) {
       findMany: vi.fn(({ where }: { where: { billId: string } }) =>
         Promise.resolve(payments.filter((p) => p.billId === where.billId)),
       ),
+      update: vi.fn(({ where, data }: { where: { id: string }; data: Partial<PaymentRow> }) => {
+        const p = payments.find((x) => x.id === where.id);
+        if (!p) throw new Error('payment not found');
+        Object.assign(p, data, { updatedAt: new Date() });
+        return Promise.resolve(p);
+      }),
+      delete: vi.fn(({ where }: { where: { id: string } }) => {
+        const idx = payments.findIndex((x) => x.id === where.id);
+        if (idx === -1) throw new Error('payment not found');
+        const [removed] = payments.splice(idx, 1);
+        return Promise.resolve(removed);
+      }),
     },
     auditLog: {
       create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
@@ -178,7 +221,11 @@ describe('PaymentsService.recordManualForOwner', () => {
 
   beforeEach(() => {
     store = makePrismaStub(seed.leases, seed.bills);
-    service = new PaymentsService(store.stub as never, new AuditLogger(store.stub as never));
+    service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+    );
   });
 
   it('records a full payment and flips the bill to PAID', async () => {
@@ -240,7 +287,11 @@ describe('PaymentsService.recordManualForOwner', () => {
 
   it('rejects when the bill is already PAID', async () => {
     store = makePrismaStub(seed.leases, [{ ...seed.bills[0]!, status: 'PAID' }]);
-    service = new PaymentsService(store.stub as never, new AuditLogger(store.stub as never));
+    service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+    );
     await expect(
       service.recordManualForOwner(
         owner,
@@ -256,7 +307,11 @@ describe('PaymentsService.recordManualForOwner', () => {
 
   it('rejects when the bill is DRAFT', async () => {
     store = makePrismaStub(seed.leases, [{ ...seed.bills[0]!, status: 'DRAFT' }]);
-    service = new PaymentsService(store.stub as never, new AuditLogger(store.stub as never));
+    service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+    );
     await expect(
       service.recordManualForOwner(
         owner,
@@ -335,5 +390,129 @@ describe('PaymentsService.recordManualForOwner', () => {
         ctx,
       ),
     ).rejects.toMatchObject({ status: 409 });
+  });
+});
+
+describe('PaymentsService.createStripeCheckoutForTenant', () => {
+  const owner = { id: 'user_owner_1', roles: ['OWNER' as const] };
+  const tenant = { id: 'user_tenant_1', email: 'tenant@example.com' };
+  const leaseId = 'lease_1';
+  const billId = 'bill_1';
+  const ctx = { actorId: tenant.id, ip: null, userAgent: null };
+
+  const seed = {
+    leases: [
+      {
+        id: leaseId,
+        unitId: 'unit_1',
+        houseId: 'house_1',
+        ownerId: owner.id,
+        tenantId: tenant.id,
+      },
+    ],
+    bills: [{ id: billId, leaseId, total: 500_000, currency: 'VND', status: 'ISSUED' as const }],
+  };
+
+  it('creates a PENDING STRIPE row + returns the session url', async () => {
+    const store = makePrismaStub(seed.leases, seed.bills);
+    const stripe = makeStripeStub();
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      stripe.service,
+    );
+
+    const res = await service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx);
+    expect(res.url).toMatch(/^https:\/\/checkout\.stripe\.com\//);
+    expect(res.sessionId).toMatch(/^cs_test_/);
+    expect(store.payments).toHaveLength(1);
+    expect(store.payments[0]).toMatchObject({
+      provider: 'STRIPE',
+      status: 'PENDING',
+      amount: 500_000,
+    });
+    // Audit row fires after the Stripe round-trip.
+    expect(store.auditRows.find((r) => r.action === 'bill.checkout.start')).toBeDefined();
+  });
+
+  it('charges only the outstanding balance after a partial MANUAL', async () => {
+    const store = makePrismaStub(seed.leases, [{ ...seed.bills[0]!, status: 'PARTIALLY_PAID' }]);
+    // Pre-seed one SUCCEEDED MANUAL payment.
+    store.payments.push({
+      id: 'pay_seed',
+      billId,
+      amount: 200_000,
+      currency: 'VND',
+      status: 'SUCCEEDED',
+      provider: 'MANUAL',
+      providerRef: null,
+      note: null,
+      receivedAt: new Date(),
+      failureReason: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const stripe = makeStripeStub();
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      stripe.service,
+    );
+    await service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx);
+
+    expect(stripe.createCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 300_000 }),
+    );
+  });
+
+  it('503 payments.provider_disabled when STRIPE_SECRET_KEY is unset', async () => {
+    const store = makePrismaStub(seed.leases, seed.bills);
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub({ enabled: false }).service,
+    );
+    await expect(
+      service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
+    ).rejects.toMatchObject({ status: 503 });
+  });
+
+  it('cross-tenant access returns 404', async () => {
+    const store = makePrismaStub(seed.leases, seed.bills);
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+    );
+    await expect(
+      service.createStripeCheckoutForTenant('user_other_tenant', null, billId, ctx),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('422 when the bill is already PAID', async () => {
+    const store = makePrismaStub(seed.leases, [{ ...seed.bills[0]!, status: 'PAID' }]);
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+    );
+    await expect(
+      service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('rolls back the local Payment row when Stripe throws', async () => {
+    const store = makePrismaStub(seed.leases, seed.bills);
+    const stripe = makeStripeStub({ throwOnCreate: new Error('Stripe down') });
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      stripe.service,
+    );
+    await expect(
+      service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
+    ).rejects.toThrow('Stripe down');
+    expect(store.payments).toHaveLength(0);
   });
 });

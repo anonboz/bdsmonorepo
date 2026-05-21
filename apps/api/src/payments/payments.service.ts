@@ -5,6 +5,7 @@ import {
   ErrorCodes,
   type Bill,
   type BillLine,
+  type CreateCheckoutSessionResponse,
   type Page,
   type Payment,
   type RecordPaymentResponse,
@@ -12,10 +13,12 @@ import {
 } from '@repo/shared';
 
 import type { RecordManualPaymentDto } from './dto/payments.dto.js';
+import { StripeService } from './stripe.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
+import { env } from '../env.js';
 
 type BillRow = Prisma.BillGetPayload<{ include: { lines: true } }>;
 type PaymentRow = Prisma.PaymentGetPayload<Record<string, never>>;
@@ -44,6 +47,7 @@ export class PaymentsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
+    private readonly stripe: StripeService,
   ) {}
 
   // ---- Mutations (owner-only) -------------------------------------
@@ -184,6 +188,156 @@ export class PaymentsService {
       if (err instanceof ProblemError) throw err;
       throw err;
     }
+  }
+
+  // ---- Stripe Checkout (tenant) -----------------------------------
+
+  /**
+   * Creates a Stripe Checkout Session for the tenant's outstanding
+   * balance on the bill. The session is created *before* the local
+   * Payment row insert so we can write the row with the session id
+   * as `providerRef`. Stripe garbage-collects the session if our
+   * insert later fails — no manual cleanup needed.
+   *
+   * The Bill stays in its current state. 7.3's webhook flips it to
+   * `PAID` when `payment_intent.succeeded` lands.
+   */
+  async createStripeCheckoutForTenant(
+    tenantId: string,
+    tenantEmail: string | null,
+    billId: string,
+    ctx: RequestContext,
+  ): Promise<CreateCheckoutSessionResponse> {
+    if (!this.stripe.isEnabled()) {
+      throw new ProblemError({
+        status: 503,
+        type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+        title: 'Stripe is not configured on this deployment',
+      });
+    }
+
+    const bill = await this.prisma.bill.findUnique({
+      where: { id: billId },
+      select: {
+        id: true,
+        leaseId: true,
+        status: true,
+        currency: true,
+        total: true,
+        periodStart: true,
+        periodEnd: true,
+        lease: { select: { tenantId: true } },
+      },
+    });
+    if (bill?.lease.tenantId !== tenantId) throw this.billNotFound();
+
+    if (bill.status === 'PAID') {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_ALREADY_PAID,
+        title: 'Bill is already paid',
+      });
+    }
+    if (!PAYABLE_STATES.has(bill.status)) {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_NOT_PAYABLE,
+        title: 'Bill is not payable',
+        detail: `Cannot start checkout for a bill in ${bill.status} state.`,
+      });
+    }
+
+    const agg = await this.prisma.payment.aggregate({
+      where: { billId, status: 'SUCCEEDED' },
+      _sum: { amount: true },
+    });
+    const outstanding = bill.total - (agg._sum.amount ?? 0);
+    if (outstanding <= 0) {
+      // Race: a MANUAL payment landed between bill.status read and
+      // this aggregation. Treat as "already paid" so the tenant
+      // doesn't double-charge.
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_ALREADY_PAID,
+        title: 'Bill is already paid',
+      });
+    }
+
+    const description = `Rent ${bill.periodStart.toISOString().slice(0, 10)} – ${bill.periodEnd
+      .toISOString()
+      .slice(0, 10)}`;
+
+    // We need the local Payment row's id in Stripe's session metadata
+    // so the 7.3 webhook can resolve it without a table scan. Insert
+    // the row first with `providerRef: null` (Postgres treats multiple
+    // NULLs as distinct under the @@unique([provider, providerRef])
+    // constraint), then update with the real session id after Stripe.
+    const payment = await this.prisma.payment.create({
+      data: {
+        billId,
+        amount: outstanding,
+        currency: bill.currency,
+        status: 'PENDING',
+        provider: 'STRIPE',
+        providerRef: null,
+        note: null,
+        receivedAt: null,
+      },
+    });
+
+    let session;
+    try {
+      session = await this.stripe.createCheckoutSession({
+        customerEmail: tenantEmail,
+        billId: bill.id,
+        tenantId,
+        paymentId: payment.id,
+        description,
+        amount: outstanding,
+        currency: bill.currency,
+        successUrl: `${env.TENANT_APP_URL}/my-bills/${bill.id}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${env.TENANT_APP_URL}/my-bills/${bill.id}/payment-cancelled`,
+      });
+    } catch (err) {
+      // Roll back the placeholder row so we don't accumulate orphans.
+      await this.prisma.payment.delete({ where: { id: payment.id } }).catch(() => {
+        // Ignore — we'd rather surface the Stripe error than mask it.
+      });
+      throw err;
+    }
+
+    if (!session.url) {
+      // Stripe gives null when the session was created in a mode that
+      // doesn't return a hosted URL — shouldn't happen for mode:'payment'.
+      await this.prisma.payment.delete({ where: { id: payment.id } }).catch(() => undefined);
+      throw new ProblemError({
+        status: 500,
+        type: ErrorCodes.INTERNAL_ERROR,
+        title: 'Stripe returned no checkout URL',
+      });
+    }
+
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { providerRef: session.id },
+    });
+
+    await this.audit.writeOnce({
+      actorId: ctx.actorId,
+      action: 'bill.checkout.start',
+      target: `Payment:${payment.id}`,
+      meta: {
+        billId,
+        amount: outstanding,
+        currency: bill.currency,
+        provider: 'STRIPE',
+        sessionId: session.id,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return { url: session.url, sessionId: session.id, paymentId: payment.id };
   }
 
   // ---- Reads -------------------------------------------------------

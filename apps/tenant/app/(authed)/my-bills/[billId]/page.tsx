@@ -8,6 +8,7 @@ import { ApiError } from '../../../../lib/api';
 import { formatDate, formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 import { DownloadReceipt } from '../_components/download-receipt';
+import { PayOnline } from './_components/pay-online';
 
 export default async function MyBillDetailPage({
   params,
@@ -97,10 +98,13 @@ export default async function MyBillDetailPage({
         <CardHeader>
           <CardTitle className="text-lg">Pay online</CardTitle>
           <CardDescription>
-            Online payments land in Phase 7.2 (Stripe Checkout). Until then, settle directly with
-            your landlord and they will record the payment here.
+            Pay this bill with a card via Stripe Checkout. Your bill flips to PAID once Stripe
+            confirms — usually a few seconds after you finish.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <PayOnline billId={bill.id} billStatus={bill.status} />
+        </CardContent>
       </Card>
     </main>
   );
