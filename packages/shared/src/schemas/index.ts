@@ -18,3 +18,4 @@ export * from './users';
 export * from './owner-dashboard';
 export * from './platform-dashboard';
 export * from './admin';
+export * from './notifications';

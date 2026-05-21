@@ -13,6 +13,7 @@ import { HealthModule } from './health/health.module.js';
 import { HousesModule } from './houses/houses.module.js';
 import { JobRatingsModule } from './job-ratings/job-ratings.module.js';
 import { LeasesModule } from './leases/leases.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 import { OwnerDashboardModule } from './owner-dashboard/owner-dashboard.module.js';
 import { PartnersModule } from './partners/partners.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
@@ -49,6 +50,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     PrismaModule,
     MailerModule,
     QueuesModule,
+    NotificationsModule,
     HealthModule,
     AuthModule,
     HousesModule,

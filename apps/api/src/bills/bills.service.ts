@@ -1,11 +1,19 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { ErrorCodes, type Bill, type BillLine, type Page, type Role } from '@repo/shared';
+import {
+  ErrorCodes,
+  NotificationTopic,
+  type Bill,
+  type BillLine,
+  type Page,
+  type Role,
+} from '@repo/shared';
 
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 type BillRow = Prisma.BillGetPayload<{ include: { lines: true } }>;
 
@@ -57,6 +65,7 @@ export class BillsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ---- Generation ---------------------------------------------------
@@ -96,7 +105,10 @@ export class BillsService {
       // Create the bill + audit row atomically. Audit only fires on a
       // genuinely-new bill — the duplicate branch below intentionally
       // skips writing so a retry doesn't double-log the same period.
-      const created = await this.prisma.$transaction(async (tx) => {
+      // We also persist the bill.issued notification inside the same tx
+      // so a worker failure can't leave us with a bill and no inbox
+      // row — the BullMQ enqueue runs after commit.
+      const { created, enqueue } = await this.prisma.$transaction(async (tx) => {
         const row = await tx.bill.create({
           data: {
             leaseId,
@@ -135,8 +147,21 @@ export class BillsService {
           ip: ctx.ip,
           userAgent: ctx.userAgent,
         });
-        return row;
+        const dispatch = await this.notifications.dispatch(tx, {
+          topic: NotificationTopic.BILL_ISSUED,
+          recipientId: lease.tenantId,
+          data: {
+            billId: row.id,
+            leaseId,
+            amount: row.total,
+            currency: row.currency,
+            dueDate: row.dueDate.toISOString().slice(0, 10),
+            period: formatPeriod(periodStart, periodEnd),
+          },
+        });
+        return { created: row, enqueue: dispatch.enqueue };
       });
+      await enqueue();
       this.logger.log(`created bill ${created.id} for lease ${leaseId} period ${idempotencyKey}`);
       return { bill: this.toResponse(created), status: 'created' };
     } catch (err) {

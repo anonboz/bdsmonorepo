@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 
 import {
   ErrorCodes,
+  NotificationTopic,
   type Bill,
   type BillLine,
   type CreateCheckoutSessionResponse,
@@ -20,6 +21,7 @@ import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 import { env } from '../env.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 type BillRow = Prisma.BillGetPayload<{ include: { lines: true } }>;
 type PaymentRow = Prisma.PaymentGetPayload<Record<string, never>>;
@@ -50,6 +52,7 @@ export class PaymentsService {
     private readonly audit: AuditLogger,
     private readonly stripe: StripeService,
     private readonly vnpay: VnpayService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ---- Mutations (owner-only) -------------------------------------
@@ -80,7 +83,7 @@ export class PaymentsService {
     }
 
     try {
-      const { payment, bill } = await this.prisma.$transaction(async (tx) => {
+      const { payment, bill, enqueue } = await this.prisma.$transaction(async (tx) => {
         // Lock the bill row so concurrent record-payment requests
         // serialise — see the spec §10 "Concurrent record".
         await tx.$queryRaw`SELECT id FROM "Bill" WHERE id = ${billId} FOR UPDATE`;
@@ -182,9 +185,34 @@ export class PaymentsService {
           userAgent: ctx.userAgent,
         });
 
-        return { payment: created, bill: updated };
+        // Only fire bill.paid when this payment closes the bill —
+        // partial-pay states stay silent so we don't spam the tenant
+        // with one email per installment.
+        let enqueue: (() => Promise<void>) | null = null;
+        if (nextStatus === 'PAID') {
+          const lease = await tx.lease.findUnique({
+            where: { id: leaseId },
+            select: { tenantId: true },
+          });
+          if (lease) {
+            const dispatch = await this.notifications.dispatch(tx, {
+              topic: NotificationTopic.BILL_PAID,
+              recipientId: lease.tenantId,
+              data: {
+                billId,
+                amount: input.amount,
+                currency: input.currency,
+                provider: 'MANUAL',
+              },
+            });
+            enqueue = dispatch.enqueue;
+          }
+        }
+
+        return { payment: created, bill: updated, enqueue };
       });
 
+      if (enqueue) await enqueue();
       return { payment: this.toPaymentResponse(payment), bill: this.toBillResponse(bill) };
     } catch (err) {
       if (err instanceof ProblemError) throw err;
@@ -587,7 +615,11 @@ export class PaymentsService {
         });
     }
 
-    const { payment: refundRow, bill: updatedBill } = await this.prisma.$transaction(async (tx) => {
+    const {
+      payment: refundRow,
+      bill: updatedBill,
+      enqueue,
+    } = await this.prisma.$transaction(async (tx) => {
       // Lock the bill row so a concurrent record-payment doesn't
       // race with the recompute. Same belt as 7.1.
       await tx.$queryRaw`SELECT id FROM "Bill" WHERE id = ${billId} FOR UPDATE`;
@@ -646,9 +678,28 @@ export class PaymentsService {
         userAgent: ctx.userAgent,
       });
 
-      return { payment: created, bill };
+      const lease = await tx.lease.findUnique({
+        where: { id: leaseId },
+        select: { tenantId: true },
+      });
+      const dispatch = lease
+        ? await this.notifications.dispatch(tx, {
+            topic: NotificationTopic.BILL_REFUNDED,
+            recipientId: lease.tenantId,
+            data: {
+              billId,
+              originalPaymentId: original.id,
+              amount: input.amount,
+              currency: original.currency,
+              provider: original.provider,
+            },
+          })
+        : null;
+
+      return { payment: created, bill, enqueue: dispatch?.enqueue ?? null };
     });
 
+    if (enqueue) await enqueue();
     return { payment: this.toPaymentResponse(refundRow), bill: this.toBillResponse(updatedBill) };
   }
 

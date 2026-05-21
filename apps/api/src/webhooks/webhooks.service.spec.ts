@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebhooksService } from './webhooks.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
+import { stubNotifications } from '../notifications/notifications.test-helper.js';
 import type { StripeService } from '../payments/stripe.service.js';
 import type { VnpayService } from '../payments/vnpay.service.js';
 
@@ -182,10 +183,17 @@ function makePrismaStub(opts: { bills: BillSeed[]; payments: PaymentSeed[] }) {
       ),
     },
     bill: {
-      findUnique: vi.fn(({ where }: { where: { id: string } }) => {
-        const b = bills.find((x) => x.id === where.id);
-        return Promise.resolve(b ?? null);
-      }),
+      findUnique: vi.fn(
+        ({ where, include }: { where: { id: string }; include?: { lease?: unknown } }) => {
+          const b = bills.find((x) => x.id === where.id);
+          if (!b) return Promise.resolve(null);
+          // The 8.2 webhook handlers ask for `include: { lease: ... }`
+          // to grab the tenantId for the bill.paid dispatch. Stub one
+          // canonical tenantId; tests don't care which value comes back
+          // — `stubNotifications` does not exercise the recipient id.
+          return Promise.resolve(include?.lease ? { ...b, lease: { tenantId: 'tenant_1' } } : b);
+        },
+      ),
       update: vi.fn(
         ({ where, data }: { where: { id: string }; data: { status: BillSeed['status'] } }) => {
           const b = bills.find((x) => x.id === where.id);
@@ -234,6 +242,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      stubNotifications(),
     );
   });
 
@@ -250,6 +259,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      stubNotifications(),
     );
     await expect(service.handleStripe('payload', 'sig')).rejects.toBeInstanceOf(ProblemError);
   });
@@ -262,6 +272,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      stubNotifications(),
     );
     const res = await service.handleStripe('payload', 'sig');
     expect(res.status).toBe('processed');
@@ -294,6 +305,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      stubNotifications(),
     );
     await service.handleStripe('payload', 'sig');
     expect(store.bills[0]?.status).toBe('PARTIALLY_PAID');
@@ -307,6 +319,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      stubNotifications(),
     );
     await service.handleStripe('payload', 'sig'); // first
     const beforeStatus = store.payments[0]?.status;
@@ -325,6 +338,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      stubNotifications(),
     );
     const res = await service.handleStripe('payload', 'sig');
     expect(res.status).toBe('processed');
@@ -345,6 +359,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(sab.stub as never),
       stripe,
       makeVnpayStub(),
+      stubNotifications(),
     );
     await expect(service.handleStripe('payload', 'sig')).rejects.toThrow('db on fire');
     expect(sab.webhookEvents[0]?.status).toBe('FAILED');
@@ -385,6 +400,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub({ verify: false }),
+      stubNotifications(),
     );
     const res = await service.handleVnpayIpn(ipnQuery());
     expect(res).toEqual({ RspCode: '97', Message: 'Invalid Signature' });
@@ -397,6 +413,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      stubNotifications(),
     );
     const res = await service.handleVnpayIpn(ipnQuery());
     expect(res).toEqual({ RspCode: '00', Message: 'Confirm Success' });
@@ -413,6 +430,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      stubNotifications(),
     );
     const res = await service.handleVnpayIpn(ipnQuery({ vnp_Amount: '99999999' }));
     expect(res.RspCode).toBe('04');
@@ -426,6 +444,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      stubNotifications(),
     );
     const res = await service.handleVnpayIpn(ipnQuery({ vnp_TxnRef: 'nope' }));
     expect(res.RspCode).toBe('01');
@@ -438,6 +457,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      stubNotifications(),
     );
     await service.handleVnpayIpn(ipnQuery()); // first
     const beforeBill = store.bills[0]?.status;
@@ -454,6 +474,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      stubNotifications(),
     );
     const res = await service.handleVnpayIpn(ipnQuery({ vnp_ResponseCode: '07' }));
     expect(res.RspCode).toBe('00');

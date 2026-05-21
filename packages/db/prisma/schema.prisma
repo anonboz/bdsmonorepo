@@ -784,6 +784,10 @@ model Notification {
   data    Json?
   readAt  DateTime?
   sentAt  DateTime?
+  /// Set by the notifications worker when a send attempt threw past
+  /// BullMQ's max retries. `sentAt IS NULL AND failureReason IS NOT
+  /// NULL` is the "stuck delivery" condition ops greps for.
+  failureReason String? @db.VarChar(2000)
 
   createdAt DateTime @default(now())
 

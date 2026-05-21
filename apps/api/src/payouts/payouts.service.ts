@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 
 import {
   ErrorCodes,
+  NotificationTopic,
   type AdminPendingPayout,
   type DisbursePayoutInput,
   type JobLedgerEntry,
@@ -14,6 +15,7 @@ import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 type EntryRow = Prisma.JobLedgerEntryGetPayload<Record<string, never>>;
 
@@ -37,6 +39,7 @@ export class PayoutsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listPayoutsForPartner(
@@ -219,7 +222,7 @@ export class PayoutsService {
     }
 
     const now = new Date();
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const { updated, enqueue } = await this.prisma.$transaction(async (tx) => {
       const next = await tx.jobLedgerEntry.update({
         where: { id: entryId },
         data: {
@@ -245,9 +248,30 @@ export class PayoutsService {
         ip: ctx.ip,
         userAgent: ctx.userAgent,
       });
-      return next;
+      // Payout rows have `accountUserId` = the partner's userId. The
+      // `accountUserId IS NULL` rows on this table are commission rows
+      // (kind=COMMISSION) which the disbursable branch above already
+      // rejected — so the null check is a defensive belt for the type.
+      let dispatchEnqueue: (() => Promise<void>) | null = null;
+      if (next.accountUserId) {
+        const dispatch = await this.notifications.dispatch(tx, {
+          topic: NotificationTopic.PAYOUT_DISBURSED,
+          recipientId: next.accountUserId,
+          data: {
+            payoutEntryId: next.id,
+            jobId: next.jobId,
+            amount: next.amount,
+            currency: next.currency,
+            method: input.method,
+            reference: input.reference,
+          },
+        });
+        dispatchEnqueue = dispatch.enqueue;
+      }
+      return { updated: next, enqueue: dispatchEnqueue };
     });
 
+    if (enqueue) await enqueue();
     return toResponse(updated);
   }
 

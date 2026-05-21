@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { PayoutsService } from './payouts.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
+import { stubNotifications } from '../notifications/notifications.test-helper.js';
 
 interface SeedEntry {
   id: string;
@@ -114,7 +115,11 @@ describe('PayoutsService', () => {
       entry({ id: 'b', accountUserId: 'partner_user_2', kind: 'PAYOUT' }),
       entry({ id: 'c', accountUserId: 'partner_user_1', kind: 'COMMISSION' }),
     ]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     const page = await service.listPayoutsForPartner('partner_user_1', {
       limit: 20,
       sort: 'desc',
@@ -128,7 +133,11 @@ describe('PayoutsService', () => {
       entry({ id: 'y', accountUserId: 'owner_2', kind: 'CHARGE', amount: -10_000 }),
       entry({ id: 'z', accountUserId: 'owner_1', kind: 'PAYOUT' }),
     ]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     const page = await service.listChargesForOwner('owner_1', { limit: 20, sort: 'desc' });
     expect(page.items.map((e) => e.id)).toEqual(['x']);
   });
@@ -141,7 +150,11 @@ describe('PayoutsService', () => {
       entry({ id: 'future', status: 'HELD', cooldownUntil: tomorrow }),
       entry({ id: 'already', status: 'RELEASED', cooldownUntil: yesterday }),
     ]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     const released = await service.releaseEligible();
     expect(released).toBe(1);
 
@@ -163,7 +176,11 @@ describe('PayoutsService', () => {
   it('releaseEligible is idempotent — re-running on a RELEASED row is a no-op', async () => {
     const yesterday = new Date(Date.now() - 24 * 3600_000);
     const stub = makePrismaStub([entry({ id: 'past', status: 'HELD', cooldownUntil: yesterday })]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     await service.releaseEligible();
     const audit1 = stub.auditRows.length;
     const released = await service.releaseEligible();
@@ -186,7 +203,11 @@ describe('PayoutsService.listAdminPending', () => {
         { id: 'p_b', displayName: 'Pia', businessName: null },
       ],
     );
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     const page = await service.listAdminPending({ limit: 20, sort: 'asc' });
     expect(page.items.map((p) => p.id).sort()).toEqual(['r1', 'r2']);
     const r1 = page.items.find((p) => p.id === 'r1')!;
@@ -200,7 +221,11 @@ describe('PayoutsService.markDisbursed', () => {
 
   it('flips RELEASED → DISBURSED + writes audit', async () => {
     const stub = makePrismaStub([entry({ id: 'r1', status: 'RELEASED', accountUserId: 'p_a' })]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     const res = await service.markDisbursed(
       'r1',
       { method: 'MANUAL_BANK_TRANSFER', reference: 'TXN-001', note: 'first batch' },
@@ -217,7 +242,11 @@ describe('PayoutsService.markDisbursed', () => {
 
   it('404 when the entry does not exist', async () => {
     const stub = makePrismaStub([]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     await expect(
       service.markDisbursed('nope', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),
     ).rejects.toMatchObject({ status: 404 });
@@ -225,7 +254,11 @@ describe('PayoutsService.markDisbursed', () => {
 
   it('422 not_disbursable_held when the row is still HELD', async () => {
     const stub = makePrismaStub([entry({ id: 'h1', status: 'HELD' })]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     await expect(
       service.markDisbursed('h1', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),
     ).rejects.toMatchObject({ status: 422 });
@@ -233,7 +266,11 @@ describe('PayoutsService.markDisbursed', () => {
 
   it('422 already_disbursed when called twice on the same row', async () => {
     const stub = makePrismaStub([entry({ id: 'r1', status: 'RELEASED' })]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     await service.markDisbursed(
       'r1',
       { method: 'MANUAL_BANK_TRANSFER', reference: 'TXN-001' },
@@ -246,7 +283,11 @@ describe('PayoutsService.markDisbursed', () => {
 
   it('501 disbursement_method_unsupported for STRIPE_CONNECT', async () => {
     const stub = makePrismaStub([entry({ id: 'r1', status: 'RELEASED' })]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     await expect(
       service.markDisbursed('r1', { method: 'STRIPE_CONNECT', reference: 'X' }, ctx),
     ).rejects.toMatchObject({ status: 501 });
@@ -256,7 +297,11 @@ describe('PayoutsService.markDisbursed', () => {
     const stub = makePrismaStub([
       entry({ id: 'c1', kind: 'CHARGE', status: 'RELEASED', amount: -50_000 }),
     ]);
-    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+    );
     await expect(
       service.markDisbursed('c1', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),
     ).rejects.toMatchObject({ status: 404 });

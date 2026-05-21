@@ -9,6 +9,7 @@ import {
 } from './bills.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
+import { stubNotifications } from '../notifications/notifications.test-helper.js';
 
 function makePrismaStub(opts: {
   leaseId: string;
@@ -102,7 +103,11 @@ describe('BillsService.generateForLease', () => {
 
   beforeEach(() => {
     prismaStub = makePrismaStub({ leaseId, tenantId: 'tenant_1' });
-    service = new BillsService(prismaStub.stub as never, new AuditLogger(prismaStub.stub as never));
+    service = new BillsService(
+      prismaStub.stub as never,
+      new AuditLogger(prismaStub.stub as never),
+      stubNotifications(),
+    );
   });
 
   it('creates a bill with one RENT line at the lease amount', async () => {
@@ -126,7 +131,11 @@ describe('BillsService.generateForLease', () => {
 
   it('rejects on non-ACTIVE lease', async () => {
     prismaStub = makePrismaStub({ leaseId, tenantId: 'tenant_1', status: 'DRAFT' });
-    service = new BillsService(prismaStub.stub as never, new AuditLogger(prismaStub.stub as never));
+    service = new BillsService(
+      prismaStub.stub as never,
+      new AuditLogger(prismaStub.stub as never),
+      stubNotifications(),
+    );
     await expect(service.generateForLease(leaseId)).rejects.toBeInstanceOf(ProblemError);
   });
 

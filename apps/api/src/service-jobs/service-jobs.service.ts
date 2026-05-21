@@ -1,7 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { ErrorCodes, type JobStatus, type Page, type ServiceJob } from '@repo/shared';
+import {
+  ErrorCodes,
+  NotificationTopic,
+  type JobStatus,
+  type Page,
+  type ServiceJob,
+} from '@repo/shared';
 
 import type {
   CancelServiceJobDto,
@@ -14,6 +20,7 @@ import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 const JOB_WITH_RELATIONS = {
   include: {
@@ -60,6 +67,7 @@ export class ServiceJobsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ---- Owner-scoped ------------------------------------------------
@@ -325,7 +333,7 @@ export class ServiceJobsService {
     const partnerCut = finalAmount - commission;
     const now = new Date();
     const cooldownUntil = new Date(now.getTime() + PAYOUT_COOLDOWN_MS);
-    const row = await this.prisma.$transaction(async (tx) => {
+    const { row, enqueue } = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.serviceJob.update({
         where: { id },
         data: {
@@ -406,8 +414,19 @@ export class ServiceJobsService {
         ip: ctx.ip,
         userAgent: ctx.userAgent,
       });
-      return updated;
+      const dispatch = await this.notifications.dispatch(tx, {
+        topic: NotificationTopic.JOB_COMPLETED,
+        recipientId: existing.ownerId,
+        data: {
+          jobId: id,
+          partnerName: updated.partner.businessName,
+          finalAmount,
+          currency,
+        },
+      });
+      return { row: updated, enqueue: dispatch.enqueue };
     });
+    await enqueue();
     return this.toResponse(row);
   }
 

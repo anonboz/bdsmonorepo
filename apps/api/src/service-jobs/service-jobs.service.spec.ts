@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ServiceJobsService } from './service-jobs.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
+import { stubNotifications } from '../notifications/notifications.test-helper.js';
 
 interface StubOpts {
   ownerId: string;
@@ -155,7 +156,11 @@ describe('ServiceJobsService', () => {
 
   function boot(overrides: Partial<StubOpts> = {}) {
     store = makePrismaStub({ ownerId, partnerUserId, partnerId, ...overrides });
-    service = new ServiceJobsService(store.stub as never, new AuditLogger(store.stub as never));
+    service = new ServiceJobsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      stubNotifications(),
+    );
   }
 
   beforeEach(() => boot());

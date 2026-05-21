@@ -1,7 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { ErrorCodes, type Page, type Ticket, type TicketStatus } from '@repo/shared';
+import {
+  ErrorCodes,
+  NotificationTopic,
+  type Page,
+  type Ticket,
+  type TicketStatus,
+} from '@repo/shared';
 
 import type {
   CreateTicketDto,
@@ -10,6 +16,7 @@ import type {
 } from './dto/tickets.dto.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 const TICKET_WITH_RELATIONS = {
   include: {
@@ -63,7 +70,10 @@ const TRANSITION_ACTOR: Record<TicketStatus, Actor> = {
  */
 @Injectable()
 export class TicketsService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaInstance) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaInstance,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // ---- Tenant-scoped ------------------------------------------------
 
@@ -80,18 +90,32 @@ export class TicketsService {
       });
     }
 
-    const created = await this.prisma.ticket.create({
-      data: {
-        leaseId: input.leaseId,
-        reporterId: tenantId,
-        assigneeId: lease.ownerId,
-        category: input.category,
-        status: 'OPEN',
-        title: input.title,
-        body: input.body,
-      },
-      ...TICKET_WITH_RELATIONS,
+    const { created, enqueue } = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.ticket.create({
+        data: {
+          leaseId: input.leaseId,
+          reporterId: tenantId,
+          assigneeId: lease.ownerId,
+          category: input.category,
+          status: 'OPEN',
+          title: input.title,
+          body: input.body,
+        },
+        ...TICKET_WITH_RELATIONS,
+      });
+      const dispatch = await this.notifications.dispatch(tx, {
+        topic: NotificationTopic.TICKET_OPENED,
+        recipientId: lease.ownerId,
+        data: {
+          ticketId: row.id,
+          ticketTitle: row.title,
+          tenantName: row.reporter.displayName,
+          category: row.category,
+        },
+      });
+      return { created: row, enqueue: dispatch.enqueue };
     });
+    await enqueue();
     return this.toResponse(created);
   }
 
@@ -174,15 +198,31 @@ export class TicketsService {
     }
 
     const now = new Date();
-    const updated = await this.prisma.ticket.update({
-      where: { id },
-      data: {
-        status: input.to,
-        ...(input.to === 'RESOLVED' && { resolvedAt: now }),
-        ...(input.to === 'CLOSED' && { closedAt: now }),
-      },
-      ...TICKET_WITH_RELATIONS,
+    const { updated, enqueue } = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.ticket.update({
+        where: { id },
+        data: {
+          status: input.to,
+          ...(input.to === 'RESOLVED' && { resolvedAt: now }),
+          ...(input.to === 'CLOSED' && { closedAt: now }),
+        },
+        ...TICKET_WITH_RELATIONS,
+      });
+      // Only fire on the RESOLVED edge; CLOSED/IN_PROGRESS stay silent.
+      // The tenant sees status changes in-app — email only for the one
+      // transition they care most about ("did the landlord fix it?").
+      if (input.to !== 'RESOLVED') return { updated: row, enqueue: null };
+      const dispatch = await this.notifications.dispatch(tx, {
+        topic: NotificationTopic.TICKET_RESOLVED,
+        recipientId: row.reporterId,
+        data: {
+          ticketId: row.id,
+          ticketTitle: row.title,
+        },
+      });
+      return { updated: row, enqueue: dispatch.enqueue };
     });
+    if (enqueue) await enqueue();
     return this.toResponse(updated);
   }
 

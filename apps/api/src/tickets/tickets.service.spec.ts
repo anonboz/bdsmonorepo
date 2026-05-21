@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TICKET_REOPEN_WINDOW_MS, TicketsService } from './tickets.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
+import { stubNotifications } from '../notifications/notifications.test-helper.js';
 
 function makePrismaStub(opts: { ownerId: string; tenantId: string; leaseId: string }) {
   const tickets: Record<string, unknown>[] = [];
@@ -23,7 +24,8 @@ function makePrismaStub(opts: { ownerId: string; tenantId: string; leaseId: stri
     };
   }
 
-  const stub = {
+  const stub: Record<string, unknown> = {};
+  Object.assign(stub, {
     lease: {
       findUnique: vi.fn(({ where }: { where: { id: string } }) =>
         Promise.resolve(where.id === lease.id ? lease : null),
@@ -55,7 +57,8 @@ function makePrismaStub(opts: { ownerId: string; tenantId: string; leaseId: stri
         return Promise.resolve(withRelations(row));
       }),
     },
-  };
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
+  });
   return { stub, tickets };
 }
 
@@ -69,7 +72,7 @@ describe('TicketsService', () => {
 
   beforeEach(() => {
     stub = makePrismaStub({ ownerId, tenantId, leaseId });
-    service = new TicketsService(stub.stub as never);
+    service = new TicketsService(stub.stub as never, stubNotifications());
   });
 
   const draft = {
