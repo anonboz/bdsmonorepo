@@ -200,6 +200,10 @@ jobs:
       # send-otp per-route limit (5/min) would otherwise turn that into
       # a 429 cascade. Disable rate-limit entirely for e2e.
       API_DISABLE_RATE_LIMIT: 'true'
+      # Phase 8.1 wires real email delivery into better-auth — force the
+      # stub mailer in CI so the OTP path doesn't try to reach MailHog
+      # (which we don't spin up).
+      API_DISABLE_MAILER: 'true'
       NODE_ENV: test
 
     steps:

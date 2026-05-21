@@ -50,6 +50,9 @@ jobs:
       # hit the per-route limit after ~5s.
       API_DISABLE_QUEUES: 'true'
       API_DISABLE_RATE_LIMIT: 'true'
+      # auth-flow.js exercises OTP send; force the stub mailer so we
+      # don't try to reach MailHog (which we don't spin up).
+      API_DISABLE_MAILER: 'true'
       NODE_ENV: test
 
     steps:

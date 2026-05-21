@@ -42,6 +42,14 @@ const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
+  // Set to 'true' to force the in-memory stub mailer regardless of
+  // RESEND_API_KEY / SMTP_HOST. The e2e CI block sets this; tests
+  // can also opt-in for noise-free runs.
+  API_DISABLE_MAILER: z
+    .union([z.literal('true'), z.literal('false')])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   AUTH_JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   AUTH_JWT_REFRESH_TTL: z.coerce
     .number()

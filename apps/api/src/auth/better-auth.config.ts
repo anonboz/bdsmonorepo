@@ -5,6 +5,8 @@ import { Prisma } from '@prisma/client';
 
 import { prisma } from '@repo/db';
 
+import { getMailer } from '../common/mailer/mailer.client.js';
+import { renderMagicLinkTemplate, renderOtpTemplate } from '../common/mailer/templates.js';
 import { env } from '../env.js';
 
 /**
@@ -118,17 +120,17 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 60 * 10, // 10 min
       async sendVerificationOTP({ email, otp, type }) {
-        // TODO Phase 2: wire to Resend / SMTP.
-        // eslint-disable-next-line no-console
-        console.log(`[auth] OTP (${type}) for ${email}: ${otp}`);
+        const send = getMailer();
+        const { subject, html, text } = renderOtpTemplate({ otp, type });
+        await send({ to: email, subject, html, text });
       },
     }),
     magicLink({
       expiresIn: 60 * 10,
       async sendMagicLink({ email, url }) {
-        // TODO Phase 2: wire to Resend / SMTP.
-        // eslint-disable-next-line no-console
-        console.log(`[auth] Magic link for ${email}: ${url}`);
+        const send = getMailer();
+        const { subject, html, text } = renderMagicLinkTemplate({ url });
+        await send({ to: email, subject, html, text });
       },
     }),
   ],
