@@ -77,6 +77,21 @@ const envSchema = z.object({
    * + cancel URLs. Defaults to the local dev port.
    */
   TENANT_APP_URL: url().default('http://localhost:3020'),
+
+  /**
+   * VNPay merchant code from the VNPay dashboard. When unset, the
+   * VNPay checkout endpoint returns 503 `payments.provider_disabled`.
+   */
+  VNPAY_TMN_CODE: z.string().optional(),
+  /** VNPay HMAC-SHA512 secret. Same secret signs requests + verifies IPN. */
+  VNPAY_HASH_SECRET: z.string().optional(),
+  /**
+   * VNPay hosted-page URL. Sandbox by default; production swaps to
+   * `https://pay.vnpay.vn/vpcpay.html`.
+   */
+  VNPAY_PAYMENT_URL: url().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
+  /** Locale for VNPay's hosted page (`"vn"` or `"en"`). */
+  VNPAY_LOCALE: z.string().default('vn'),
 });
 
 export const env = loadEnv(envSchema);

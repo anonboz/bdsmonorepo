@@ -5,6 +5,15 @@ import { WebhooksService } from './webhooks.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import type { StripeService } from '../payments/stripe.service.js';
+import type { VnpayService } from '../payments/vnpay.service.js';
+
+function makeVnpayStub(opts: { enabled?: boolean; verify?: boolean } = {}): VnpayService {
+  return {
+    isEnabled: vi.fn(() => opts.enabled ?? true),
+    buildCheckoutUrl: vi.fn(() => 'https://sandbox.vnpayment.vn/...'),
+    verifyIpn: vi.fn(() => opts.verify ?? true),
+  };
+}
 
 /** Stripe event payload shape narrowed to what `handleStripe` reads. */
 function stripeEvent(opts: { id?: string; type?: string; sessionId?: string }): {
@@ -221,6 +230,7 @@ describe('WebhooksService.handleStripe', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe,
+      makeVnpayStub(),
     );
   });
 
@@ -236,6 +246,7 @@ describe('WebhooksService.handleStripe', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe,
+      makeVnpayStub(),
     );
     await expect(service.handleStripe('payload', 'sig')).rejects.toBeInstanceOf(ProblemError);
   });
@@ -247,6 +258,7 @@ describe('WebhooksService.handleStripe', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe,
+      makeVnpayStub(),
     );
     const res = await service.handleStripe('payload', 'sig');
     expect(res.status).toBe('processed');
@@ -278,6 +290,7 @@ describe('WebhooksService.handleStripe', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe,
+      makeVnpayStub(),
     );
     await service.handleStripe('payload', 'sig');
     expect(store.bills[0]?.status).toBe('PARTIALLY_PAID');
@@ -290,6 +303,7 @@ describe('WebhooksService.handleStripe', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe,
+      makeVnpayStub(),
     );
     await service.handleStripe('payload', 'sig'); // first
     const beforeStatus = store.payments[0]?.status;
@@ -307,6 +321,7 @@ describe('WebhooksService.handleStripe', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe,
+      makeVnpayStub(),
     );
     const res = await service.handleStripe('payload', 'sig');
     expect(res.status).toBe('processed');
@@ -322,8 +337,124 @@ describe('WebhooksService.handleStripe', () => {
     (sab.stub as { bill: { update: typeof vi.fn } }).bill.update = vi.fn(() => {
       throw new Error('db on fire');
     });
-    service = new WebhooksService(sab.stub as never, new AuditLogger(sab.stub as never), stripe);
+    service = new WebhooksService(
+      sab.stub as never,
+      new AuditLogger(sab.stub as never),
+      stripe,
+      makeVnpayStub(),
+    );
     await expect(service.handleStripe('payload', 'sig')).rejects.toThrow('db on fire');
     expect(sab.webhookEvents[0]?.status).toBe('FAILED');
+  });
+});
+
+describe('WebhooksService.handleVnpayIpn', () => {
+  const baseSeed = {
+    bills: [{ id: 'bill_1', total: 500_000, status: 'ISSUED' as const }],
+    payments: [
+      {
+        id: 'pay_v1',
+        billId: 'bill_1',
+        amount: 500_000,
+        currency: 'VND',
+        status: 'PENDING' as const,
+        provider: 'VNPAY' as const,
+        providerRef: 'pay_v1',
+      },
+    ],
+  };
+
+  function ipnQuery(overrides: Record<string, string> = {}): Record<string, string> {
+    return {
+      vnp_Amount: '50000000', // 500,000 VND * 100
+      vnp_TxnRef: 'pay_v1',
+      vnp_ResponseCode: '00',
+      vnp_TransactionNo: '14242427',
+      vnp_SecureHash: 'deadbeef',
+      ...overrides,
+    };
+  }
+
+  it('97 when signature verification fails', async () => {
+    const store = makePrismaStub(baseSeed);
+    const service = new WebhooksService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub({}),
+      makeVnpayStub({ verify: false }),
+    );
+    const res = await service.handleVnpayIpn(ipnQuery());
+    expect(res).toEqual({ RspCode: '97', Message: 'Invalid Signature' });
+  });
+
+  it('00 + flips Payment → SUCCEEDED + Bill → PAID', async () => {
+    const store = makePrismaStub(baseSeed);
+    const service = new WebhooksService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub({}),
+      makeVnpayStub(),
+    );
+    const res = await service.handleVnpayIpn(ipnQuery());
+    expect(res).toEqual({ RspCode: '00', Message: 'Confirm Success' });
+    expect(store.payments[0]?.status).toBe('SUCCEEDED');
+    expect(store.bills[0]?.status).toBe('PAID');
+    expect(store.auditRows.some((r) => r.action === 'bill.payment.confirmed')).toBe(true);
+    expect(store.webhookEvents[0]?.status).toBe('PROCESSED');
+  });
+
+  it('04 when vnp_Amount disagrees with the Payment row', async () => {
+    const store = makePrismaStub(baseSeed);
+    const service = new WebhooksService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub({}),
+      makeVnpayStub(),
+    );
+    const res = await service.handleVnpayIpn(ipnQuery({ vnp_Amount: '99999999' }));
+    expect(res.RspCode).toBe('04');
+    expect(store.payments[0]?.status).toBe('PENDING');
+  });
+
+  it('01 when vnp_TxnRef does not match any local Payment', async () => {
+    const store = makePrismaStub({ ...baseSeed, payments: [] });
+    const service = new WebhooksService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub({}),
+      makeVnpayStub(),
+    );
+    const res = await service.handleVnpayIpn(ipnQuery({ vnp_TxnRef: 'nope' }));
+    expect(res.RspCode).toBe('01');
+  });
+
+  it('02 when the IPN is a duplicate delivery', async () => {
+    const store = makePrismaStub(baseSeed);
+    const service = new WebhooksService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub({}),
+      makeVnpayStub(),
+    );
+    await service.handleVnpayIpn(ipnQuery()); // first
+    const beforeBill = store.bills[0]?.status;
+    const res = await service.handleVnpayIpn(ipnQuery()); // dup
+    expect(res.RspCode).toBe('02');
+    expect(store.bills[0]?.status).toBe(beforeBill);
+    expect(store.webhookEvents).toHaveLength(1);
+  });
+
+  it('failure response code → 00 ack but Payment marked FAILED', async () => {
+    const store = makePrismaStub(baseSeed);
+    const service = new WebhooksService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub({}),
+      makeVnpayStub(),
+    );
+    const res = await service.handleVnpayIpn(ipnQuery({ vnp_ResponseCode: '07' }));
+    expect(res.RspCode).toBe('00');
+    expect(store.payments[0]?.status).toBe('FAILED');
+    expect(store.bills[0]?.status).toBe('ISSUED');
   });
 });

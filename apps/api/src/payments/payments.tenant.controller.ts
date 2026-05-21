@@ -40,4 +40,20 @@ export class PaymentsTenantController {
       requestContextFrom(user, req),
     );
   }
+
+  @Post('vnpay/checkout')
+  @Roles('TENANT')
+  @HttpCode(201)
+  vnpayCheckout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: FastifyRequest,
+    @Param('billId') billId: string,
+  ): Promise<CreateCheckoutSessionResponse> {
+    return this.service.createVnpayCheckoutForTenant(
+      user.id,
+      billId,
+      req.ip,
+      requestContextFrom(user, req),
+    );
+  }
 }

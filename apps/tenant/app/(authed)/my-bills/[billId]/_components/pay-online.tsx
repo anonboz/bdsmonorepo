@@ -9,10 +9,15 @@ import { ApiError, api } from '../../../../../lib/api';
 
 const PAYABLE_STATES: BillStatus[] = ['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'];
 
+type Provider = 'stripe' | 'vnpay';
+
 export function PayOnline({ billId, billStatus }: { billId: string; billStatus: BillStatus }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [disabled, setDisabled] = useState(false);
+  const [disabled, setDisabled] = useState<Record<Provider, boolean>>({
+    stripe: false,
+    vnpay: false,
+  });
 
   if (!PAYABLE_STATES.includes(billStatus)) {
     return (
@@ -24,33 +29,35 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
     );
   }
 
-  async function pay(): Promise<void> {
-    setBusy(true);
+  async function pay(provider: Provider): Promise<void> {
+    setBusy(provider);
     setError(null);
     try {
-      const res = await api.post<CreateCheckoutSessionResponse>(`/v1/me/bills/${billId}/checkout`);
-      // Stripe's hosted page. Same-tab navigation matches the Stripe
-      // docs default — return URLs land us back on /payment-success
-      // or /payment-cancelled.
+      const path =
+        provider === 'stripe'
+          ? `/v1/me/bills/${billId}/checkout`
+          : `/v1/me/bills/${billId}/vnpay/checkout`;
+      const res = await api.post<CreateCheckoutSessionResponse>(path);
       window.location.assign(res.url);
     } catch (err) {
       if (err instanceof ApiError && err.problem.type === 'payments.provider_disabled') {
-        setDisabled(true);
+        setDisabled((d) => ({ ...d, [provider]: true }));
       } else {
         setError(err instanceof ApiError ? err.problem.title : 'Could not start checkout');
       }
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
-  if (disabled) {
+  const bothDisabled = disabled.stripe && disabled.vnpay;
+  if (bothDisabled) {
     return (
       <Alert>
         <AlertTitle>Online payment not enabled</AlertTitle>
         <AlertDescription>
-          Stripe is not configured on this deployment. Settle directly with your landlord — they can
-          record the payment for you.
+          Neither Stripe nor VNPay is configured on this deployment. Settle directly with your
+          landlord — they can record the payment for you.
         </AlertDescription>
       </Alert>
     );
@@ -64,13 +71,25 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <Button onClick={pay} disabled={busy}>
-        {busy && <Spinner />}
-        Pay online with Stripe
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        {!disabled.stripe && (
+          <Button onClick={() => pay('stripe')} disabled={busy !== null}>
+            {busy === 'stripe' && <Spinner />}
+            Pay with Stripe
+          </Button>
+        )}
+        {!disabled.vnpay && (
+          <Button onClick={() => pay('vnpay')} disabled={busy !== null} variant="outline">
+            {busy === 'vnpay' && <Spinner />}
+            Pay with VNPay
+          </Button>
+        )}
+      </div>
       <p className="text-xs text-muted-foreground">
-        You will be redirected to Stripe&apos;s secure checkout page. We never see your card
+        You will be redirected to the provider&apos;s secure checkout page. We never see your card
         details.
+        {disabled.stripe && !disabled.vnpay && ' Stripe is not configured on this deployment.'}
+        {!disabled.stripe && disabled.vnpay && ' VNPay is not configured on this deployment.'}
       </p>
     </div>
   );

@@ -7,6 +7,8 @@ import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 import { StripeService } from '../payments/stripe.service.js';
+import type { VnpayIpnResponse } from '../payments/vnpay.client.js';
+import { VnpayService } from '../payments/vnpay.service.js';
 
 /**
  * Provider-agnostic webhook handler. Phase 7.3 ships Stripe; 7.4's
@@ -28,10 +30,15 @@ export class WebhooksService {
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
     private readonly stripe: StripeService,
+    private readonly vnpay: VnpayService,
   ) {}
 
   isStripeEnabled(): boolean {
     return this.stripe.isWebhookEnabled();
+  }
+
+  isVnpayEnabled(): boolean {
+    return this.vnpay.isEnabled();
   }
 
   /**
@@ -192,6 +199,156 @@ export class WebhooksService {
           billNextStatus: nextStatus,
         },
       });
+    });
+  }
+
+  // ---- VNPay IPN ---------------------------------------------------
+
+  /**
+   * VNPay's Instant Payment Notification. Called server-to-server with
+   * a GET carrying signed `vnp_*` query params. We respond with a tiny
+   * JSON body — `{ RspCode, Message }` — telling VNPay whether to stop
+   * retrying (`00`/`02`) or treat as failure and re-deliver later.
+   *
+   * Source of truth for bill state transitions on the VN-market rail;
+   * the browser return URL never mutates DB state (see the spec).
+   */
+  async handleVnpayIpn(query: Record<string, string>): Promise<VnpayIpnResponse> {
+    if (!this.vnpay.verifyIpn(query)) {
+      this.logger.warn(`vnpay IPN signature verification failed`);
+      return { RspCode: '97', Message: 'Invalid Signature' };
+    }
+
+    const txnRef = query.vnp_TxnRef;
+    const responseCode = query.vnp_ResponseCode;
+    const transactionNo = query.vnp_TransactionNo ?? 'pending';
+    if (!txnRef || !responseCode) {
+      return { RspCode: '99', Message: 'Missing required fields' };
+    }
+
+    // Stable event id per (txnRef, transactionNo, responseCode) — same
+    // delivery from VNPay collides on the unique constraint and we ack
+    // with `02 Order already confirmed`.
+    const eventId = `${txnRef}-${transactionNo}-${responseCode}`;
+    let webhookRowId: string;
+    try {
+      const row = await this.prisma.webhookEvent.create({
+        data: {
+          provider: 'VNPAY',
+          eventId,
+          type: `vnpay.ipn.${responseCode === '00' ? 'success' : 'failure'}`,
+          payload: query,
+        },
+      });
+      webhookRowId = row.id;
+      await this.audit.writeOnce({
+        actorId: null,
+        action: 'webhook.received',
+        target: `WebhookEvent:${row.id}`,
+        meta: { provider: 'VNPAY', type: query.vnp_OrderInfo ?? '', eventId },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        this.logger.log(`vnpay duplicate IPN ${eventId} — ack as 02`);
+        return { RspCode: '02', Message: 'Order already confirmed' };
+      }
+      throw err;
+    }
+
+    try {
+      const result = await this.applyVnpayIpn(query);
+      await this.prisma.webhookEvent.update({
+        where: { id: webhookRowId },
+        data: { status: 'PROCESSED', processedAt: new Date() },
+      });
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await this.prisma.webhookEvent.update({
+        where: { id: webhookRowId },
+        data: {
+          status: 'FAILED',
+          error: message.slice(0, 2000),
+          processedAt: new Date(),
+        },
+      });
+      throw err;
+    }
+  }
+
+  private async applyVnpayIpn(query: Record<string, string>): Promise<VnpayIpnResponse> {
+    const txnRef = query.vnp_TxnRef!;
+    const vnpAmount = Number(query.vnp_Amount);
+
+    return this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: { provider_providerRef: { provider: 'VNPAY', providerRef: txnRef } },
+      });
+      if (!payment) return { RspCode: '01', Message: 'Order not found' };
+
+      // VNPay's `vnp_Amount` is `amount * 100`. Our local Payment.amount
+      // is in minor units (VND đồng). Compare directly.
+      if (vnpAmount !== payment.amount * 100) {
+        return { RspCode: '04', Message: 'Invalid amount' };
+      }
+      if (payment.status === 'SUCCEEDED') {
+        return { RspCode: '02', Message: 'Order already confirmed' };
+      }
+
+      if (query.vnp_ResponseCode !== '00') {
+        // Failure path — mark FAILED + failureReason; bill stays put.
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'FAILED',
+            failureReason: `vnp_ResponseCode=${query.vnp_ResponseCode}`,
+          },
+        });
+        return { RspCode: '00', Message: 'Confirm Success' };
+      }
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'SUCCEEDED',
+          receivedAt: new Date(),
+          // Carry the bank's transaction number for ops correlation —
+          // VNPay surfaces it in their dashboard.
+          note: query.vnp_TransactionNo
+            ? `vnp_TransactionNo=${query.vnp_TransactionNo}`
+            : payment.note,
+        },
+      });
+
+      const agg = await tx.payment.aggregate({
+        where: { billId: payment.billId, status: 'SUCCEEDED' },
+        _sum: { amount: true },
+      });
+      const bill = await tx.bill.findUnique({ where: { id: payment.billId } });
+      if (!bill) {
+        throw new Error(`Bill ${payment.billId} not found for confirmed payment ${payment.id}`);
+      }
+      const sum = agg._sum.amount ?? 0;
+      const nextStatus: typeof bill.status = sum >= bill.total ? 'PAID' : 'PARTIALLY_PAID';
+      await tx.bill.update({ where: { id: bill.id }, data: { status: nextStatus } });
+
+      await this.audit.write(tx, {
+        actorId: null,
+        action: 'bill.payment.confirmed',
+        target: `Payment:${payment.id}`,
+        meta: {
+          billId: bill.id,
+          amount: payment.amount,
+          currency: payment.currency,
+          provider: 'VNPAY',
+          txnRef,
+          transactionNo: query.vnp_TransactionNo ?? null,
+          billPreviousStatus: bill.status,
+          billNextStatus: nextStatus,
+        },
+      });
+
+      return { RspCode: '00', Message: 'Confirm Success' };
     });
   }
 }

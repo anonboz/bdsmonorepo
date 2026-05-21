@@ -3,8 +3,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PaymentsService } from './payments.service.js';
 import type { StripeService } from './stripe.service.js';
+import type { VnpayService } from './vnpay.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
+
+/** Mock VnpayService — narrow to the methods PaymentsService calls. */
+function makeVnpayStub(opts: { enabled?: boolean } = {}): VnpayService {
+  const stub: VnpayService = {
+    isEnabled: vi.fn(() => opts.enabled ?? true),
+    buildCheckoutUrl: vi.fn(
+      () =>
+        'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_TxnRef=...&vnp_SecureHash=deadbeef',
+    ),
+    verifyIpn: vi.fn(() => true),
+  };
+  return stub;
+}
 
 interface StripeStub {
   service: StripeService;
@@ -230,6 +244,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
+      makeVnpayStub(),
     );
   });
 
@@ -296,6 +311,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
+      makeVnpayStub(),
     );
     await expect(
       service.recordManualForOwner(
@@ -316,6 +332,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
+      makeVnpayStub(),
     );
     await expect(
       service.recordManualForOwner(
@@ -425,6 +442,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe.service,
+      makeVnpayStub(),
     );
 
     const res = await service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx);
@@ -463,6 +481,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe.service,
+      makeVnpayStub(),
     );
     await service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx);
 
@@ -477,6 +496,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       makeStripeStub({ enabled: false }).service,
+      makeVnpayStub(),
     );
     await expect(
       service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
@@ -489,6 +509,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
+      makeVnpayStub(),
     );
     await expect(
       service.createStripeCheckoutForTenant('user_other_tenant', null, billId, ctx),
@@ -501,6 +522,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
+      makeVnpayStub(),
     );
     await expect(
       service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
@@ -514,6 +536,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stripe.service,
+      makeVnpayStub(),
     );
     await expect(
       service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),

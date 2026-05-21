@@ -14,6 +14,7 @@ import {
 
 import type { RecordManualPaymentDto } from './dto/payments.dto.js';
 import { StripeService } from './stripe.service.js';
+import { VnpayService } from './vnpay.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
@@ -48,6 +49,7 @@ export class PaymentsService {
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
     private readonly stripe: StripeService,
+    private readonly vnpay: VnpayService,
   ) {}
 
   // ---- Mutations (owner-only) -------------------------------------
@@ -338,6 +340,139 @@ export class PaymentsService {
     });
 
     return { url: session.url, sessionId: session.id, paymentId: payment.id };
+  }
+
+  // ---- VNPay Checkout (tenant) ------------------------------------
+
+  /**
+   * Builds a signed VNPay payment URL for the tenant's outstanding
+   * balance on the bill. Inserts a PENDING Payment row before
+   * returning the URL so the IPN (7.4) has a row to find.
+   *
+   * VNPay only supports VND, so bills in any other currency 422 with
+   * `payments.currency_mismatch`. The 7.5 refund flow has its own
+   * provider check.
+   */
+  async createVnpayCheckoutForTenant(
+    tenantId: string,
+    billId: string,
+    ipAddress: string,
+    ctx: RequestContext,
+  ): Promise<CreateCheckoutSessionResponse> {
+    if (!this.vnpay.isEnabled()) {
+      throw new ProblemError({
+        status: 503,
+        type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+        title: 'VNPay is not configured on this deployment',
+      });
+    }
+
+    const bill = await this.prisma.bill.findUnique({
+      where: { id: billId },
+      select: {
+        id: true,
+        leaseId: true,
+        status: true,
+        currency: true,
+        total: true,
+        periodStart: true,
+        periodEnd: true,
+        lease: { select: { tenantId: true } },
+      },
+    });
+    if (bill?.lease.tenantId !== tenantId) throw this.billNotFound();
+
+    if (bill.status === 'PAID') {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_ALREADY_PAID,
+        title: 'Bill is already paid',
+      });
+    }
+    if (!PAYABLE_STATES.has(bill.status)) {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_NOT_PAYABLE,
+        title: 'Bill is not payable',
+        detail: `Cannot start checkout for a bill in ${bill.status} state.`,
+      });
+    }
+    if (bill.currency !== 'VND') {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_CURRENCY_MISMATCH,
+        title: 'Currency mismatch',
+        detail: 'VNPay only supports VND.',
+      });
+    }
+
+    const agg = await this.prisma.payment.aggregate({
+      where: { billId, status: 'SUCCEEDED' },
+      _sum: { amount: true },
+    });
+    const outstanding = bill.total - (agg._sum.amount ?? 0);
+    if (outstanding <= 0) {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_ALREADY_PAID,
+        title: 'Bill is already paid',
+      });
+    }
+
+    // Create the Payment row first so its cuid id becomes vnp_TxnRef.
+    // No external API call to dirty before this — VNPay URLs are
+    // built locally, then handed to the tenant for redirect.
+    const payment = await this.prisma.payment.create({
+      data: {
+        billId,
+        amount: outstanding,
+        currency: 'VND',
+        status: 'PENDING',
+        provider: 'VNPAY',
+        providerRef: null,
+        note: null,
+        receivedAt: null,
+      },
+    });
+
+    // Use the row's own id as the VNPay TxnRef. cuid collision
+    // probability ≈ 0; the @@unique([provider, providerRef]) on
+    // Payment guarantees we never reuse one.
+    const txnRef = payment.id;
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { providerRef: txnRef },
+    });
+
+    const orderInfo = `Rent ${bill.periodStart.toISOString().slice(0, 10)} - ${bill.periodEnd
+      .toISOString()
+      .slice(0, 10)}`;
+    const returnUrl = `${env.TENANT_APP_URL}/my-bills/${bill.id}/vnpay/return`;
+
+    const url = this.vnpay.buildCheckoutUrl({
+      txnRef,
+      amount: outstanding,
+      orderInfo,
+      returnUrl,
+      ipAddress,
+    });
+
+    await this.audit.writeOnce({
+      actorId: ctx.actorId,
+      action: 'bill.checkout.start',
+      target: `Payment:${payment.id}`,
+      meta: {
+        billId,
+        amount: outstanding,
+        currency: 'VND',
+        provider: 'VNPAY',
+        txnRef,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return { url, sessionId: txnRef, paymentId: payment.id };
   }
 
   // ---- Reads -------------------------------------------------------
