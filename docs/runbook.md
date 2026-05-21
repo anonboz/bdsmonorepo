@@ -305,6 +305,7 @@ gh workflow run "Backup — Postgres nightly dump"
 | Monitoring + Sentry  | [`docs/operations/monitoring.md`](operations/monitoring.md)             |
 | Postgres backups     | [`docs/operations/backups.md`](operations/backups.md)                   |
 | Secrets rotation     | [`docs/operations/secrets-rotation.md`](operations/secrets-rotation.md) |
+| Load testing (k6)    | [`docs/operations/load-testing.md`](operations/load-testing.md)         |
 | Security advisories  | [`docs/security-advisories.md`](security-advisories.md)                 |
 | Build plan + roadmap | [`BUILD_PLAN.md`](../BUILD_PLAN.md)                                     |
 | Feature specs        | [`docs/specs/`](specs/)                                                 |
