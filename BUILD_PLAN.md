@@ -237,6 +237,29 @@ Acceptance: all e2e green in CI; runbook reviewed; backup restore tested on a th
 
 ---
 
+### Phase 7 — Payments (Week 17–20)
+
+Goal: real money flows. Phases 1-6 model and track money on paper (bills, ledger entries, audit rows); Phase 7 makes it move. Six earlier specs explicitly defer to this phase — the `mark-paid` endpoint, Stripe / VNPay providers, refunds, partner-payout disbursement, and the payment + webhook k6 scripts.
+
+1. **Manual payment recording.** Owner-side `mark bill paid` endpoint with offline-payment metadata (bank transfer, cash, reference). MANUAL `PaymentProvider` already exists in the schema. Audit row + transitions Bill `ISSUED → PAID` (or PARTIALLY_PAID). Receipt PDF re-uses the Phase 2.5 generator.
+2. **Stripe Checkout for bills.** Tenant taps "Pay bill" → API creates a Stripe Checkout Session (one-shot, no saved cards in v1) → tenant lands in Stripe's hosted page → on success returns to a callback URL. PaymentIntent id stored on the `Payment` row; bill stays `ISSUED` until the webhook confirms (no optimistic flip).
+3. **Provider webhooks framework.** Signed (Stripe-Signature header) + idempotent (re-fire same event → 200 no-op). Single module `apps/api/src/webhooks/*` per provider, with a `WebhookEvent` table for idempotency + audit. Maps `payment_intent.succeeded` → Bill `PAID`, `payment_intent.payment_failed` → Payment `FAILED`. Includes the rate-limit + auth bypass (webhooks are `@Public()` but signature-gated).
+4. **VNPay integration.** The VN market's primary rail. Redirect-based (no saved cards), IPN (Instant Payment Notification) webhook for confirmation, HMAC signature on every payload. The "VNPay vs MoMo" open decision in §8 resolves here — go with VNPay first based on coverage, MoMo as a follow-up if needed.
+5. **Refunds + partial payments.** Owner-initiated refund on a `PAID` bill (full or partial). Provider-specific refund call → new Payment row with negative amount + `REFUNDED` status → audit. Bill flips back to `PARTIALLY_PAID` or `VOID` depending on what's refunded.
+6. **Partner payout disbursement.** Currently 5.4's `payouts.release-sweep` flips `HELD → RELEASED` after the 3-day cooldown — no actual money movement. Phase 7 wires Stripe Connect Express (or a "manual bank-transfer queue" for v1 if Connect isn't viable in VN) so `RELEASED` rows trigger a real transfer. Audit each disbursement.
+
+Acceptance:
+
+- Tenant pays a bill end-to-end via both providers; webhook flips Bill to PAID; receipt is sendable.
+- Owner records a MANUAL payment; bill flips; receipt re-uses the same generator.
+- Refund roundtrip works through both providers.
+- Partner sees a payout move from HELD → RELEASED → DISBURSED with a provider reference attached.
+- Webhook idempotency: re-firing the same event 10× changes nothing past the first.
+
+Out of scope, ranked by likely Phase 8 priority: notifications delivery (Resend / SMTP), photo / file upload via S3 (currently external URLs), `@sentry/nextjs` on the four PWAs, NestJS 11 + Fastify 5 upgrade to clear the §6.3 advisories, PostHog analytics.
+
+---
+
 ## 6. Working rhythm with Claude Code
 
 For every feature:
@@ -279,7 +302,7 @@ A task is done only when **all** are true:
 
 Track here so we don't re-debate them mid-build:
 
-- [ ] Payment provider for VN market (VNPay vs MoMo vs both).
+- [ ] Payment provider for VN market (VNPay vs MoMo vs both). Phase 7.4 starts with VNPay; MoMo as follow-up.
 - [ ] OTP transport provider (Twilio Verify, local SMS gateway, or email-only at start).
 - [ ] Single-app vs subdomain-per-role deployment topology.
 - [ ] Default currency, timezone, language (and whether i18n is needed in v1).
