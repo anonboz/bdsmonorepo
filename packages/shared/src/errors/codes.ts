@@ -45,6 +45,13 @@ export const ErrorCodes = {
   BILL_GENERATION_FAILED: 'bills.generation_failed',
   PAYMENT_DECLINED: 'payments.declined',
   PAYMENT_WEBHOOK_INVALID: 'payments.webhook_invalid',
+  PAYMENT_NOT_FOUND: 'payments.not_found',
+  PAYMENT_BILL_NOT_PAYABLE: 'payments.bill_not_payable',
+  PAYMENT_BILL_ALREADY_PAID: 'payments.bill_already_paid',
+  PAYMENT_OVERPAYMENT: 'payments.overpayment',
+  PAYMENT_CURRENCY_MISMATCH: 'payments.currency_mismatch',
+  PAYMENT_PROVIDER_REF_TAKEN: 'payments.provider_ref_taken',
+  PAYMENT_RECEIVED_AT_FUTURE: 'payments.received_at_future',
 
   // ---- tickets ------------------------------------------------------
   TICKET_NOT_FOUND: 'tickets.not_found',

@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import type { Bill, BillStatus } from '@repo/shared';
+import type { Bill, BillStatus, Page, Payment } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApiError } from '../../../../lib/api';
-import { formatDate, formatMoney } from '../../../../lib/format';
+import { formatDate, formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 import { DownloadReceipt } from '../_components/download-receipt';
 
@@ -17,6 +17,7 @@ export default async function MyBillDetailPage({
   const { billId } = await params;
   const bill = await fetchBill(billId);
   if (!bill) notFound();
+  const payments = await fetchPayments(billId);
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -55,6 +56,35 @@ export default async function MyBillDetailPage({
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-lg">Payments</CardTitle>
+          <CardDescription>
+            {payments.length === 0
+              ? 'No payments recorded yet.'
+              : `${payments.length} payment${payments.length === 1 ? '' : 's'} on file.`}
+          </CardDescription>
+        </CardHeader>
+        {payments.length > 0 && (
+          <CardContent className="p-0">
+            <ul className="divide-y text-sm">
+              {payments.map((p) => (
+                <li key={p.id} className="flex items-baseline justify-between gap-4 px-4 py-3">
+                  <div>
+                    <p className="font-medium">{formatMoney(p.amount, p.currency)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.provider.toLowerCase()}
+                      {p.providerRef ? ` · ${p.providerRef}` : ''} ·{' '}
+                      {formatDateTime(p.receivedAt ?? p.createdAt)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-lg">Receipt</CardTitle>
           <CardDescription>Download a PDF copy for your records.</CardDescription>
         </CardHeader>
@@ -65,14 +95,25 @@ export default async function MyBillDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Pay</CardTitle>
+          <CardTitle className="text-lg">Pay online</CardTitle>
           <CardDescription>
-            Online payments land in Phase 2.5. For now, settle directly with your landlord.
+            Online payments land in Phase 7.2 (Stripe Checkout). Until then, settle directly with
+            your landlord and they will record the payment here.
           </CardDescription>
         </CardHeader>
       </Card>
     </main>
   );
+}
+
+async function fetchPayments(billId: string): Promise<Payment[]> {
+  try {
+    const page = await serverApi<Page<Payment>>(`/v1/me/bills/${billId}/payments`);
+    return page.items;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return [];
+    throw err;
+  }
 }
 
 function StatusBadge({ status }: { status: BillStatus }) {

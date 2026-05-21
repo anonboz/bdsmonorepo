@@ -1,19 +1,19 @@
 import { expect, test } from '@playwright/test';
 
-import type { Bill, House, Lease, Page, Unit } from '@repo/shared';
+import type { Bill, House, Lease, Page, Payment, RecordPaymentResponse, Unit } from '@repo/shared';
 
 import { loginAs } from '../lib/api.js';
 
 /**
  * Owner builds a house → unit → ACTIVE lease, generates a bill,
- * sees the idempotency short-circuit on retry, and the tenant on
- * `/v1/me/bills` sees the same row.
+ * sees the idempotency short-circuit on retry, the tenant on
+ * `/v1/me/bills` sees the same row, then the owner records a
+ * MANUAL payment for the full amount → bill flips PAID.
  *
- * No "pay bill" step — Phase 6 payment providers haven't landed.
- * What we *can* prove today is generation, idempotency, and the
- * tenant read.
+ * Phase 7.1 adds the mark-paid step. Stripe / VNPay end-to-end
+ * lands in 7.2 / 7.4.
  */
-test('owner generates a bill end-to-end and the tenant sees it', async () => {
+test('owner generates a bill, records a manual payment, tenant sees PAID', async () => {
   const owner = await loginAs('owner');
   const tenant = await loginAs('tenant');
 
@@ -74,6 +74,38 @@ test('owner generates a bill end-to-end and the tenant sees it', async () => {
     const seen = tenantBills.items.find((b) => b.id === first.bill.id);
     expect(seen, 'tenant should see the bill on /v1/me/bills').toBeDefined();
     expect(seen?.total).toBe(5_000_00);
+
+    // Phase 7.1: owner records a MANUAL payment for the full total.
+    const paymentsPath = `/v1/houses/${house.id}/units/${unit.id}/leases/${draftLease.id}/bills/${first.bill.id}/payments`;
+    const recorded = await owner.post<RecordPaymentResponse>(paymentsPath, {
+      amount: 5_000_00,
+      currency: 'VND',
+      providerRef: `e2e-${Date.now()}`,
+      note: 'cash, paid in full',
+    });
+    expect(recorded.payment.provider).toBe('MANUAL');
+    expect(recorded.payment.amount).toBe(5_000_00);
+    expect(recorded.bill.status).toBe('PAID');
+
+    // Owner can list payments.
+    const ownerPayments = await owner.get<Page<Payment>>(paymentsPath);
+    expect(ownerPayments.items).toHaveLength(1);
+
+    // Tenant sees the payment and the new bill status.
+    const tenantPayments = await tenant.get<Page<Payment>>(
+      `/v1/me/bills/${first.bill.id}/payments`,
+    );
+    expect(tenantPayments.items.map((p) => p.id)).toEqual([recorded.payment.id]);
+
+    const tenantBillsAfter = await tenant.get<Page<Bill>>('/v1/me/bills?limit=50');
+    const seenAfter = tenantBillsAfter.items.find((b) => b.id === first.bill.id);
+    expect(seenAfter?.status).toBe('PAID');
+
+    // Overpaying a PAID bill must 422.
+    const overpay = await owner.raw.post(paymentsPath, {
+      data: { amount: 1, currency: 'VND' },
+    });
+    expect(overpay.status()).toBe(422);
   } finally {
     await owner.dispose();
     await tenant.dispose();

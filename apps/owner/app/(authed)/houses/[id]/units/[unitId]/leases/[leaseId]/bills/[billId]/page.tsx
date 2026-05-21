@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import type { Bill, BillStatus } from '@repo/shared';
+import type { Bill, BillStatus, Page, Payment } from '@repo/shared';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@repo/ui';
 
 import { DownloadReceipt } from './_components/download-receipt';
+import { PaymentsPanel } from './_components/payments-panel';
 import { ApiError } from '../../../../../../../../../../lib/api';
 import { formatDate, formatMoney } from '../../../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../../../lib/session';
@@ -17,6 +18,9 @@ export default async function BillDetailPage({
   const { id: houseId, unitId, leaseId, billId } = await params;
   const bill = await fetchBill(houseId, unitId, leaseId, billId);
   if (!bill) notFound();
+  const payments = await fetchPayments(houseId, unitId, leaseId, billId);
+  const paid = payments.reduce((acc, p) => (p.status === 'SUCCEEDED' ? acc + p.amount : acc), 0);
+  const remaining = Math.max(0, bill.total - paid);
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -77,8 +81,36 @@ export default async function BillDetailPage({
           </table>
         </CardContent>
       </Card>
+
+      <PaymentsPanel
+        houseId={houseId}
+        unitId={unitId}
+        leaseId={leaseId}
+        billId={bill.id}
+        billStatus={bill.status}
+        currency={bill.currency}
+        remaining={remaining}
+        initialPayments={payments}
+      />
     </main>
   );
+}
+
+async function fetchPayments(
+  houseId: string,
+  unitId: string,
+  leaseId: string,
+  billId: string,
+): Promise<Payment[]> {
+  try {
+    const page = await serverApi<Page<Payment>>(
+      `/v1/houses/${houseId}/units/${unitId}/leases/${leaseId}/bills/${billId}/payments`,
+    );
+    return page.items;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return [];
+    throw err;
+  }
 }
 
 function StatusBadge({ status }: { status: BillStatus }) {

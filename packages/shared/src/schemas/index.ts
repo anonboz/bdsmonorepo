@@ -4,6 +4,7 @@ export * from './houses';
 export * from './units';
 export * from './leases';
 export * from './bills';
+export * from './payments';
 export * from './campaigns';
 export * from './applications';
 export * from './partners';
