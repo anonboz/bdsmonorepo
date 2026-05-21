@@ -21,11 +21,16 @@ function makeStripeStub(
     const url = opts.nullUrl ? null : `https://checkout.stripe.com/c/pay/${id}`;
     return Promise.resolve({ id, url });
   });
-  const stub = {
+  const stub: StripeService = {
     isEnabled: vi.fn((): boolean => opts.enabled ?? true),
+    isWebhookEnabled: vi.fn((): boolean => false),
     createCheckoutSession,
+    // Not exercised by these specs — webhooks have their own suite.
+    constructEvent: vi.fn(() => {
+      throw new Error('constructEvent not stubbed in this test context');
+    }),
   };
-  return { service: stub satisfies StripeService, createCheckoutSession };
+  return { service: stub, createCheckoutSession };
 }
 
 interface BillSeed {

@@ -27,6 +27,31 @@ async function bootstrap() {
     bodyLimit: 10 * 1024 * 1024,
   });
 
+  // Stripe signature verification (7.3) needs the exact request bytes.
+  // Replace Fastify's default JSON parser with one that stashes the raw
+  // string on `req.rawBody` before parsing — the global Zod pipe keeps
+  // working on every other route because we still hand back the parsed
+  // object. One extra string allocation per request; cheap.
+  const fastifyInstance = adapter.getInstance();
+  fastifyInstance.removeContentTypeParser(['application/json']);
+  fastifyInstance.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (req, body, done) => {
+      const raw = typeof body === 'string' ? body : body.toString('utf-8');
+      (req as { rawBody?: string }).rawBody = raw;
+      if (raw.length === 0) {
+        done(null, undefined);
+        return;
+      }
+      try {
+        done(null, JSON.parse(raw));
+      } catch (err) {
+        done(err as Error);
+      }
+    },
+  );
+
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     bufferLogs: true,
   });

@@ -22,6 +22,7 @@ import { ServiceJobsModule } from './service-jobs/service-jobs.module.js';
 import { TicketsModule } from './tickets/tickets.module.js';
 import { UnitsModule } from './units/units.module.js';
 import { UsersModule } from './users/users.module.js';
+import { WebhooksModule } from './webhooks/webhooks.module.js';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { UsersModule } from './users/users.module.js';
     ServiceJobsModule,
     PayoutsModule,
     JobRatingsModule,
+    WebhooksModule,
     AdminModule,
   ],
 })

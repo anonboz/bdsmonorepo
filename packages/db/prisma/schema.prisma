@@ -150,6 +150,12 @@ enum NotificationChannel {
   SMS
 }
 
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+}
+
 enum HouseModerationStatus {
   OK
   FLAGGED
@@ -764,4 +770,29 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([action, createdAt])
   @@index([target])
+}
+
+/// Persistent record of every webhook delivery from a payment provider.
+/// `@@unique([provider, eventId])` short-circuits duplicate deliveries —
+/// Stripe retries on non-2xx so idempotency is a real concern, not a
+/// theoretical one.
+model WebhookEvent {
+  id          String             @id @default(cuid())
+  provider    PaymentProvider
+  /// Provider's event id (`evt_…` for Stripe). Unique per provider.
+  eventId     String
+  /// Event name, e.g. `checkout.session.completed`. Free-form per
+  /// provider; we don't enum it.
+  type        String             @db.VarChar(120)
+  /// Full payload as received, after signature verification.
+  payload     Json
+  receivedAt  DateTime           @default(now())
+  processedAt DateTime?
+  status      WebhookEventStatus @default(RECEIVED)
+  /// Set when `status = FAILED` — keeps the diagnostic on the row.
+  error       String?            @db.VarChar(2000)
+
+  @@unique([provider, eventId])
+  @@index([provider, type, receivedAt])
+  @@index([status, receivedAt])
 }

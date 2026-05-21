@@ -1,23 +1,31 @@
 import { Injectable } from '@nestjs/common';
 
+import { env } from '../env.js';
 import {
   buildCheckoutSessionCreateParams,
   getStripeClient,
   type CheckoutSession,
   type CreateCheckoutSessionParams,
+  type StripeEvent,
 } from './stripe.client.js';
 
 /**
  * NestJS-DI face over `stripe.client.ts`. The thin wrapper exists so
- * the PaymentsService can inject a mock in unit tests without spinning
- * up a real Stripe client — the bare class-with-method shape works
- * directly with `new MockStripeService()` in vitest.
+ * the PaymentsService + WebhooksService can inject a mock in unit
+ * tests without spinning up a real Stripe client — the bare
+ * class-with-method shape works directly with `new MockStripeService()`
+ * in vitest.
  */
 @Injectable()
 export class StripeService {
   /** True when `STRIPE_SECRET_KEY` is set; the controller maps this to 503. */
   isEnabled(): boolean {
     return getStripeClient() !== null;
+  }
+
+  /** True when both the secret key AND the webhook signing secret are configured. */
+  isWebhookEnabled(): boolean {
+    return Boolean(env.STRIPE_WEBHOOK_SECRET) && this.isEnabled();
   }
 
   async createCheckoutSession(params: CreateCheckoutSessionParams): Promise<CheckoutSession> {
@@ -28,5 +36,19 @@ export class StripeService {
     }
     const session = await client.checkout.sessions.create(buildCheckoutSessionCreateParams(params));
     return { id: session.id, url: session.url };
+  }
+
+  /**
+   * Verifies the Stripe-Signature header against `STRIPE_WEBHOOK_SECRET`
+   * and returns the parsed event. Throws
+   * `Stripe.errors.StripeSignatureVerificationError` on mismatch —
+   * the controller maps that to 400 `payments.webhook_invalid`.
+   */
+  constructEvent(rawBody: string, signature: string): StripeEvent {
+    const client = getStripeClient();
+    if (!client || !env.STRIPE_WEBHOOK_SECRET) {
+      throw new Error('Stripe webhook secret not configured.');
+    }
+    return client.webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
   }
 }

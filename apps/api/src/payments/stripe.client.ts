@@ -13,6 +13,8 @@ import { env } from '../env.js';
  */
 
 type StripeInstance = Stripe.Stripe;
+/** Stripe Event payload returned from signature verification. */
+export type StripeEvent = ReturnType<StripeInstance['webhooks']['constructEvent']>;
 
 let cached: StripeInstance | null | undefined;
 
