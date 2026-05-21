@@ -29,6 +29,7 @@
     "@repo/config": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/shared": "workspace:*",
+    "@sentry/node": "^10.53.1",
     "better-auth": "^1.0.0",
     "bullmq": "^5.21.2",
     "dotenv": "^16.4.5",

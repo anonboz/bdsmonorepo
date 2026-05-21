@@ -56,6 +56,8 @@ const envSchema = z.object({
   SMTP_PORT: port.default(1025),
 
   SENTRY_DSN: z.string().url().optional(),
+  /** Tag passed to Sentry for release-based grouping. Free-form. */
+  SENTRY_RELEASE: z.string().optional(),
   POSTHOG_KEY: z.string().optional(),
 });
 

@@ -4,6 +4,8 @@ import { ZodError } from 'zod';
 
 import { ErrorCodes, PROBLEM_CONTENT_TYPE, type Problem } from '@repo/shared';
 
+import type { AuthenticatedUser } from '../../auth/auth.types.js';
+import { captureException } from '../../observability/sentry.js';
 import { ProblemError } from '../errors/problem.error.js';
 
 /**
@@ -18,13 +20,23 @@ import { ProblemError } from '../errors/problem.error.js';
 export class ProblemFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
-    const req = http.getRequest<FastifyRequest>();
+    const req = http.getRequest<FastifyRequest & { user?: AuthenticatedUser }>();
     const res = http.getResponse<FastifyReply>();
 
     const traceId = (req.headers['x-trace-id'] as string | undefined) ?? req.id;
     const instance = req.url;
 
     const problem = this.toProblem(exception, instance, traceId);
+
+    // Forward 5xx to Sentry. 4xx is expected client behavior and would
+    // just create noise. ZodError + ProblemError fall under 4xx and skip.
+    if (problem.status >= 500) {
+      captureException(exception, {
+        traceId: String(traceId),
+        actorId: req.user?.id ?? null,
+        path: instance,
+      });
+    }
 
     res
       .status(problem.status)

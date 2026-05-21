@@ -129,3 +129,32 @@ export const rejectCampaignSchema = z.object({
   reason: z.string().trim().min(1).max(500),
 });
 export type RejectCampaignInput = z.infer<typeof rejectCampaignSchema>;
+
+// ---- Operational metrics (Phase 6.4) --------------------------------
+
+export const queueDepthSchema = z.object({
+  name: z.string(),
+  waiting: z.number().int().nonnegative(),
+  active: z.number().int().nonnegative(),
+  delayed: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  completed: z.number().int().nonnegative(),
+});
+export type QueueDepth = z.infer<typeof queueDepthSchema>;
+
+export const metricsResponseSchema = z.object({
+  generatedAt: isoDateTimeSchema,
+  queues: z.array(queueDepthSchema),
+  redis: z.object({
+    connected: z.boolean(),
+    /** Round-trip ms for the most recent PING. Null if not connected. */
+    pingMs: z.number().nullable(),
+  }),
+  sentry: z.object({
+    /** True iff `SENTRY_DSN` was set at boot. */
+    enabled: z.boolean(),
+    /** `env.NODE_ENV` at boot; null when Sentry isn't initialized. */
+    environment: z.string().nullable(),
+  }),
+});
+export type MetricsResponse = z.infer<typeof metricsResponseSchema>;

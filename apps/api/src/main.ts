@@ -13,8 +13,14 @@ import { AppModule } from './app.module.js';
 import { ProblemFilter } from './common/filters/problem.filter.js';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe.js';
 import { env } from './env.js';
+import { initSentry } from './observability/sentry.js';
 
 async function bootstrap() {
+  // Init Sentry before NestFactory.create so Sentry can patch Node
+  // internals (fs/http) ahead of any other module loading. No-ops
+  // cleanly when SENTRY_DSN is unset.
+  initSentry();
+
   const adapter = new FastifyAdapter({
     logger: false, // pino is wired via nestjs-pino instead
     trustProxy: true,
