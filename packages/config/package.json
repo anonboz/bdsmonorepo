@@ -14,7 +14,8 @@
     "./eslint/react": "./eslint/react.js",
     "./prettier": "./prettier/index.js",
     "./tailwind": "./tailwind/preset.ts",
-    "./env": "./env/index.ts"
+    "./env": "./env/index.ts",
+    "./security/headers": "./security/headers.ts"
   },
   "scripts": {
     "lint": "echo \"@repo/config: no source to lint (all files are toolchain config)\"",

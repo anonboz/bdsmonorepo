@@ -35,6 +35,13 @@ const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
+  // Set to 'true' to skip @fastify/rate-limit registration entirely.
+  // Useful for the e2e hammer paths and quick local debugging. Default off.
+  API_DISABLE_RATE_LIMIT: z
+    .union([z.literal('true'), z.literal('false')])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   AUTH_JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
   AUTH_JWT_REFRESH_TTL: z.coerce
     .number()

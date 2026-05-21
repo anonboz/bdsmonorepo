@@ -116,6 +116,45 @@ jobs:
       - name: Build (apps)
         run: pnpm turbo build --output-logs=new-only --concurrency=1
 
+  audit:
+    name: audit (advisories)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --reporter=append-only
+
+      # Non-blocking: emits the audit JSON for the report artifact but
+      # the suite stays green even when new advisories land. Disposition
+      # is tracked in docs/security-advisories.md; flip the exit code
+      # to fail-on-critical once the NestJS 11 upgrade closes the
+      # currently tracked items.
+      - name: Run pnpm audit
+        id: audit
+        continue-on-error: true
+        run: |
+          pnpm audit --prod --json > audit-report.json
+          pnpm audit --prod || true
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-report
+          path: audit-report.json
+          retention-days: 30
+
   e2e:
     name: e2e (playwright)
     runs-on: ubuntu-latest
@@ -157,6 +196,10 @@ jobs:
       AUTH_JWT_ACCESS_TTL: '900'
       AUTH_JWT_REFRESH_TTL: '604800'
       API_DISABLE_QUEUES: 'true'
+      # The auth helper logs in 4 + (2 × 4) times across the suite; the
+      # send-otp per-route limit (5/min) would otherwise turn that into
+      # a 429 cascade. Disable rate-limit entirely for e2e.
+      API_DISABLE_RATE_LIMIT: 'true'
       NODE_ENV: test
 
     steps:
