@@ -260,6 +260,28 @@ Out of scope, ranked by likely Phase 8 priority: notifications delivery (Resend 
 
 ---
 
+### Phase 8 — Communications + storage hardening (Week 21–24)
+
+Goal: real-world wiring of the channels and storage that earlier phases deferred. Phase 7 made money move; Phase 8 makes users **hear about it** and makes media stop pointing at random external URLs. Also clears the §6.3 critical advisories with a NestJS 11 + Fastify 5 upgrade.
+
+1. **Email delivery wiring.** Resend SDK behind a `MailerService` (with a stub adapter for dev that captures to MailHog at the existing port 1025). Replace `console.log` in better-auth's `sendVerificationOTP` + `sendMagicLink` with the real send. The `RESEND_API_KEY` env var already exists; this slice gives it a job.
+2. **Domain event → notification fanout.** A new `NotificationsService` enqueues a `notifications.send` BullMQ job on every notable state transition: bill `ISSUED` / `PAID` / `OVERDUE`, payment confirmed / refunded, ticket `OPEN` → owner, ticket `RESOLVED` → tenant, job `COMPLETED` → owner, payout `DISBURSED` → partner. The existing `Notification` model gains real writers; jobs render an HTML email via a shared template helper and persist the row with `sentAt`.
+3. **In-app notification inbox.** Per-app `/notifications` page listing the rows the user owns, mark-as-read endpoint, an unread badge in the header. Pagination via the standard cursor pattern.
+4. **S3 photo upload.** Pre-signed PUT URLs for campaign photos (4.3 left as external URLs) and partner proof-of-work photos (5.2 same). New `StorageService` wraps `@aws-sdk/client-s3`; works against MinIO locally. Schema gets a new `MediaAsset` model with `(provider, bucket, key, ownerUserId)` so we can revoke access on user deletion. Existing `photos String[]` columns get migrated to FK arrays of MediaAsset ids; old URLs continue to render.
+5. **NestJS 11 + Fastify 5 upgrade.** Clears the critical advisories tracked in `docs/security-advisories.md` items 1, 3-5, 7-11 in one bump. Breaking-change surface: `req.routerPath` → `req.routeOptions.url`, request schema generics shift, `@nestjs/platform-fastify@11` requires Fastify 5. Tests + e2e are the safety net.
+6. **Sentry on the four Next.js apps.** Wire `@sentry/nextjs` per app (admin, owner, tenant, partner) with per-app DSNs and source-map upload via the official Sentry Vercel integration. Replaces the deferred Phase 6.4 item. Browser errors land in Sentry alongside the API ones already shipping in 6.4.
+7. **PostHog analytics.** Wire the env-reserved `POSTHOG_KEY` via `posthog-js` for the four PWAs + a thin server-side `posthog-node` capture for API events that don't need a browser session (bill paid, job completed, refund issued). Per-role property + a single funnel for the onboarding → first-payment path.
+
+Acceptance:
+
+- Tenant pays a bill → receives an email confirmation + sees a `bill.paid` in-app notification within seconds of the webhook.
+- Partner uploads proof-of-work photos through pre-signed S3 URLs; the URLs survive a session-cookie rotation.
+- `pnpm audit --prod --audit-level=critical` passes (the Phase 6.3 audit CI job can flip to fail-on-critical).
+- Browser-side error in any of the four PWAs lands in Sentry with the user id + path tagged.
+- Out of scope (still): SMS delivery (no provider chosen), web push, Stripe Connect onboarding for partners, VNPay refunds.
+
+---
+
 ## 6. Working rhythm with Claude Code
 
 For every feature:
@@ -303,7 +325,7 @@ A task is done only when **all** are true:
 Track here so we don't re-debate them mid-build:
 
 - [ ] Payment provider for VN market (VNPay vs MoMo vs both). Phase 7.4 starts with VNPay; MoMo as follow-up.
-- [ ] OTP transport provider (Twilio Verify, local SMS gateway, or email-only at start).
+- [ ] OTP transport provider (Twilio Verify, local SMS gateway, or email-only at start). Phase 8.1 ships email-only via Resend; SMS deferred.
 - [ ] Single-app vs subdomain-per-role deployment topology.
 - [ ] Default currency, timezone, language (and whether i18n is needed in v1).
 - [ ] Contract e-signature — v1 or v2?
