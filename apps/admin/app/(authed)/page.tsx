@@ -77,12 +77,26 @@ export default async function HomePage() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Payouts</CardTitle>
+            <CardDescription>Disburse partner payouts after the 3-day cooldown.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/payouts">Open queue</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>Fee config lands alongside Phase 5 partner payouts.</CardDescription>
+          <CardDescription>
+            Refund moderation, fee config, and Stripe Connect onboarding.
+          </CardDescription>
         </CardHeader>
       </Card>
     </main>

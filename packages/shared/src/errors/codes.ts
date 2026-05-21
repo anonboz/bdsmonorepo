@@ -106,6 +106,13 @@ export const ErrorCodes = {
   ADMIN_HOUSE_ALREADY_IN_STATE: 'admin.house_already_in_state',
   ADMIN_CAMPAIGN_NOT_FOUND: 'admin.campaign_not_found',
   ADMIN_CAMPAIGN_NOT_PENDING: 'admin.campaign_not_pending',
+
+  // ---- payouts ------------------------------------------------------
+  PAYOUT_ENTRY_NOT_FOUND: 'payouts.entry_not_found',
+  PAYOUT_NOT_DISBURSABLE: 'payouts.not_disbursable',
+  PAYOUT_NOT_DISBURSABLE_HELD: 'payouts.not_disbursable_held',
+  PAYOUT_ALREADY_DISBURSED: 'payouts.already_disbursed',
+  PAYOUT_DISBURSEMENT_METHOD_UNSUPPORTED: 'payouts.disbursement_method_unsupported',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

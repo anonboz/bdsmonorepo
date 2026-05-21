@@ -12,6 +12,7 @@ const STATUS_PALETTE: Record<PayoutEntryStatus, string> = {
   PENDING: 'bg-amber-100 text-amber-900',
   HELD: 'bg-sky-100 text-sky-900',
   RELEASED: 'bg-emerald-100 text-emerald-900',
+  DISBURSED: 'bg-violet-100 text-violet-900',
 };
 
 export default async function PayoutsPage() {
@@ -19,6 +20,7 @@ export default async function PayoutsPage() {
 
   const held = page.items.filter((e) => e.status === 'HELD');
   const released = page.items.filter((e) => e.status === 'RELEASED');
+  const disbursed = page.items.filter((e) => e.status === 'DISBURSED');
   const sumByCurrency = (entries: JobLedgerEntry[]): { currency: string; amount: number }[] => {
     const totals = new Map<string, number>();
     for (const e of entries) totals.set(e.currency, (totals.get(e.currency) ?? 0) + e.amount);
@@ -33,13 +35,15 @@ export default async function PayoutsPage() {
         </Button>
         <h1 className="text-2xl font-semibold">Payouts</h1>
         <p className="text-sm text-muted-foreground">
-          Your share of completed jobs. Released amounts cleared the 3-day cooldown.
+          Your share of completed jobs. Released amounts cleared the 3-day cooldown; disbursed rows
+          landed in your bank — match against your statement using the reference.
         </p>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <SummaryCard label="Held" tone="bg-sky-50" totals={sumByCurrency(held)} />
         <SummaryCard label="Released" tone="bg-emerald-50" totals={sumByCurrency(released)} />
+        <SummaryCard label="Disbursed" tone="bg-violet-50" totals={sumByCurrency(disbursed)} />
       </div>
 
       {page.items.length === 0 ? (
@@ -58,7 +62,8 @@ export default async function PayoutsPage() {
                   <th className="px-4 py-2 font-medium">Job</th>
                   <th className="px-4 py-2 font-medium text-right">Amount</th>
                   <th className="px-4 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 font-medium">Cooldown / released</th>
+                  <th className="px-4 py-2 font-medium">When</th>
+                  <th className="px-4 py-2 font-medium">Reference</th>
                 </tr>
               </thead>
               <tbody>
@@ -80,9 +85,18 @@ export default async function PayoutsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {e.status === 'RELEASED'
-                        ? formatDateTime(e.releasedAt)
-                        : formatDateTime(e.cooldownUntil)}
+                      {e.status === 'DISBURSED'
+                        ? formatDateTime(e.disbursedAt)
+                        : e.status === 'RELEASED'
+                          ? formatDateTime(e.releasedAt)
+                          : formatDateTime(e.cooldownUntil)}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {e.disbursementRef ? (
+                        <code className="text-[11px]">{e.disbursementRef}</code>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -141,6 +141,12 @@ enum PayoutEntryStatus {
   PENDING
   HELD
   RELEASED
+  DISBURSED
+}
+
+enum PayoutDisbursementMethod {
+  MANUAL_BANK_TRANSFER
+  STRIPE_CONNECT
 }
 
 enum NotificationChannel {
@@ -720,12 +726,23 @@ model JobLedgerEntry {
   cooldownUntil DateTime?
   releasedAt    DateTime?
 
+  /// Set when an admin marks the row DISBURSED (Phase 7.6). The
+  /// reference is the bank transfer id / wire id / Stripe transfer
+  /// id; the method enum records how the money moved.
+  disbursedAt        DateTime?
+  disbursementRef    String?                   @db.VarChar(200)
+  disbursementMethod PayoutDisbursementMethod?
+  /// Admin user id that marked the row DISBURSED. Frozen at write
+  /// time; matches the `cancelledBy` text-id pattern elsewhere.
+  disbursedById      String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([jobId, kind])
   @@index([accountUserId, status])
   @@index([status, cooldownUntil])
+  @@index([status, disbursedAt])
 }
 
 /// Post-completion ratings between an owner and a partner on a single

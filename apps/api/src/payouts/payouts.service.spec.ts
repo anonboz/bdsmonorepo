@@ -7,16 +7,23 @@ interface SeedEntry {
   id: string;
   jobId: string;
   kind: 'CHARGE' | 'COMMISSION' | 'PAYOUT';
-  status: 'PENDING' | 'HELD' | 'RELEASED';
+  status: 'PENDING' | 'HELD' | 'RELEASED' | 'DISBURSED';
   amount: number;
   currency: string;
   accountUserId: string | null;
   cooldownUntil: Date | null;
   releasedAt: Date | null;
+  disbursedAt: Date | null;
+  disbursementRef: string | null;
+  disbursementMethod: 'MANUAL_BANK_TRANSFER' | 'STRIPE_CONNECT' | null;
+  disbursedById: string | null;
   createdAt: Date;
 }
 
-function makePrismaStub(entries: SeedEntry[]) {
+function makePrismaStub(
+  entries: SeedEntry[],
+  users: { id: string; displayName: string; businessName?: string | null }[] = [],
+) {
   const ledger: SeedEntry[] = [...entries];
   const auditRows: Record<string, unknown>[] = [];
 
@@ -45,11 +52,29 @@ function makePrismaStub(entries: SeedEntry[]) {
           return Promise.resolve(filtered);
         },
       ),
+      findUnique: vi.fn(({ where }: { where: { id: string } }) =>
+        Promise.resolve(ledger.find((e) => e.id === where.id) ?? null),
+      ),
       update: vi.fn(({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const row = ledger.find((e) => e.id === where.id);
         if (!row) throw new Error('not found');
         Object.assign(row, data);
         return Promise.resolve(row);
+      }),
+    },
+    user: {
+      findMany: vi.fn(({ where }: { where: { id: { in: string[] } } }) => {
+        const ids = new Set(where.id.in);
+        return Promise.resolve(
+          users
+            .filter((u) => ids.has(u.id))
+            .map((u) => ({
+              id: u.id,
+              displayName: u.displayName,
+              partnerProfile:
+                u.businessName !== undefined ? { businessName: u.businessName } : null,
+            })),
+        );
       }),
     },
     auditLog: {
@@ -74,6 +99,10 @@ function entry(overrides: Partial<SeedEntry> = {}): SeedEntry {
     accountUserId: overrides.accountUserId ?? 'partner_user_1',
     cooldownUntil: overrides.cooldownUntil ?? null,
     releasedAt: overrides.releasedAt ?? null,
+    disbursedAt: overrides.disbursedAt ?? null,
+    disbursementRef: overrides.disbursementRef ?? null,
+    disbursementMethod: overrides.disbursementMethod ?? null,
+    disbursedById: overrides.disbursedById ?? null,
     createdAt: overrides.createdAt ?? new Date(),
   };
 }
@@ -140,5 +169,96 @@ describe('PayoutsService', () => {
     const released = await service.releaseEligible();
     expect(released).toBe(0);
     expect(stub.auditRows).toHaveLength(audit1);
+  });
+});
+
+describe('PayoutsService.listAdminPending', () => {
+  it('returns only RELEASED PAYOUT rows joined with partner names', async () => {
+    const stub = makePrismaStub(
+      [
+        entry({ id: 'r1', status: 'RELEASED', accountUserId: 'p_a' }),
+        entry({ id: 'h1', status: 'HELD', accountUserId: 'p_a' }),
+        entry({ id: 'r2', status: 'RELEASED', accountUserId: 'p_b' }),
+        entry({ id: 'd1', status: 'DISBURSED', accountUserId: 'p_a' }),
+      ],
+      [
+        { id: 'p_a', displayName: 'Pat', businessName: 'Pat Repairs' },
+        { id: 'p_b', displayName: 'Pia', businessName: null },
+      ],
+    );
+    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const page = await service.listAdminPending({ limit: 20, sort: 'asc' });
+    expect(page.items.map((p) => p.id).sort()).toEqual(['r1', 'r2']);
+    const r1 = page.items.find((p) => p.id === 'r1')!;
+    expect(r1.partnerName).toBe('Pat');
+    expect(r1.partnerBusinessName).toBe('Pat Repairs');
+  });
+});
+
+describe('PayoutsService.markDisbursed', () => {
+  const ctx = { actorId: 'admin_1', ip: null, userAgent: null };
+
+  it('flips RELEASED → DISBURSED + writes audit', async () => {
+    const stub = makePrismaStub([entry({ id: 'r1', status: 'RELEASED', accountUserId: 'p_a' })]);
+    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    const res = await service.markDisbursed(
+      'r1',
+      { method: 'MANUAL_BANK_TRANSFER', reference: 'TXN-001', note: 'first batch' },
+      ctx,
+    );
+    expect(res.status).toBe('DISBURSED');
+    expect(res.disbursementRef).toBe('TXN-001');
+    expect(res.disbursementMethod).toBe('MANUAL_BANK_TRANSFER');
+    expect(res.disbursedById).toBe('admin_1');
+
+    const auditRow = stub.auditRows.find((r) => r.action === 'payout.disburse');
+    expect(auditRow).toMatchObject({ actorId: 'admin_1', target: 'JobLedgerEntry:r1' });
+  });
+
+  it('404 when the entry does not exist', async () => {
+    const stub = makePrismaStub([]);
+    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await expect(
+      service.markDisbursed('nope', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('422 not_disbursable_held when the row is still HELD', async () => {
+    const stub = makePrismaStub([entry({ id: 'h1', status: 'HELD' })]);
+    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await expect(
+      service.markDisbursed('h1', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('422 already_disbursed when called twice on the same row', async () => {
+    const stub = makePrismaStub([entry({ id: 'r1', status: 'RELEASED' })]);
+    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await service.markDisbursed(
+      'r1',
+      { method: 'MANUAL_BANK_TRANSFER', reference: 'TXN-001' },
+      ctx,
+    );
+    await expect(
+      service.markDisbursed('r1', { method: 'MANUAL_BANK_TRANSFER', reference: 'TXN-002' }, ctx),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('501 disbursement_method_unsupported for STRIPE_CONNECT', async () => {
+    const stub = makePrismaStub([entry({ id: 'r1', status: 'RELEASED' })]);
+    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await expect(
+      service.markDisbursed('r1', { method: 'STRIPE_CONNECT', reference: 'X' }, ctx),
+    ).rejects.toMatchObject({ status: 501 });
+  });
+
+  it('404 when the entry is a CHARGE row (wrong kind)', async () => {
+    const stub = makePrismaStub([
+      entry({ id: 'c1', kind: 'CHARGE', status: 'RELEASED', amount: -50_000 }),
+    ]);
+    const service = new PayoutsService(stub.stub as never, new AuditLogger(stub.stub as never));
+    await expect(
+      service.markDisbursed('c1', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),
+    ).rejects.toMatchObject({ status: 404 });
   });
 });

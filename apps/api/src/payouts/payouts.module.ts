@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { PayoutsAdminController } from './payouts.admin.controller.js';
 import { PayoutsOwnerController } from './payouts.owner.controller.js';
 import { PayoutsPartnerController } from './payouts.partner.controller.js';
 import { PayoutsReleaseSweeper } from './payouts.release-sweeper.js';
@@ -9,7 +10,7 @@ import { QueuesModule } from '../queues/queues.module.js';
 
 @Module({
   imports: [AuditModule, QueuesModule],
-  controllers: [PayoutsPartnerController, PayoutsOwnerController],
+  controllers: [PayoutsPartnerController, PayoutsOwnerController, PayoutsAdminController],
   providers: [PayoutsService, PayoutsReleaseSweeper],
   exports: [PayoutsService],
 })
