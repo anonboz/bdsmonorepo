@@ -1,20 +1,30 @@
 import Link from 'next/link';
 
+import type { UnreadCountResponse } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { NotificationBellLink } from './_components/notification-bell-link';
 import { APP_NAME } from '../../lib/app-config';
-import { getSession } from '../../lib/session';
+import { getSession, serverApi } from '../../lib/session';
 
 export default async function HomePage() {
   // Guarded by (authed)/layout — session is guaranteed.
   const session = (await getSession())!;
+  // SSR the initial unread count so the bell renders correctly before
+  // hydration; the client island takes over for polling.
+  const { unread } = await serverApi<UnreadCountResponse>('/v1/notifications/unread-count').catch(
+    () => ({ unread: 0 }),
+  );
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-6 py-10">
-      <header className="space-y-1">
-        <h1 className="text-3xl font-semibold">{APP_NAME}</h1>
-        <p className="text-muted-foreground">
-          Signed in as <strong>{session.user.displayName}</strong>.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold">{APP_NAME}</h1>
+          <p className="text-muted-foreground">
+            Signed in as <strong>{session.user.displayName}</strong>.
+          </p>
+        </div>
+        <NotificationBellLink initialUnread={unread} />
       </header>
 
       <div className="grid gap-4 sm:grid-cols-3">

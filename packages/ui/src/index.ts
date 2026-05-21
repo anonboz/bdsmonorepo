@@ -8,3 +8,5 @@ export * from './components/card';
 export * from './components/alert';
 export * from './components/spinner';
 export * from './components/form-field';
+export * from './components/notification-bell';
+export * from './components/notification-inbox';

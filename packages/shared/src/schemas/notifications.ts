@@ -53,3 +53,13 @@ export const listNotificationsQuerySchema = paginationQuerySchema.extend({
 });
 
 export type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema>;
+
+export const unreadCountResponseSchema = z.object({
+  unread: z.number().int().nonnegative(),
+});
+export type UnreadCountResponse = z.infer<typeof unreadCountResponseSchema>;
+
+export const markAllReadResponseSchema = z.object({
+  updated: z.number().int().nonnegative(),
+});
+export type MarkAllReadResponse = z.infer<typeof markAllReadResponseSchema>;

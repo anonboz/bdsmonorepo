@@ -113,6 +113,9 @@ export const ErrorCodes = {
   PAYOUT_NOT_DISBURSABLE_HELD: 'payouts.not_disbursable_held',
   PAYOUT_ALREADY_DISBURSED: 'payouts.already_disbursed',
   PAYOUT_DISBURSEMENT_METHOD_UNSUPPORTED: 'payouts.disbursement_method_unsupported',
+
+  // ---- notifications -----------------------------------------------
+  NOTIFICATION_NOT_FOUND: 'notifications.not_found',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
