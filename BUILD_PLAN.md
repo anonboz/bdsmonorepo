@@ -282,6 +282,35 @@ Acceptance:
 
 ---
 
+### Phase 9 — Production cutover (Week 25–28)
+
+Goal: close the explicitly-deferred items that gate real customers, then run the
+cutover. Phase 8 made the platform observable; Phase 9 makes it _shippable_ —
+real partner payouts, a refund path on the VN-market rail, GDPR erasure, a way
+for users to opt out of notification topics, and the ops runbook that the
+on-call uses to flip DNS without praying.
+
+1. **Stripe Connect partner onboarding.** Replaces the hardcoded "MANUAL_BANK_TRANSFER" disbursement path from 7.6. Partner profile gains an "Onboard with Stripe" flow that hits Stripe's Express onboarding link; webhook handles `account.updated` to flip `PartnerProfile.stripeConnectStatus`. The 7.6 admin `markDisbursed` can then call `stripe.transfers.create` for any payout entry tied to an onboarded partner.
+2. **VNPay refunds.** Closes the Phase 7.5 `PAYMENT_REFUND_NOT_SUPPORTED` 501 branch. VNPay's refund endpoint requires the original `vnp_TransactionNo` (already captured in `providerCaptureRef` since 7.4); a new VnpayService method posts the refund + signs it. Same idempotent flow as Stripe — refund row created locally only after VNPay confirms.
+3. **GDPR / user erasure.** Admin-only flow: pick a user → cascade soft-delete, anonymize PII in `User` (email/phone/displayName → `deleted-<id>` shape), purge `MediaAsset` S3 objects + flip rows to DELETED, post to PostHog's `/api/projects/<id>/persons/delete_property` for the distinct_id, and emit a final `user.deleted` audit row. Receipts that already shipped to the user stay (legal retention), but their stored personal columns are anonymized.
+4. **Notification preferences.** New `NotificationPreference` table per `(userId, topic)`: tenants can mute `bill.issued` but keep `bill.paid`, owners can mute `job.completed` but keep `ticket.opened`, etc. Default-on for all topics. Each per-app `/notifications` page grows a settings drawer; the 8.2 dispatch flow consults the table before persisting the row.
+5. **Better-auth signup hook + `user.signed_up` analytics.** Wires the funnel inlet promised by 8.7. Adds `databaseHooks.user.create.after` to better-auth config; the hook fires an audit row + an `analytics.capture('user.signed_up', { role, via })`. Closes the 8.7 follow-up.
+6. **Fee / commission config (admin).** Replaces the hardcoded 15% in `service-jobs.service.ts` with a `PlatformConfig` row that admins can edit. Persisted with a single-row constraint (a la singletons elsewhere). Audit-logged on every change. Closes the long-running deferral that's been bouncing from Phase 3.4 through Phase 5.
+7. **Cutover runbook + go-live checklist.** Mostly docs + scripts: domain DNS plan, env-var validation script that runs in CI deploy step, secret-rotation drill (auth secret, Stripe webhook secret, VNPay hash secret), smoke-tests against the prod URL, rollback plan that includes a known-good tag + migration revert dry-run, oncall escalation runbook. No code in `apps/*` apart from the deploy script in `scripts/`.
+
+Acceptance:
+
+- Admin can complete a Stripe Connect partner onboarding from start to finish on the partner app; `markDisbursed` issues a real Stripe transfer.
+- Tenant can refund a VNPay payment from the owner app; VNPay confirms in the IPN flow, local row flips to refunded.
+- Admin can erase a user; the user's data is no longer queryable from any role's app, including PostHog person endpoint.
+- Tenant can mute `bill.issued` and the next bill generation only writes the notification row but does **not** enqueue the email.
+- A new signup fires `user.signed_up` in PostHog with `role` and `via` tagged.
+- Admin can change the platform commission from 15% to 12% and the next completed job ledger mints partner cut at the new rate.
+- Cutover runbook lives in `docs/runbook/go-live.md`; the deploy CI step refuses to ship when required env vars are missing.
+- Out of scope: SMS delivery (still — needs a provider choice), web push (still), mobile native apps, multi-currency owner payouts.
+
+---
+
 ## 6. Working rhythm with Claude Code
 
 For every feature:
