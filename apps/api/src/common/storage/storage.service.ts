@@ -1,6 +1,6 @@
 import { PutObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 
 import { env } from '../../env.js';
 
@@ -38,7 +38,12 @@ export class StorageService {
   private readonly publicBase: string | null;
   private readonly defaultExpiresInSec: number;
 
-  constructor(client?: S3Client) {
+  // `@Optional()` is required under NestJS 11: without it Nest tries to
+  // resolve `S3Client` from the DI graph and the boot fails because we
+  // never register one as a provider. Tests instantiate StorageService
+  // directly with a stubbed client, so the parameter is genuinely
+  // optional in the runtime contract.
+  constructor(@Optional() client?: S3Client) {
     this.client =
       client ??
       new S3Client({

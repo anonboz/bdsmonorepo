@@ -27,33 +27,35 @@ async function bootstrap() {
     bodyLimit: 10 * 1024 * 1024,
   });
 
-  // Stripe signature verification (7.3) needs the exact request bytes.
-  // Replace Fastify's default JSON parser with one that stashes the raw
-  // string on `req.rawBody` before parsing — the global Zod pipe keeps
-  // working on every other route because we still hand back the parsed
-  // object. One extra string allocation per request; cheap.
-  const fastifyInstance = adapter.getInstance();
-  fastifyInstance.removeContentTypeParser(['application/json']);
-  fastifyInstance.addContentTypeParser(
-    'application/json',
-    { parseAs: 'string' },
-    (req, body, done) => {
-      const raw = typeof body === 'string' ? body : body.toString('utf-8');
-      (req as { rawBody?: string }).rawBody = raw;
-      if (raw.length === 0) {
-        done(null, undefined);
-        return;
-      }
-      try {
-        done(null, JSON.parse(raw));
-      } catch (err) {
-        done(err as Error);
-      }
-    },
-  );
-
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
     bufferLogs: true,
+  });
+
+  // Stripe signature verification (7.3) needs the exact request bytes.
+  // Replace Fastify's JSON parser with one that stashes the raw string on
+  // `req.rawBody` before parsing — the global Zod pipe keeps working on
+  // every other route because we still hand back the parsed object.
+  // One extra string allocation per request; cheap.
+  //
+  // Under Fastify 5 + Nest 11 we must use `app.useBodyParser` (which
+  // calls `removeContentTypeParser` first) instead of mutating the
+  // adapter pre-init — the platform-fastify adapter registers its own
+  // JSON parser during `init()` and Fastify 5 errors on a duplicate
+  // registration. The Nest body-parser API forces `parseAs: 'buffer'`
+  // (`parseAs` is omitted from the options type), so we receive a
+  // Buffer and convert to string locally.
+  app.useBodyParser('application/json', {}, (req, body, done) => {
+    const raw = body.toString('utf-8');
+    (req as { rawBody?: string }).rawBody = raw;
+    if (raw.length === 0) {
+      done(null, undefined);
+      return;
+    }
+    try {
+      done(null, JSON.parse(raw));
+    } catch (err) {
+      done(err as Error);
+    }
   });
 
   app.useLogger(app.get(Logger));
