@@ -1,4 +1,5 @@
 import { securityHeaders } from '@repo/config/security/headers';
+import { withSentryConfig } from '@sentry/nextjs';
 import withSerwistInit from '@serwist/next';
 import type { NextConfig } from 'next';
 
@@ -25,4 +26,14 @@ const config: NextConfig = {
   },
 };
 
-export default withSerwist(config);
+// Source-map upload runs at build time when `SENTRY_AUTH_TOKEN` is
+// set (Vercel integration sets it on every deploy). Local builds
+// without the token skip the upload + emit a no-op warning.
+export default withSentryConfig(withSerwist(config), {
+  org: process.env.SENTRY_ORG,
+  project: 'bds-admin-web',
+  silent: !process.env.CI,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  sourcemaps: { disable: false },
+  automaticVercelMonitors: false,
+});

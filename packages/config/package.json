@@ -15,7 +15,8 @@
     "./prettier": "./prettier/index.js",
     "./tailwind": "./tailwind/preset.ts",
     "./env": "./env/index.ts",
-    "./security/headers": "./security/headers.ts"
+    "./security/headers": "./security/headers.ts",
+    "./sentry": "./sentry/index.ts"
   },
   "scripts": {
     "lint": "echo \"@repo/config: no source to lint (all files are toolchain config)\"",
