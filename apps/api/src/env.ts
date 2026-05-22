@@ -67,6 +67,7 @@ const envSchema = z.object({
   /** Tag passed to Sentry for release-based grouping. Free-form. */
   SENTRY_RELEASE: z.string().optional(),
   POSTHOG_KEY: z.string().optional(),
+  POSTHOG_HOST: url().default('https://us.i.posthog.com'),
 
   /**
    * Stripe secret key. When unset the checkout endpoint returns 503

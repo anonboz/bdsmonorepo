@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaymentsService } from './payments.service.js';
 import type { StripeService } from './stripe.service.js';
 import type { VnpayService } from './vnpay.service.js';
+import { stubAnalytics } from '../common/analytics/analytics.test-helper.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { stubNotifications } from '../notifications/notifications.test-helper.js';
@@ -338,6 +339,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
   });
 
@@ -406,6 +408,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.recordManualForOwner(
@@ -428,6 +431,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.recordManualForOwner(
@@ -539,6 +543,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       stripe.service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
 
     const res = await service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx);
@@ -575,6 +580,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       stripe.service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx);
 
@@ -591,6 +597,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       makeStripeStub({ enabled: false }).service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
@@ -605,6 +612,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.createStripeCheckoutForTenant('user_other_tenant', null, billId, ctx),
@@ -619,6 +627,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
@@ -634,6 +643,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       stripe.service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.createStripeCheckoutForTenant(tenant.id, tenant.email, billId, ctx),
@@ -696,6 +706,7 @@ describe('PaymentsService.refundForOwner', () => {
       stripe.service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.refundForOwner(
       owner,
@@ -723,6 +734,7 @@ describe('PaymentsService.refundForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.refundForOwner(
       owner,
@@ -757,6 +769,7 @@ describe('PaymentsService.refundForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.refundForOwner(
@@ -782,6 +795,7 @@ describe('PaymentsService.refundForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.refundForOwner(
@@ -807,6 +821,7 @@ describe('PaymentsService.refundForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.refundForOwner(
@@ -833,6 +848,7 @@ describe('PaymentsService.refundForOwner', () => {
       stripe.service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.refundForOwner(
       owner,
@@ -863,6 +879,7 @@ describe('PaymentsService.refundForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.refundForOwner(
@@ -888,6 +905,7 @@ describe('PaymentsService.refundForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.refundForOwner(
@@ -913,6 +931,7 @@ describe('PaymentsService.refundForOwner', () => {
       makeStripeStub().service,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(
       service.refundForOwner(

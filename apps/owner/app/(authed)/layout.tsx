@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
+import { AnalyticsProvider } from './_components/analytics-provider';
 import { APP_ROLE } from '../../lib/app-config';
 import { getSession } from '../../lib/session';
 
@@ -16,5 +17,10 @@ export default async function AuthedLayout({ children }: { children: React.React
   const hasRole = session.user.roles.includes(APP_ROLE);
   if (!hasRole) redirect('/forbidden');
 
-  return <>{children}</>;
+  return (
+    <>
+      <AnalyticsProvider userId={session.user.id} roles={session.user.roles} />
+      {children}
+    </>
+  );
 }

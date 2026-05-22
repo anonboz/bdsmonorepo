@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
+import { AnalyticsProvider } from './_components/analytics-provider';
 import { APP_ROLE } from '../../lib/app-config';
 import { getSession } from '../../lib/session';
 
@@ -8,6 +9,9 @@ import { getSession } from '../../lib/session';
  * caller has no session, redirect to /login. If they're authenticated but
  * don't have this app's role (e.g., a tenant hitting the admin app), send
  * them to the access-denied page.
+ *
+ * Also mounts the Client `AnalyticsProvider` here so PostHog only inits
+ * once the gate confirms a session — no point identifying anonymous users.
  */
 export default async function AuthedLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -16,5 +20,10 @@ export default async function AuthedLayout({ children }: { children: React.React
   const hasRole = session.user.roles.includes(APP_ROLE);
   if (!hasRole) redirect('/forbidden');
 
-  return <>{children}</>;
+  return (
+    <>
+      <AnalyticsProvider userId={session.user.id} roles={session.user.roles} />
+      {children}
+    </>
+  );
 }

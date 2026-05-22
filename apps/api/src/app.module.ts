@@ -6,6 +6,7 @@ import { ApplicationsModule } from './applications/applications.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillsModule } from './bills/bills.module.js';
 import { CampaignsModule } from './campaigns/campaigns.module.js';
+import { AnalyticsModule } from './common/analytics/analytics.module.js';
 import { MailerModule } from './common/mailer/mailer.module.js';
 import { PrismaModule } from './common/prisma/prisma.module.js';
 import { StorageModule } from './common/storage/storage.module.js';
@@ -52,6 +53,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     PrismaModule,
     MailerModule,
     StorageModule,
+    AnalyticsModule,
     QueuesModule,
     NotificationsModule,
     MediaModule,

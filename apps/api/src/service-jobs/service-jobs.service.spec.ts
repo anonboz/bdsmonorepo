@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ServiceJobsService } from './service-jobs.service.js';
+import { stubAnalytics } from '../common/analytics/analytics.test-helper.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { stubNotifications } from '../notifications/notifications.test-helper.js';
@@ -160,6 +161,7 @@ describe('ServiceJobsService', () => {
       store.stub as never,
       new AuditLogger(store.stub as never),
       stubNotifications(),
+      stubAnalytics(),
     );
   }
 

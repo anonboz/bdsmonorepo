@@ -16,6 +16,7 @@ import {
 import type { RecordManualPaymentDto } from './dto/payments.dto.js';
 import { StripeService } from './stripe.service.js';
 import { VnpayService } from './vnpay.service.js';
+import { AnalyticsService } from '../common/analytics/analytics.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
@@ -53,6 +54,7 @@ export class PaymentsService {
     private readonly stripe: StripeService,
     private readonly vnpay: VnpayService,
     private readonly notifications: NotificationsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   // ---- Mutations (owner-only) -------------------------------------
@@ -83,136 +85,154 @@ export class PaymentsService {
     }
 
     try {
-      const { payment, bill, enqueue } = await this.prisma.$transaction(async (tx) => {
-        // Lock the bill row so concurrent record-payment requests
-        // serialise — see the spec §10 "Concurrent record".
-        await tx.$queryRaw`SELECT id FROM "Bill" WHERE id = ${billId} FOR UPDATE`;
+      const { payment, bill, enqueue, tenantIdForAnalytics } = await this.prisma.$transaction(
+        async (tx) => {
+          // Lock the bill row so concurrent record-payment requests
+          // serialise — see the spec §10 "Concurrent record".
+          await tx.$queryRaw`SELECT id FROM "Bill" WHERE id = ${billId} FOR UPDATE`;
 
-        const billRow = await tx.bill.findUnique({
-          where: { id: billId },
-          ...BILL_WITH_LINES,
-        });
-        if (billRow?.leaseId !== leaseId) throw this.billNotFound();
+          const billRow = await tx.bill.findUnique({
+            where: { id: billId },
+            ...BILL_WITH_LINES,
+          });
+          if (billRow?.leaseId !== leaseId) throw this.billNotFound();
 
-        if (billRow.status === 'PAID') {
-          throw new ProblemError({
-            status: 422,
-            type: ErrorCodes.PAYMENT_BILL_ALREADY_PAID,
-            title: 'Bill is already paid',
-          });
-        }
-        if (!PAYABLE_STATES.has(billRow.status)) {
-          throw new ProblemError({
-            status: 422,
-            type: ErrorCodes.PAYMENT_BILL_NOT_PAYABLE,
-            title: 'Bill is not payable',
-            detail: `Cannot record a payment for a bill in ${billRow.status} state.`,
-          });
-        }
-        if (billRow.currency !== input.currency) {
-          throw new ProblemError({
-            status: 422,
-            type: ErrorCodes.PAYMENT_CURRENCY_MISMATCH,
-            title: 'Currency mismatch',
-            detail: `Bill is ${billRow.currency}; payment was ${input.currency}.`,
-          });
-        }
-
-        // Sum of succeeded payments so far. Positive amounts only;
-        // refunds (Phase 7.5) will be negative rows that net here.
-        const agg = await tx.payment.aggregate({
-          where: { billId, status: 'SUCCEEDED' },
-          _sum: { amount: true },
-        });
-        const existing = agg._sum.amount ?? 0;
-        const remaining = billRow.total - existing;
-        if (input.amount > remaining) {
-          throw new ProblemError({
-            status: 422,
-            type: ErrorCodes.PAYMENT_OVERPAYMENT,
-            title: 'Payment exceeds outstanding balance',
-            detail: `Outstanding balance is ${remaining}; payment was ${input.amount}.`,
-          });
-        }
-
-        let created: PaymentRow;
-        try {
-          created = await tx.payment.create({
-            data: {
-              billId,
-              amount: input.amount,
-              currency: input.currency,
-              status: 'SUCCEEDED',
-              provider: 'MANUAL',
-              providerRef: input.providerRef ?? null,
-              note: input.note ?? null,
-              receivedAt: input.receivedAt ? new Date(input.receivedAt) : new Date(),
-            },
-          });
-        } catch (err) {
-          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          if (billRow.status === 'PAID') {
             throw new ProblemError({
-              status: 409,
-              type: ErrorCodes.PAYMENT_PROVIDER_REF_TAKEN,
-              title: 'providerRef is already in use',
+              status: 422,
+              type: ErrorCodes.PAYMENT_BILL_ALREADY_PAID,
+              title: 'Bill is already paid',
             });
           }
-          throw err;
-        }
+          if (!PAYABLE_STATES.has(billRow.status)) {
+            throw new ProblemError({
+              status: 422,
+              type: ErrorCodes.PAYMENT_BILL_NOT_PAYABLE,
+              title: 'Bill is not payable',
+              detail: `Cannot record a payment for a bill in ${billRow.status} state.`,
+            });
+          }
+          if (billRow.currency !== input.currency) {
+            throw new ProblemError({
+              status: 422,
+              type: ErrorCodes.PAYMENT_CURRENCY_MISMATCH,
+              title: 'Currency mismatch',
+              detail: `Bill is ${billRow.currency}; payment was ${input.currency}.`,
+            });
+          }
 
-        const nextSum = existing + input.amount;
-        const nextStatus: BillRow['status'] = nextSum >= billRow.total ? 'PAID' : 'PARTIALLY_PAID';
-        const updated = await tx.bill.update({
-          where: { id: billId },
-          data: { status: nextStatus },
-          ...BILL_WITH_LINES,
-        });
-
-        await this.audit.write(tx, {
-          actorId: ctx.actorId,
-          action: 'bill.payment.record',
-          target: `Payment:${created.id}`,
-          meta: {
-            billId,
-            amount: input.amount,
-            currency: input.currency,
-            provider: 'MANUAL',
-            providerRef: input.providerRef ?? null,
-            billPreviousStatus: billRow.status,
-            billNextStatus: nextStatus,
-          },
-          ip: ctx.ip,
-          userAgent: ctx.userAgent,
-        });
-
-        // Only fire bill.paid when this payment closes the bill —
-        // partial-pay states stay silent so we don't spam the tenant
-        // with one email per installment.
-        let enqueue: (() => Promise<void>) | null = null;
-        if (nextStatus === 'PAID') {
-          const lease = await tx.lease.findUnique({
-            where: { id: leaseId },
-            select: { tenantId: true },
+          // Sum of succeeded payments so far. Positive amounts only;
+          // refunds (Phase 7.5) will be negative rows that net here.
+          const agg = await tx.payment.aggregate({
+            where: { billId, status: 'SUCCEEDED' },
+            _sum: { amount: true },
           });
-          if (lease) {
-            const dispatch = await this.notifications.dispatch(tx, {
-              topic: NotificationTopic.BILL_PAID,
-              recipientId: lease.tenantId,
+          const existing = agg._sum.amount ?? 0;
+          const remaining = billRow.total - existing;
+          if (input.amount > remaining) {
+            throw new ProblemError({
+              status: 422,
+              type: ErrorCodes.PAYMENT_OVERPAYMENT,
+              title: 'Payment exceeds outstanding balance',
+              detail: `Outstanding balance is ${remaining}; payment was ${input.amount}.`,
+            });
+          }
+
+          let created: PaymentRow;
+          try {
+            created = await tx.payment.create({
               data: {
                 billId,
                 amount: input.amount,
                 currency: input.currency,
+                status: 'SUCCEEDED',
                 provider: 'MANUAL',
+                providerRef: input.providerRef ?? null,
+                note: input.note ?? null,
+                receivedAt: input.receivedAt ? new Date(input.receivedAt) : new Date(),
               },
             });
-            enqueue = dispatch.enqueue;
+          } catch (err) {
+            if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+              throw new ProblemError({
+                status: 409,
+                type: ErrorCodes.PAYMENT_PROVIDER_REF_TAKEN,
+                title: 'providerRef is already in use',
+              });
+            }
+            throw err;
           }
-        }
 
-        return { payment: created, bill: updated, enqueue };
-      });
+          const nextSum = existing + input.amount;
+          const nextStatus: BillRow['status'] =
+            nextSum >= billRow.total ? 'PAID' : 'PARTIALLY_PAID';
+          const updated = await tx.bill.update({
+            where: { id: billId },
+            data: { status: nextStatus },
+            ...BILL_WITH_LINES,
+          });
+
+          await this.audit.write(tx, {
+            actorId: ctx.actorId,
+            action: 'bill.payment.record',
+            target: `Payment:${created.id}`,
+            meta: {
+              billId,
+              amount: input.amount,
+              currency: input.currency,
+              provider: 'MANUAL',
+              providerRef: input.providerRef ?? null,
+              billPreviousStatus: billRow.status,
+              billNextStatus: nextStatus,
+            },
+            ip: ctx.ip,
+            userAgent: ctx.userAgent,
+          });
+
+          // Only fire bill.paid when this payment closes the bill —
+          // partial-pay states stay silent so we don't spam the tenant
+          // with one email per installment.
+          let enqueue: (() => Promise<void>) | null = null;
+          let tenantIdForAnalytics: string | null = null;
+          if (nextStatus === 'PAID') {
+            const lease = await tx.lease.findUnique({
+              where: { id: leaseId },
+              select: { tenantId: true },
+            });
+            if (lease) {
+              tenantIdForAnalytics = lease.tenantId;
+              const dispatch = await this.notifications.dispatch(tx, {
+                topic: NotificationTopic.BILL_PAID,
+                recipientId: lease.tenantId,
+                data: {
+                  billId,
+                  amount: input.amount,
+                  currency: input.currency,
+                  provider: 'MANUAL',
+                },
+              });
+              enqueue = dispatch.enqueue;
+            }
+          }
+
+          return { payment: created, bill: updated, enqueue, tenantIdForAnalytics };
+        },
+      );
 
       if (enqueue) await enqueue();
+      if (tenantIdForAnalytics) {
+        this.analytics.capture({
+          userId: tenantIdForAnalytics,
+          event: 'bill.paid',
+          properties: {
+            role: 'TENANT',
+            bill_id: billId,
+            amount: input.amount,
+            currency: input.currency,
+            provider: 'MANUAL',
+          },
+        });
+      }
       return { payment: this.toPaymentResponse(payment), bill: this.toBillResponse(bill) };
     } catch (err) {
       if (err instanceof ProblemError) throw err;
@@ -619,6 +639,7 @@ export class PaymentsService {
       payment: refundRow,
       bill: updatedBill,
       enqueue,
+      tenantIdForAnalytics,
     } = await this.prisma.$transaction(async (tx) => {
       // Lock the bill row so a concurrent record-payment doesn't
       // race with the recompute. Same belt as 7.1.
@@ -696,10 +717,29 @@ export class PaymentsService {
           })
         : null;
 
-      return { payment: created, bill, enqueue: dispatch?.enqueue ?? null };
+      return {
+        payment: created,
+        bill,
+        enqueue: dispatch?.enqueue ?? null,
+        tenantIdForAnalytics: lease?.tenantId ?? null,
+      };
     });
 
     if (enqueue) await enqueue();
+    if (tenantIdForAnalytics) {
+      this.analytics.capture({
+        userId: tenantIdForAnalytics,
+        event: 'bill.refunded',
+        properties: {
+          role: 'TENANT',
+          bill_id: billId,
+          original_payment_id: original.id,
+          amount: input.amount,
+          currency: original.currency,
+          provider: original.provider,
+        },
+      });
+    }
     return { payment: this.toPaymentResponse(refundRow), bill: this.toBillResponse(updatedBill) };
   }
 

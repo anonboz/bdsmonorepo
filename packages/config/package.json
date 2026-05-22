@@ -16,7 +16,8 @@
     "./tailwind": "./tailwind/preset.ts",
     "./env": "./env/index.ts",
     "./security/headers": "./security/headers.ts",
-    "./sentry": "./sentry/index.ts"
+    "./sentry": "./sentry/index.ts",
+    "./analytics": "./analytics/index.ts"
   },
   "scripts": {
     "lint": "echo \"@repo/config: no source to lint (all files are toolchain config)\"",

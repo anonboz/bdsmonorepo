@@ -16,6 +16,7 @@ import type {
   ListServiceJobsQueryDto,
   QuoteServiceJobDto,
 } from './dto/service-jobs.dto.js';
+import { AnalyticsService } from '../common/analytics/analytics.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
@@ -68,6 +69,7 @@ export class ServiceJobsService {
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
     private readonly notifications: NotificationsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   // ---- Owner-scoped ------------------------------------------------
@@ -427,6 +429,22 @@ export class ServiceJobsService {
       return { row: updated, enqueue: dispatch.enqueue };
     });
     await enqueue();
+    // Partner-keyed event so the per-role PostHog filter slices job
+    // completions out of the firehose. `commission` + `partner_cut`
+    // are inline so PostHog dashboards can chart platform-vs-partner
+    // share without joining elsewhere.
+    this.analytics.capture({
+      userId: partnerUserId,
+      event: 'job.completed',
+      properties: {
+        role: 'PARTNER',
+        job_id: id,
+        final_amount: finalAmount,
+        currency,
+        commission,
+        partner_cut: partnerCut,
+      },
+    });
     return this.toResponse(row);
   }
 

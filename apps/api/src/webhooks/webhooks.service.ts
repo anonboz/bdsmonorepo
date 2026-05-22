@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 
 import { ErrorCodes, NotificationTopic } from '@repo/shared';
 
+import { AnalyticsService } from '../common/analytics/analytics.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
@@ -33,6 +34,7 @@ export class WebhooksService {
     private readonly stripe: StripeService,
     private readonly vnpay: VnpayService,
     private readonly notifications: NotificationsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   isStripeEnabled(): boolean {
@@ -131,8 +133,21 @@ export class WebhooksService {
   ): Promise<'processed' | 'ignored'> {
     switch (event.type) {
       case 'checkout.session.completed': {
-        const { enqueue } = await this.onCheckoutSessionCompleted(event);
+        const { enqueue, analyticsPayload } = await this.onCheckoutSessionCompleted(event);
         if (enqueue) await enqueue();
+        if (analyticsPayload) {
+          this.analytics.capture({
+            userId: analyticsPayload.tenantId,
+            event: 'bill.paid',
+            properties: {
+              role: 'TENANT',
+              bill_id: analyticsPayload.billId,
+              amount: analyticsPayload.amount,
+              currency: analyticsPayload.currency,
+              provider: 'STRIPE',
+            },
+          });
+        }
         return 'processed';
       }
       // Acked-but-ignored events. We persist them so ops can see them
@@ -151,7 +166,15 @@ export class WebhooksService {
     data: { object: { id: string; payment_intent?: string | { id: string } | null } };
     id: string;
     type: string;
-  }): Promise<{ enqueue: (() => Promise<void>) | null }> {
+  }): Promise<{
+    enqueue: (() => Promise<void>) | null;
+    analyticsPayload: {
+      tenantId: string;
+      billId: string;
+      amount: number;
+      currency: string;
+    } | null;
+  }> {
     const session = event.data.object;
     const sessionId = session.id;
     // Stripe types `payment_intent` as `string | PaymentIntent | null`.
@@ -172,13 +195,13 @@ export class WebhooksService {
         // Session id we don't recognise — possibly a deleted Payment
         // row, or a session created outside our flow. Audit + bail.
         this.logger.warn(`stripe checkout.session.completed for unknown session ${sessionId}`);
-        return { enqueue: null };
+        return { enqueue: null, analyticsPayload: null };
       }
       if (payment.status === 'SUCCEEDED') {
         // Duplicate delivery that slipped past the (provider, eventId)
         // unique constraint (e.g. event id changed via Stripe's
         // re-deliveries). Idempotent no-op.
-        return { enqueue: null };
+        return { enqueue: null, analyticsPayload: null };
       }
       if (!paymentIntentId) {
         this.logger.warn(
@@ -228,7 +251,7 @@ export class WebhooksService {
 
       // Only fire bill.paid on the closing transition, same rule as
       // the manual flow. Partial payments don't notify.
-      if (nextStatus !== 'PAID') return { enqueue: null };
+      if (nextStatus !== 'PAID') return { enqueue: null, analyticsPayload: null };
       const dispatch = await this.notifications.dispatch(tx, {
         topic: NotificationTopic.BILL_PAID,
         recipientId: bill.lease.tenantId,
@@ -239,7 +262,15 @@ export class WebhooksService {
           provider: 'STRIPE',
         },
       });
-      return { enqueue: dispatch.enqueue };
+      return {
+        enqueue: dispatch.enqueue,
+        analyticsPayload: {
+          tenantId: bill.lease.tenantId,
+          billId: bill.id,
+          amount: payment.amount,
+          currency: payment.currency,
+        },
+      };
     });
   }
 
@@ -297,12 +328,25 @@ export class WebhooksService {
     }
 
     try {
-      const { response, enqueue } = await this.applyVnpayIpn(query);
+      const { response, enqueue, analyticsPayload } = await this.applyVnpayIpn(query);
       await this.prisma.webhookEvent.update({
         where: { id: webhookRowId },
         data: { status: 'PROCESSED', processedAt: new Date() },
       });
       if (enqueue) await enqueue();
+      if (analyticsPayload) {
+        this.analytics.capture({
+          userId: analyticsPayload.tenantId,
+          event: 'bill.paid',
+          properties: {
+            role: 'TENANT',
+            bill_id: analyticsPayload.billId,
+            amount: analyticsPayload.amount,
+            currency: analyticsPayload.currency,
+            provider: 'VNPAY',
+          },
+        });
+      }
       return response;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -318,9 +362,16 @@ export class WebhooksService {
     }
   }
 
-  private async applyVnpayIpn(
-    query: Record<string, string>,
-  ): Promise<{ response: VnpayIpnResponse; enqueue: (() => Promise<void>) | null }> {
+  private async applyVnpayIpn(query: Record<string, string>): Promise<{
+    response: VnpayIpnResponse;
+    enqueue: (() => Promise<void>) | null;
+    analyticsPayload: {
+      tenantId: string;
+      billId: string;
+      amount: number;
+      currency: string;
+    } | null;
+  }> {
     const txnRef = query.vnp_TxnRef!;
     const vnpAmount = Number(query.vnp_Amount);
 
@@ -329,15 +380,27 @@ export class WebhooksService {
         where: { provider_providerRef: { provider: 'VNPAY', providerRef: txnRef } },
       });
       if (!payment)
-        return { response: { RspCode: '01', Message: 'Order not found' }, enqueue: null };
+        return {
+          response: { RspCode: '01', Message: 'Order not found' },
+          enqueue: null,
+          analyticsPayload: null,
+        };
 
       // VNPay's `vnp_Amount` is `amount * 100`. Our local Payment.amount
       // is in minor units (VND đồng). Compare directly.
       if (vnpAmount !== payment.amount * 100) {
-        return { response: { RspCode: '04', Message: 'Invalid amount' }, enqueue: null };
+        return {
+          response: { RspCode: '04', Message: 'Invalid amount' },
+          enqueue: null,
+          analyticsPayload: null,
+        };
       }
       if (payment.status === 'SUCCEEDED') {
-        return { response: { RspCode: '02', Message: 'Order already confirmed' }, enqueue: null };
+        return {
+          response: { RspCode: '02', Message: 'Order already confirmed' },
+          enqueue: null,
+          analyticsPayload: null,
+        };
       }
 
       if (query.vnp_ResponseCode !== '00') {
@@ -349,7 +412,11 @@ export class WebhooksService {
             failureReason: `vnp_ResponseCode=${query.vnp_ResponseCode}`,
           },
         });
-        return { response: { RspCode: '00', Message: 'Confirm Success' }, enqueue: null };
+        return {
+          response: { RspCode: '00', Message: 'Confirm Success' },
+          enqueue: null,
+          analyticsPayload: null,
+        };
       }
 
       await tx.payment.update({
@@ -400,7 +467,7 @@ export class WebhooksService {
       });
 
       const response: VnpayIpnResponse = { RspCode: '00', Message: 'Confirm Success' };
-      if (nextStatus !== 'PAID') return { response, enqueue: null };
+      if (nextStatus !== 'PAID') return { response, enqueue: null, analyticsPayload: null };
       const dispatch = await this.notifications.dispatch(tx, {
         topic: NotificationTopic.BILL_PAID,
         recipientId: bill.lease.tenantId,
@@ -411,7 +478,16 @@ export class WebhooksService {
           provider: 'VNPAY',
         },
       });
-      return { response, enqueue: dispatch.enqueue };
+      return {
+        response,
+        enqueue: dispatch.enqueue,
+        analyticsPayload: {
+          tenantId: bill.lease.tenantId,
+          billId: bill.id,
+          amount: payment.amount,
+          currency: payment.currency,
+        },
+      };
     });
   }
 }

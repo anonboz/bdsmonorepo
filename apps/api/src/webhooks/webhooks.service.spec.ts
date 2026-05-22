@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { WebhooksService } from './webhooks.service.js';
+import { stubAnalytics } from '../common/analytics/analytics.test-helper.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { stubNotifications } from '../notifications/notifications.test-helper.js';
@@ -243,6 +244,7 @@ describe('WebhooksService.handleStripe', () => {
       stripe,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
   });
 
@@ -260,6 +262,7 @@ describe('WebhooksService.handleStripe', () => {
       stripe,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(service.handleStripe('payload', 'sig')).rejects.toBeInstanceOf(ProblemError);
   });
@@ -273,6 +276,7 @@ describe('WebhooksService.handleStripe', () => {
       stripe,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.handleStripe('payload', 'sig');
     expect(res.status).toBe('processed');
@@ -306,6 +310,7 @@ describe('WebhooksService.handleStripe', () => {
       stripe,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await service.handleStripe('payload', 'sig');
     expect(store.bills[0]?.status).toBe('PARTIALLY_PAID');
@@ -320,6 +325,7 @@ describe('WebhooksService.handleStripe', () => {
       stripe,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await service.handleStripe('payload', 'sig'); // first
     const beforeStatus = store.payments[0]?.status;
@@ -339,6 +345,7 @@ describe('WebhooksService.handleStripe', () => {
       stripe,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.handleStripe('payload', 'sig');
     expect(res.status).toBe('processed');
@@ -360,6 +367,7 @@ describe('WebhooksService.handleStripe', () => {
       stripe,
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await expect(service.handleStripe('payload', 'sig')).rejects.toThrow('db on fire');
     expect(sab.webhookEvents[0]?.status).toBe('FAILED');
@@ -401,6 +409,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       makeStripeStub({}),
       makeVnpayStub({ verify: false }),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.handleVnpayIpn(ipnQuery());
     expect(res).toEqual({ RspCode: '97', Message: 'Invalid Signature' });
@@ -414,6 +423,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       makeStripeStub({}),
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.handleVnpayIpn(ipnQuery());
     expect(res).toEqual({ RspCode: '00', Message: 'Confirm Success' });
@@ -431,6 +441,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       makeStripeStub({}),
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.handleVnpayIpn(ipnQuery({ vnp_Amount: '99999999' }));
     expect(res.RspCode).toBe('04');
@@ -445,6 +456,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       makeStripeStub({}),
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.handleVnpayIpn(ipnQuery({ vnp_TxnRef: 'nope' }));
     expect(res.RspCode).toBe('01');
@@ -458,6 +470,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       makeStripeStub({}),
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     await service.handleVnpayIpn(ipnQuery()); // first
     const beforeBill = store.bills[0]?.status;
@@ -475,6 +488,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       makeStripeStub({}),
       makeVnpayStub(),
       stubNotifications(),
+      stubAnalytics(),
     );
     const res = await service.handleVnpayIpn(ipnQuery({ vnp_ResponseCode: '07' }));
     expect(res.RspCode).toBe('00');
