@@ -447,6 +447,12 @@ model Payment {
   /// `vnp_TransactionNo`. Required to issue a refund via the
   /// provider API.
   providerCaptureRef String?
+  /// Original provider-side transaction timestamp. For VNPay this is
+  /// the IPN's `vnp_PayDate` lifted to a `Date`; required to echo
+  /// back on refund (VNPay's `vnp_TransactionDate` parameter).
+  /// NULL for pre-9.2 captures and MANUAL / Stripe payments
+  /// (Stripe refunds via PaymentIntent don't need a date).
+  providerCaptureDate DateTime?
   failureReason String?     @db.VarChar(500)
   /// Free-form note set when recording a MANUAL payment — bank,
   /// reference number, anything the owner wants on the audit trail.

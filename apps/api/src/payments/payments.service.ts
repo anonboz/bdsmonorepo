@@ -619,14 +619,57 @@ export class PaymentsService {
         providerRefundRef = refund.id;
         break;
       }
-      case 'VNPAY':
-        throw new ProblemError({
-          status: 501,
-          type: ErrorCodes.PAYMENT_REFUND_NOT_SUPPORTED,
-          title: 'VNPay refunds are not supported',
-          detail:
-            'Process the refund via the VNPay dashboard, then record a MANUAL refund here so the bill stays in sync.',
+      case 'VNPAY': {
+        if (!this.vnpay.isEnabled()) {
+          throw new ProblemError({
+            status: 503,
+            type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+            title: 'VNPay is not configured on this deployment',
+          });
+        }
+        if (!original.providerCaptureRef) {
+          throw new ProblemError({
+            status: 422,
+            type: ErrorCodes.PAYMENT_REFUND_MISSING_CAPTURE_REF,
+            title: 'VNPay vnp_TransactionNo missing for this payment',
+            detail:
+              'This VNPay payment was captured before Phase 9.2 wired the capture refs. Process the refund via the VNPay dashboard, then record a MANUAL refund here.',
+          });
+        }
+        if (!original.providerCaptureDate) {
+          // Same shape as the Stripe missing-PI branch — both
+          // `providerCaptureRef` AND `providerCaptureDate` are needed
+          // for VNPay's refund signature.
+          throw new ProblemError({
+            status: 422,
+            type: ErrorCodes.PAYMENT_REFUND_MISSING_CAPTURE_REF,
+            title: 'VNPay vnp_PayDate missing for this payment',
+            detail:
+              'This VNPay payment was captured before Phase 9.2 persisted vnp_PayDate. Process the refund via the VNPay dashboard, then record a MANUAL refund here.',
+          });
+        }
+        const isPartial = input.amount < original.amount;
+        const refundResult = await this.vnpay.createRefund({
+          txnRef: original.id,
+          amount: input.amount,
+          transactionNo: original.providerCaptureRef,
+          transactionDate: this.vnpay.formatTransactionDate(original.providerCaptureDate),
+          transactionType: isPartial ? '03' : '02',
+          orderInfo: input.reason ?? `Refund for payment ${original.id}`,
+          createBy: ctx.actorId ?? 'system',
+          ipAddress: ctx.ip ?? '127.0.0.1',
         });
+        if (refundResult.vnp_ResponseCode !== '00') {
+          throw new ProblemError({
+            status: 422,
+            type: ErrorCodes.PAYMENT_REFUND_PROVIDER_FAILED,
+            title: 'VNPay rejected the refund',
+            detail: `vnp_ResponseCode=${refundResult.vnp_ResponseCode}: ${refundResult.vnp_Message}`,
+          });
+        }
+        providerRefundRef = refundResult.vnp_TransactionNo ?? null;
+        break;
+      }
       case 'MOMO':
         throw new ProblemError({
           status: 501,

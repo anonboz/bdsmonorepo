@@ -14,6 +14,10 @@ function makeVnpayStub(opts: { enabled?: boolean; verify?: boolean } = {}): Vnpa
     isEnabled: vi.fn(() => opts.enabled ?? true),
     buildCheckoutUrl: vi.fn(() => 'https://sandbox.vnpayment.vn/...'),
     verifyIpn: vi.fn(() => opts.verify ?? true),
+    // Refund surface (Phase 9.2) — not exercised by webhook specs;
+    // refund flow lives in PaymentsService specs.
+    createRefund: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    formatTransactionDate: vi.fn(() => ''),
   };
 }
 

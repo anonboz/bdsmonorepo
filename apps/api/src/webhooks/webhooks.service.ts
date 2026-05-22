@@ -9,7 +9,7 @@ import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { StripeService } from '../payments/stripe.service.js';
-import type { VnpayIpnResponse } from '../payments/vnpay.client.js';
+import { parseVnpayDate, type VnpayIpnResponse } from '../payments/vnpay.client.js';
 import { VnpayService } from '../payments/vnpay.service.js';
 
 /**
@@ -499,6 +499,10 @@ export class WebhooksService {
           // it in `note` for backwards compatibility — earlier ops
           // scripts may grep the note column.
           providerCaptureRef: query.vnp_TransactionNo ?? null,
+          // Phase 9.2: persist VNPay's pay-date so the refund call
+          // can echo it back as `vnp_TransactionDate`. The IPN delivers
+          // it as `vnp_PayDate` in `yyyyMMddHHmmss` Asia/Ho_Chi_Minh.
+          providerCaptureDate: parseVnpayDate(query.vnp_PayDate),
           note: query.vnp_TransactionNo
             ? `vnp_TransactionNo=${query.vnp_TransactionNo}`
             : payment.note,

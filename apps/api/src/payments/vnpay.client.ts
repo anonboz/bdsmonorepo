@@ -49,6 +49,27 @@ export function formatVnpayDate(date: Date): string {
 }
 
 /**
+ * Parses a `yyyyMMddHHmmss` Asia/Ho_Chi_Minh timestamp (the shape
+ * VNPay's IPN delivers `vnp_PayDate` in) into a UTC `Date`. Returns
+ * `null` when the input is empty or malformed — the caller treats
+ * that as "no capture date recorded" (refund flow then 422s on the
+ * missing-date branch).
+ */
+export function parseVnpayDate(raw: string | null | undefined): Date | null {
+  if (!raw) return null;
+  if (!/^\d{14}$/.test(raw)) return null;
+  const y = Number(raw.slice(0, 4));
+  const m = Number(raw.slice(4, 6));
+  const d = Number(raw.slice(6, 8));
+  const h = Number(raw.slice(8, 10));
+  const min = Number(raw.slice(10, 12));
+  const s = Number(raw.slice(12, 14));
+  // Vietnam is UTC+7 with no DST — subtract 7h from the local wall
+  // clock to land in UTC.
+  return new Date(Date.UTC(y, m - 1, d, h - 7, min, s));
+}
+
+/**
  * Builds the signed VNPay payment URL. The same URL-encoding scheme
  * is applied to the signed canonical string AND the final URL — the
  * #1 source of "Invalid Signature" bugs in VNPay integrations.
@@ -121,4 +142,108 @@ function buildCanonicalQueryString(params: Record<string, string>): string {
 export interface VnpayIpnResponse {
   RspCode: '00' | '01' | '02' | '04' | '97' | '99';
   Message: string;
+}
+
+// ---- Refund (Phase 9.2) ----------------------------------------------
+
+export interface BuildRefundBodyParams {
+  tmnCode: string;
+  hashSecret: string;
+  /** Unique per-call request id (we use a cuid). */
+  requestId: string;
+  /** Local Payment id (the same value used as `vnp_TxnRef` on the
+   *  original charge). */
+  txnRef: string;
+  /** Refund amount in **VND đồng** (minor units). The wire format is
+   *  `amount * 100` to match the rest of the VNPay API. */
+  amount: number;
+  /** `02` = full refund, `03` = partial refund. */
+  transactionType: '02' | '03';
+  /** VNPay's transaction id from the original IPN. */
+  transactionNo: string;
+  /** Original transaction's `vnp_PayDate` echoed back. */
+  transactionDate: string;
+  /** Refund reason — surfaced to the bank statement. */
+  orderInfo: string;
+  /** Actor — admin id, owner id, or `'system'`. */
+  createBy: string;
+  ipAddress: string;
+  createDate?: string;
+}
+
+/**
+ * Builds the signed JSON refund payload. The canonical signed string
+ * for refund is **not** the URL-encoded sort-and-concat scheme used
+ * by checkout — it's the field values pipe-separated in a fixed order
+ * per VNPay's 2.1 merchant_webapi docs.
+ */
+export function buildRefundBody(p: BuildRefundBodyParams): Record<string, string> {
+  const createDate = p.createDate ?? formatVnpayDate(new Date());
+  const amountStr = String(p.amount * 100);
+  // VNPay's canonical signed string: field values pipe-separated in
+  // this exact order. NOT alphabetical, NOT URL-encoded — burned into
+  // the spec under §5.
+  const canonical = [
+    p.requestId,
+    '2.1.0',
+    'refund',
+    p.tmnCode,
+    p.transactionType,
+    p.txnRef,
+    amountStr,
+    p.transactionNo,
+    p.transactionDate,
+    p.createBy,
+    createDate,
+    p.ipAddress,
+    p.orderInfo,
+  ].join('|');
+  const hash = createHmac('sha512', p.hashSecret).update(canonical).digest('hex');
+  return {
+    vnp_RequestId: p.requestId,
+    vnp_Version: '2.1.0',
+    vnp_Command: 'refund',
+    vnp_TmnCode: p.tmnCode,
+    vnp_TransactionType: p.transactionType,
+    vnp_TxnRef: p.txnRef,
+    vnp_Amount: amountStr,
+    vnp_OrderInfo: p.orderInfo,
+    vnp_TransactionNo: p.transactionNo,
+    vnp_TransactionDate: p.transactionDate,
+    vnp_CreateBy: p.createBy,
+    vnp_CreateDate: createDate,
+    vnp_IpAddr: p.ipAddress,
+    vnp_SecureHash: hash,
+  };
+}
+
+/** Subset of the VNPay refund response we care about. */
+export interface VnpayRefundResponse {
+  vnp_ResponseCode: string;
+  vnp_Message: string;
+  vnp_TransactionNo?: string;
+  vnp_TransactionStatus?: string;
+}
+
+/**
+ * POSTs a refund request to VNPay's merchant_webapi endpoint and
+ * returns the parsed JSON. The caller (`VnpayService.createRefund`)
+ * is responsible for checking `vnp_ResponseCode`.
+ *
+ * Exported as a thin function so tests can mock with `vi.mock`
+ * against the global `fetch` — no separate HTTP-layer abstraction.
+ */
+export async function postRefund(
+  refundUrl: string,
+  body: Record<string, string>,
+): Promise<VnpayRefundResponse> {
+  const response = await fetch(refundUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`vnpay refund HTTP ${response.status}`);
+  }
+  return (await response.json()) as VnpayRefundResponse;
 }

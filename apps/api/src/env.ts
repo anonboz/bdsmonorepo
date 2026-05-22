@@ -104,6 +104,11 @@ const envSchema = z.object({
    * `https://pay.vnpay.vn/vpcpay.html`.
    */
   VNPAY_PAYMENT_URL: url().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
+  /**
+   * VNPay merchant_webapi endpoint for refund (and other server-to-server
+   * queries). Sandbox by default; production swaps to the live host.
+   */
+  VNPAY_REFUND_URL: url().default('https://sandbox.vnpayment.vn/merchant_webapi/api/transaction'),
   /** Locale for VNPay's hosted page (`"vn"` or `"en"`). */
   VNPAY_LOCALE: z.string().default('vn'),
 

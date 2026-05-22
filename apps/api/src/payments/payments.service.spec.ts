@@ -10,7 +10,16 @@ import { ProblemError } from '../common/errors/problem.error.js';
 import { stubNotifications } from '../notifications/notifications.test-helper.js';
 
 /** Mock VnpayService — narrow to the methods PaymentsService calls. */
-function makeVnpayStub(opts: { enabled?: boolean } = {}): VnpayService {
+function makeVnpayStub(
+  opts: {
+    enabled?: boolean;
+    refund?: () => Promise<{
+      vnp_ResponseCode: string;
+      vnp_Message: string;
+      vnp_TransactionNo?: string;
+    }>;
+  } = {},
+): VnpayService {
   const stub: VnpayService = {
     isEnabled: vi.fn(() => opts.enabled ?? true),
     buildCheckoutUrl: vi.fn(
@@ -18,8 +27,29 @@ function makeVnpayStub(opts: { enabled?: boolean } = {}): VnpayService {
         'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_TxnRef=...&vnp_SecureHash=deadbeef',
     ),
     verifyIpn: vi.fn(() => true),
+    createRefund: vi.fn(
+      opts.refund ??
+        (() =>
+          Promise.resolve({
+            vnp_ResponseCode: '00',
+            vnp_Message: 'OK',
+            vnp_TransactionNo: '14242427',
+          })),
+    ),
+    formatTransactionDate: vi.fn(() => '20260520143000'),
   };
   return stub;
+}
+
+/**
+ * Pulls the `createRefund` mock off a vnpay stub in an
+ * `unbound-method`-safe way so tests can assert call args without
+ * tripping `@typescript-eslint/unbound-method` on `vnpay.createRefund`.
+ * The cast goes through `unknown` so eslint sees the call site as
+ * accessing a mock value, not unbinding a class method.
+ */
+function refundMock(vnpay: VnpayService): unknown {
+  return (vnpay as unknown as { createRefund: unknown }).createRefund;
 }
 
 interface StripeStub {
@@ -94,6 +124,7 @@ interface PaymentRow {
   provider: 'STRIPE' | 'VNPAY' | 'MOMO' | 'MANUAL';
   providerRef: string | null;
   providerCaptureRef: string | null;
+  providerCaptureDate: Date | null;
   note: string | null;
   receivedAt: Date | null;
   failureReason: string | null;
@@ -115,6 +146,7 @@ function buildPaymentRow(
     status: 'SUCCEEDED',
     providerRef: null,
     providerCaptureRef: null,
+    providerCaptureDate: null,
     note: null,
     receivedAt: null,
     failureReason: null,
@@ -269,6 +301,7 @@ function makePrismaStub(leases: LeaseSeed[], bills: BillSeed[]) {
           provider: data.provider!,
           providerRef: data.providerRef ?? null,
           providerCaptureRef: data.providerCaptureRef ?? null,
+          providerCaptureDate: data.providerCaptureDate ?? null,
           note: data.note ?? null,
           receivedAt: data.receivedAt ?? null,
           failureReason: data.failureReason ?? null,
@@ -901,10 +934,95 @@ describe('PaymentsService.refundForOwner', () => {
     ).rejects.toMatchObject({ status: 422 });
   });
 
-  it('VNPAY: 501 payments.refund_not_supported', async () => {
+  it('VNPAY happy path: posts refund + records refundOfPaymentId + flips bill back', async () => {
     const seed = seedFor('VNPAY');
     const store = makePrismaStub(seed.leases, seed.bills);
-    store.payments.push(buildPaymentRow(seed.preExistingPayments[0]!));
+    store.payments.push(
+      buildPaymentRow({
+        ...seed.preExistingPayments[0]!,
+        providerCaptureRef: '14242427',
+        providerCaptureDate: new Date('2026-05-20T07:30:00Z'),
+      }),
+    );
+    const vnpay = makeVnpayStub({
+      refund: () =>
+        Promise.resolve({
+          vnp_ResponseCode: '00',
+          vnp_Message: 'OK',
+          vnp_TransactionNo: 'refund_tx_001',
+        }),
+    });
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      vnpay,
+      stubNotifications(),
+      stubAnalytics(),
+    );
+    const res = await service.refundForOwner(
+      owner,
+      'house_1',
+      'unit_1',
+      leaseId,
+      billId,
+      paymentId,
+      { amount: 500_000, reason: 'duplicate booking' },
+      ctx,
+    );
+    expect(res.payment.amount).toBe(-500_000);
+    expect(res.payment.refundOfPaymentId).toBe(paymentId);
+    expect(res.payment.providerRef).toBe('refund_tx_001');
+    expect(res.bill.status).toBe('ISSUED');
+    expect(refundMock(vnpay)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 500_000,
+        transactionNo: '14242427',
+        transactionType: '02',
+      }),
+    );
+  });
+
+  it('VNPAY partial refund sends transactionType 03', async () => {
+    const seed = seedFor('VNPAY');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(
+      buildPaymentRow({
+        ...seed.preExistingPayments[0]!,
+        providerCaptureRef: '14242427',
+        providerCaptureDate: new Date('2026-05-20T07:30:00Z'),
+      }),
+    );
+    const vnpay = makeVnpayStub();
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      vnpay,
+      stubNotifications(),
+      stubAnalytics(),
+    );
+    await service.refundForOwner(
+      owner,
+      'house_1',
+      'unit_1',
+      leaseId,
+      billId,
+      paymentId,
+      { amount: 100_000 },
+      ctx,
+    );
+    expect(refundMock(vnpay)).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionType: '03' }),
+    );
+  });
+
+  it('VNPAY: 422 missing_capture_ref when providerCaptureRef is null (pre-9.2 capture)', async () => {
+    const seed = seedFor('VNPAY');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(
+      buildPaymentRow({ ...seed.preExistingPayments[0]!, providerCaptureRef: null }),
+    );
     const service = new PaymentsService(
       store.stub as never,
       new AuditLogger(store.stub as never),
@@ -924,7 +1042,76 @@ describe('PaymentsService.refundForOwner', () => {
         { amount: 1 },
         ctx,
       ),
-    ).rejects.toMatchObject({ status: 501 });
+    ).rejects.toMatchObject({ status: 422, type: 'payments.refund_missing_capture_ref' });
+  });
+
+  it('VNPAY: 422 missing_capture_ref when providerCaptureDate is null (pre-9.2 capture)', async () => {
+    const seed = seedFor('VNPAY');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(
+      buildPaymentRow({
+        ...seed.preExistingPayments[0]!,
+        providerCaptureRef: '14242427',
+        providerCaptureDate: null,
+      }),
+    );
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      makeVnpayStub(),
+      stubNotifications(),
+      stubAnalytics(),
+    );
+    await expect(
+      service.refundForOwner(
+        owner,
+        'house_1',
+        'unit_1',
+        leaseId,
+        billId,
+        paymentId,
+        { amount: 1 },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ status: 422, type: 'payments.refund_missing_capture_ref' });
+  });
+
+  it('VNPAY: 422 refund_provider_failed when VNPay returns non-00', async () => {
+    const seed = seedFor('VNPAY');
+    const store = makePrismaStub(seed.leases, seed.bills);
+    store.payments.push(
+      buildPaymentRow({
+        ...seed.preExistingPayments[0]!,
+        providerCaptureRef: '14242427',
+        providerCaptureDate: new Date('2026-05-20T07:30:00Z'),
+      }),
+    );
+    const vnpay = makeVnpayStub({
+      refund: () => Promise.resolve({ vnp_ResponseCode: '94', vnp_Message: 'Duplicate request' }),
+    });
+    const service = new PaymentsService(
+      store.stub as never,
+      new AuditLogger(store.stub as never),
+      makeStripeStub().service,
+      vnpay,
+      stubNotifications(),
+      stubAnalytics(),
+    );
+    await expect(
+      service.refundForOwner(
+        owner,
+        'house_1',
+        'unit_1',
+        leaseId,
+        billId,
+        paymentId,
+        { amount: 1 },
+        ctx,
+      ),
+    ).rejects.toMatchObject({ status: 422, type: 'payments.refund_provider_failed' });
+    // No local row written when VNPay rejects.
+    expect(store.payments.filter((p) => p.refundOfPaymentId === paymentId)).toHaveLength(0);
   });
 
   it('cross-owner refund → 404', async () => {
