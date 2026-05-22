@@ -150,6 +150,11 @@ export class WebhooksService {
         }
         return 'processed';
       }
+      // Connect (Phase 9.1) — partner onboarding state changes.
+      case 'account.updated': {
+        await this.onAccountUpdated(event);
+        return 'processed';
+      }
       // Acked-but-ignored events. We persist them so ops can see them
       // in WebhookEvent but don't mutate domain state from here.
       case 'checkout.session.expired':
@@ -160,6 +165,71 @@ export class WebhooksService {
         this.logger.log(`stripe event ${event.type} not handled — acknowledged`);
         return 'ignored';
     }
+  }
+
+  /**
+   * Handles `account.updated` (Stripe Connect). Reconciles the
+   * `PartnerProfile.stripeConnectStatus` snapshot against Stripe's
+   * canonical `charges_enabled && payouts_enabled` formula. Idempotent
+   * — duplicate deliveries land on the same UPDATE and the audit row
+   * is keyed off (provider, eventId) at the WebhookEvent layer.
+   */
+  private async onAccountUpdated(event: {
+    data: {
+      object: {
+        id: string;
+        charges_enabled?: boolean;
+        payouts_enabled?: boolean;
+        requirements?: { disabled_reason?: string | null } | null;
+      };
+    };
+    id: string;
+    type: string;
+  }): Promise<void> {
+    const account = event.data.object;
+    const partner = await this.prisma.partnerProfile.findUnique({
+      where: { stripeConnectAccountId: account.id },
+    });
+    if (!partner) {
+      // Account id we don't recognise — either a deleted partner row
+      // or an account created outside our flow. Audit + bail.
+      this.logger.warn(`account.updated for unknown stripe account ${account.id}`);
+      return;
+    }
+
+    const nextStatus: 'ACTIVE' | 'ONBOARDING' | 'RESTRICTED' =
+      account.charges_enabled && account.payouts_enabled
+        ? 'ACTIVE'
+        : account.requirements?.disabled_reason
+          ? 'RESTRICTED'
+          : 'ONBOARDING';
+    if (partner.stripeConnectStatus === nextStatus) return;
+
+    const previousStatus = partner.stripeConnectStatus;
+    const becameActive = nextStatus === 'ACTIVE' && !partner.stripeConnectOnboardedAt;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.partnerProfile.update({
+        where: { id: partner.id },
+        data: {
+          stripeConnectStatus: nextStatus,
+          ...(becameActive && { stripeConnectOnboardedAt: new Date() }),
+        },
+      });
+      await this.audit.write(tx, {
+        actorId: null,
+        action: 'partner.connect.status_changed',
+        target: `PartnerProfile:${partner.id}`,
+        meta: {
+          stripeAccountId: account.id,
+          previousStatus,
+          nextStatus,
+          eventId: event.id,
+          chargesEnabled: account.charges_enabled ?? false,
+          payoutsEnabled: account.payouts_enabled ?? false,
+          disabledReason: account.requirements?.disabled_reason ?? null,
+        },
+      });
+    });
   }
 
   private async onCheckoutSessionCompleted(event: {

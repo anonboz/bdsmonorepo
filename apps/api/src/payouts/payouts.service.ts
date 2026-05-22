@@ -16,6 +16,7 @@ import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { StripeService } from '../payments/stripe.service.js';
 
 type EntryRow = Prisma.JobLedgerEntryGetPayload<Record<string, never>>;
 
@@ -40,6 +41,7 @@ export class PayoutsService {
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
     private readonly notifications: NotificationsService,
+    private readonly stripe: StripeService,
   ) {}
 
   async listPayoutsForPartner(
@@ -211,14 +213,45 @@ export class PayoutsService {
       });
     }
 
+    // Stripe Connect path: gate on partner status, then issue a
+    // transfer BEFORE we write the local row. If Stripe rejects, we
+    // surface the error and the entry stays RELEASED — same protocol
+    // as the 7.5 refund flow (provider call first, ledger second).
+    let disbursementRef = input.reference;
     if (input.method === 'STRIPE_CONNECT') {
-      throw new ProblemError({
-        status: 501,
-        type: ErrorCodes.PAYOUT_DISBURSEMENT_METHOD_UNSUPPORTED,
-        title: 'Stripe Connect disbursement is not wired in this deployment',
-        detail:
-          'Use MANUAL_BANK_TRANSFER for now. Stripe Connect needs a partner onboarding flow that lands in a later slice.',
+      if (!this.stripe.isEnabled()) {
+        throw new ProblemError({
+          status: 503,
+          type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+          title: 'Stripe is not configured on this deployment',
+        });
+      }
+      const partner = await this.prisma.partnerProfile.findFirst({
+        where: { userId: row.accountUserId ?? undefined },
+        select: { id: true, stripeConnectAccountId: true, stripeConnectStatus: true },
       });
+      if (partner?.stripeConnectStatus !== 'ACTIVE' || !partner.stripeConnectAccountId) {
+        throw new ProblemError({
+          status: 422,
+          type: ErrorCodes.PAYOUT_PARTNER_NOT_ONBOARDED,
+          title: 'Partner has not completed Stripe onboarding',
+          detail:
+            'The partner must finish Stripe Connect onboarding (status: ACTIVE) before STRIPE_CONNECT disbursement is available.',
+        });
+      }
+      const transfer = await this.stripe.createTransfer({
+        destination: partner.stripeConnectAccountId,
+        amount: row.amount,
+        currency: row.currency,
+        metadata: {
+          jobId: row.jobId,
+          ledgerEntryId: row.id,
+          partnerProfileId: partner.id,
+        },
+      });
+      // For STRIPE_CONNECT the `tr_*` id IS the canonical reference;
+      // anything the admin passed in `input.reference` is ignored.
+      disbursementRef = transfer.id;
     }
 
     const now = new Date();
@@ -229,7 +262,7 @@ export class PayoutsService {
           status: 'DISBURSED',
           disbursedAt: now,
           disbursementMethod: input.method,
-          disbursementRef: input.reference,
+          disbursementRef,
           disbursedById: ctx.actorId,
         },
       });
@@ -243,7 +276,7 @@ export class PayoutsService {
           amount: next.amount,
           currency: next.currency,
           method: input.method,
-          reference: input.reference,
+          reference: disbursementRef,
         },
         ip: ctx.ip,
         userAgent: ctx.userAgent,

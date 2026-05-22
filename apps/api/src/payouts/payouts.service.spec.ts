@@ -3,6 +3,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { PayoutsService } from './payouts.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { stubNotifications } from '../notifications/notifications.test-helper.js';
+import type { StripeService } from '../payments/stripe.service.js';
+
+/**
+ * Stripe stub used by the legacy non-Connect specs in this file —
+ * `isEnabled` is `false`, every method rejects. The new Connect-aware
+ * specs at the bottom construct their own per-test stub with shaped
+ * return values.
+ */
+function makeStripeStub(): StripeService {
+  return {
+    isEnabled: vi.fn(() => false),
+    createTransfer: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+  } as unknown as StripeService;
+}
 
 interface SeedEntry {
   id: string;
@@ -21,9 +35,16 @@ interface SeedEntry {
   createdAt: Date;
 }
 
+interface SeedPartner {
+  userId: string;
+  stripeConnectAccountId: string | null;
+  stripeConnectStatus: 'NOT_STARTED' | 'ONBOARDING' | 'ACTIVE' | 'RESTRICTED';
+}
+
 function makePrismaStub(
   entries: SeedEntry[],
   users: { id: string; displayName: string; businessName?: string | null }[] = [],
+  partners: SeedPartner[] = [],
 ) {
   const ledger: SeedEntry[] = [...entries];
   const auditRows: Record<string, unknown>[] = [];
@@ -61,6 +82,20 @@ function makePrismaStub(
         if (!row) throw new Error('not found');
         Object.assign(row, data);
         return Promise.resolve(row);
+      }),
+    },
+    partnerProfile: {
+      findFirst: vi.fn(({ where }: { where: { userId?: string } }) => {
+        const row = partners.find((p) => p.userId === where.userId);
+        return Promise.resolve(
+          row
+            ? {
+                id: `pp_${row.userId}`,
+                stripeConnectAccountId: row.stripeConnectAccountId,
+                stripeConnectStatus: row.stripeConnectStatus,
+              }
+            : null,
+        );
       }),
     },
     user: {
@@ -119,6 +154,7 @@ describe('PayoutsService', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     const page = await service.listPayoutsForPartner('partner_user_1', {
       limit: 20,
@@ -137,6 +173,7 @@ describe('PayoutsService', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     const page = await service.listChargesForOwner('owner_1', { limit: 20, sort: 'desc' });
     expect(page.items.map((e) => e.id)).toEqual(['x']);
@@ -154,6 +191,7 @@ describe('PayoutsService', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     const released = await service.releaseEligible();
     expect(released).toBe(1);
@@ -180,6 +218,7 @@ describe('PayoutsService', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     await service.releaseEligible();
     const audit1 = stub.auditRows.length;
@@ -207,6 +246,7 @@ describe('PayoutsService.listAdminPending', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     const page = await service.listAdminPending({ limit: 20, sort: 'asc' });
     expect(page.items.map((p) => p.id).sort()).toEqual(['r1', 'r2']);
@@ -225,6 +265,7 @@ describe('PayoutsService.markDisbursed', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     const res = await service.markDisbursed(
       'r1',
@@ -246,6 +287,7 @@ describe('PayoutsService.markDisbursed', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     await expect(
       service.markDisbursed('nope', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),
@@ -258,6 +300,7 @@ describe('PayoutsService.markDisbursed', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     await expect(
       service.markDisbursed('h1', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),
@@ -270,6 +313,7 @@ describe('PayoutsService.markDisbursed', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     await service.markDisbursed(
       'r1',
@@ -281,16 +325,96 @@ describe('PayoutsService.markDisbursed', () => {
     ).rejects.toMatchObject({ status: 422 });
   });
 
-  it('501 disbursement_method_unsupported for STRIPE_CONNECT', async () => {
+  it('503 payments.provider_disabled when STRIPE_CONNECT picked but Stripe is unconfigured', async () => {
     const stub = makePrismaStub([entry({ id: 'r1', status: 'RELEASED' })]);
     const service = new PayoutsService(
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     await expect(
       service.markDisbursed('r1', { method: 'STRIPE_CONNECT', reference: 'X' }, ctx),
-    ).rejects.toMatchObject({ status: 501 });
+    ).rejects.toMatchObject({ status: 503, type: 'payments.provider_disabled' });
+  });
+
+  it('422 payouts.partner_not_onboarded when STRIPE_CONNECT but partner not ACTIVE', async () => {
+    const stub = makePrismaStub(
+      [entry({ id: 'r1', status: 'RELEASED', accountUserId: 'partner_user_1' })],
+      [],
+      [
+        {
+          userId: 'partner_user_1',
+          stripeConnectAccountId: null,
+          stripeConnectStatus: 'NOT_STARTED',
+        },
+      ],
+    );
+    const createTransfer = vi.fn();
+    const stripe = {
+      isEnabled: vi.fn(() => true),
+      createTransfer,
+    } as unknown as StripeService;
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+      stripe,
+    );
+    await expect(
+      service.markDisbursed('r1', { method: 'STRIPE_CONNECT', reference: 'ignored' }, ctx),
+    ).rejects.toMatchObject({ status: 422, type: 'payouts.partner_not_onboarded' });
+    // No transfer attempt when the partner isn't ACTIVE.
+    expect(createTransfer).not.toHaveBeenCalled();
+  });
+
+  it('STRIPE_CONNECT happy path issues a transfer and stores the tr_* id as disbursementRef', async () => {
+    const stub = makePrismaStub(
+      [
+        entry({
+          id: 'r1',
+          status: 'RELEASED',
+          accountUserId: 'partner_user_1',
+          amount: 45_000,
+          currency: 'VND',
+        }),
+      ],
+      [],
+      [
+        {
+          userId: 'partner_user_1',
+          stripeConnectAccountId: 'acct_test_123',
+          stripeConnectStatus: 'ACTIVE',
+        },
+      ],
+    );
+    const createTransfer = vi.fn(() => Promise.resolve({ id: 'tr_test_abc' }));
+    const stripe = {
+      isEnabled: vi.fn(() => true),
+      createTransfer,
+    } as unknown as StripeService;
+    const service = new PayoutsService(
+      stub.stub as never,
+      new AuditLogger(stub.stub as never),
+      stubNotifications(),
+      stripe,
+    );
+    const result = await service.markDisbursed(
+      'r1',
+      // Admin's `reference` is ignored on STRIPE_CONNECT — the
+      // transfer id IS the canonical reference.
+      { method: 'STRIPE_CONNECT', reference: 'should-be-ignored' },
+      ctx,
+    );
+    expect(result.disbursementMethod).toBe('STRIPE_CONNECT');
+    expect(result.disbursementRef).toBe('tr_test_abc');
+    expect(createTransfer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destination: 'acct_test_123',
+        amount: 45_000,
+        currency: 'VND',
+      }),
+    );
   });
 
   it('404 when the entry is a CHARGE row (wrong kind)', async () => {
@@ -301,6 +425,7 @@ describe('PayoutsService.markDisbursed', () => {
       stub.stub as never,
       new AuditLogger(stub.stub as never),
       stubNotifications(),
+      makeStripeStub(),
     );
     await expect(
       service.markDisbursed('c1', { method: 'MANUAL_BANK_TRANSFER', reference: 'X' }, ctx),

@@ -54,6 +54,12 @@ function makeStripeStub(opts: {
     createRefund: vi.fn(() => {
       throw new Error('createRefund not used in this suite');
     }),
+    // Connect surface (Phase 9.1) — webhook specs use these via the
+    // partial-mock when account.updated paths get exercised.
+    createConnectAccount: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    createAccountLink: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    retrieveAccount: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    createTransfer: vi.fn(() => Promise.reject(new Error('not stubbed'))),
   };
   return stub;
 }

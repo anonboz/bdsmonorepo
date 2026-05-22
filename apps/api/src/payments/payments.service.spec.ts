@@ -59,6 +59,12 @@ function makeStripeStub(
       throw new Error('constructEvent not stubbed in this test context');
     }),
     createRefund,
+    // Connect surface (Phase 9.1) — not exercised by payments specs;
+    // PayoutsService specs cover the disbursement path.
+    createConnectAccount: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    createAccountLink: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    retrieveAccount: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    createTransfer: vi.fn(() => Promise.reject(new Error('not stubbed'))),
   };
   return { service: stub, createCheckoutSession, createRefund };
 }

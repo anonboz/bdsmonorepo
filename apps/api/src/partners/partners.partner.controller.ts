@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import type { Page, PartnerProfile, Service } from '@repo/shared';
+import type { Page, PartnerProfile, Service, StartStripeOnboardingResponse } from '@repo/shared';
 
 import { CreateServiceDto, UpdateServiceDto, UpsertPartnerProfileDto } from './dto/partners.dto.js';
 import { PartnersService } from './partners.service.js';
@@ -31,6 +31,21 @@ export class PartnersPartnerController {
     @Body() body: UpsertPartnerProfileDto,
   ): Promise<PartnerProfile> {
     return this.service.upsertOwnProfile(user.id, body);
+  }
+
+  /**
+   * Returns a Stripe-hosted onboarding URL. The partner navigates to
+   * it, completes KYC + ToS, and Stripe redirects them back to our
+   * `/profile` page. The `account.updated` webhook flips
+   * `stripeConnectStatus` to `ACTIVE` in parallel.
+   */
+  @Post('partner-profile/stripe-onboarding')
+  @Roles('PARTNER')
+  @HttpCode(200)
+  startStripeOnboarding(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<StartStripeOnboardingResponse> {
+    return this.service.startStripeOnboarding(user.id);
   }
 
   // ---- Services -----------------------------------------------------

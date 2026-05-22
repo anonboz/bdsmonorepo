@@ -86,6 +86,11 @@ const envSchema = z.object({
    * + cancel URLs. Defaults to the local dev port.
    */
   TENANT_APP_URL: url().default('http://localhost:3020'),
+  /**
+   * Origin of the partner app — surfaces in Stripe Connect onboarding
+   * URLs (refresh + return paths). Defaults to the local dev port.
+   */
+  PARTNER_APP_URL: url().default('http://localhost:3030'),
 
   /**
    * VNPay merchant code from the VNPay dashboard. When unset, the

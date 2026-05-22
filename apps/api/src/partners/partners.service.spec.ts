@@ -195,7 +195,15 @@ describe('PartnersService', () => {
 
   beforeEach(() => {
     store = makePrismaStub({ partnerUserId });
-    service = new PartnersService(store.stub as never);
+    // Stripe surface is exercised by the Connect-specific specs in
+    // `partners.stripe-connect.service.spec.ts`; the generic profile
+    // suite passes a stripe stub that throws on every method.
+    const stripe = {
+      isEnabled: vi.fn(() => false),
+      createConnectAccount: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+      createAccountLink: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    } as unknown as ConstructorParameters<typeof PartnersService>[1];
+    service = new PartnersService(store.stub as never, stripe);
   });
 
   // ---- Partner profile -----------------------------------------------

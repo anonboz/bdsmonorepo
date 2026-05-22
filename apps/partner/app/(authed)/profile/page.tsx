@@ -4,6 +4,7 @@ import type { PartnerProfile } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ProfileForm } from './profile-form';
+import { StripeConnectCard } from './stripe-connect-card';
 import { ApiError } from '../../../lib/api';
 import { serverApi } from '../../../lib/session';
 
@@ -38,6 +39,8 @@ export default async function PartnerProfilePage() {
           <ProfileForm initial={profile} />
         </CardContent>
       </Card>
+
+      {profile && <StripeConnectCard profile={profile} />}
     </main>
   );
 }

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import {
@@ -7,6 +7,7 @@ import {
   type PartnerProfile,
   type PartnerSummary,
   type Service,
+  type StartStripeOnboardingResponse,
 } from '@repo/shared';
 
 import type {
@@ -17,6 +18,8 @@ import type {
 } from './dto/partners.dto.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
+import { env } from '../env.js';
+import { StripeService } from '../payments/stripe.service.js';
 
 const PROFILE_WITH_USER = {
   include: {
@@ -39,7 +42,12 @@ type ServiceRow = Prisma.ServiceGetPayload<Record<string, never>>;
  */
 @Injectable()
 export class PartnersService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaInstance) {}
+  private readonly logger = new Logger(PartnersService.name);
+
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaInstance,
+    private readonly stripe: StripeService,
+  ) {}
 
   // ---- Partner-scoped (own profile) --------------------------------
 
@@ -75,6 +83,87 @@ export class PartnersService {
       ...PROFILE_WITH_USER,
     });
     return this.toProfile(row);
+  }
+
+  // ---- Stripe Connect onboarding (Phase 9.1) -----------------------
+
+  /**
+   * Idempotent. First call creates the Stripe Express account + flips
+   * the row to `ONBOARDING`; subsequent calls reuse the existing
+   * `acct_*`. Always returns a freshly-signed onboarding URL — Stripe's
+   * `account_links` are single-use and expire in ~5 minutes, so a
+   * partner who abandoned the flow just clicks again.
+   *
+   * 503 `payments.provider_disabled` when Stripe isn't configured;
+   * 404 if the caller isn't a partner; 422 if Stripe rejects the
+   * account/link create.
+   */
+  async startStripeOnboarding(userId: string): Promise<StartStripeOnboardingResponse> {
+    if (!this.stripe.isEnabled()) {
+      throw new ProblemError({
+        status: 503,
+        type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+        title: 'Stripe is not configured on this deployment',
+      });
+    }
+    const profile = await this.prisma.partnerProfile.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        deletedAt: true,
+        stripeConnectAccountId: true,
+        user: { select: { email: true } },
+      },
+    });
+    if (!profile || profile.deletedAt) {
+      throw this.profileNotFound();
+    }
+
+    let accountId = profile.stripeConnectAccountId;
+    if (!accountId) {
+      try {
+        const created = await this.stripe.createConnectAccount({
+          email: profile.user.email,
+          metadata: { partnerProfileId: profile.id, userId },
+        });
+        accountId = created.id;
+        await this.prisma.partnerProfile.update({
+          where: { id: profile.id },
+          data: {
+            stripeConnectAccountId: accountId,
+            // Persist `ONBOARDING` immediately so a webhook race
+            // (`account.updated` arriving before the partner finishes)
+            // doesn't overwrite a stale `NOT_STARTED` reading.
+            stripeConnectStatus: 'ONBOARDING',
+          },
+        });
+      } catch (err) {
+        this.logger.warn(`stripe connect account create failed: ${(err as Error).message}`);
+        throw new ProblemError({
+          status: 422,
+          type: ErrorCodes.PARTNER_STRIPE_ONBOARDING_FAILED,
+          title: 'Could not start Stripe onboarding',
+        });
+      }
+    }
+
+    try {
+      const link = await this.stripe.createAccountLink({
+        accountId,
+        // Stripe redirects here when the link expires mid-flow — the
+        // partner just hits "Connect with Stripe" again to retry.
+        refreshUrl: `${env.PARTNER_APP_URL}/profile?stripe=refresh`,
+        returnUrl: `${env.PARTNER_APP_URL}/profile?stripe=return`,
+      });
+      return { url: link.url, expiresAt: link.expiresAt.toISOString() };
+    } catch (err) {
+      this.logger.warn(`stripe connect account link failed: ${(err as Error).message}`);
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PARTNER_STRIPE_ONBOARDING_FAILED,
+        title: 'Could not start Stripe onboarding',
+      });
+    }
   }
 
   // ---- Partner-scoped (own services) -------------------------------
@@ -304,6 +393,10 @@ export class PartnersService {
       bio: row.bio,
       serviceArea: row.serviceArea,
       kycStatus: row.kycStatus,
+      stripeConnectStatus: row.stripeConnectStatus,
+      stripeConnectOnboardedAt: row.stripeConnectOnboardedAt
+        ? row.stripeConnectOnboardedAt.toISOString()
+        : null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

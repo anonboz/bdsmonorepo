@@ -627,12 +627,39 @@ model PartnerProfile {
 
   kycStatus KycStatus @default(NONE)
 
+  /// Stripe Express account id (`acct_*`). Set the first time a
+  /// partner clicks "Connect with Stripe". Reused on subsequent
+  /// onboarding sessions — partners can re-onboard a partially
+  /// completed account without ever creating a second `acct_*`.
+  stripeConnectAccountId String? @unique @db.VarChar(60)
+
+  /// Snapshot of Stripe's `charges_enabled && payouts_enabled` state.
+  /// Kept fresh by the `account.updated` webhook. The admin payout
+  /// flow gates STRIPE_CONNECT disbursement on `ACTIVE` here.
+  stripeConnectStatus StripeConnectStatus @default(NOT_STARTED)
+
+  /// First moment the account flipped to ACTIVE. Stays set even if
+  /// the partner is later RESTRICTED — useful for tenure metrics.
+  stripeConnectOnboardedAt DateTime?
+
   services Service[]
   jobs     ServiceJob[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
+}
+
+enum StripeConnectStatus {
+  /// No `acct_*` created yet — the partner hasn't started onboarding.
+  NOT_STARTED
+  /// Account exists; partner has not completed all of Stripe's
+  /// requirements (KYC, bank, ToS) — `charges_enabled` is false.
+  ONBOARDING
+  /// `charges_enabled && payouts_enabled` — ready for transfers.
+  ACTIVE
+  /// Stripe revoked the account (KYC fail, account closed, etc.).
+  RESTRICTED
 }
 
 model Service {

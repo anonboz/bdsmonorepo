@@ -113,6 +113,8 @@ export const ErrorCodes = {
   PAYOUT_NOT_DISBURSABLE_HELD: 'payouts.not_disbursable_held',
   PAYOUT_ALREADY_DISBURSED: 'payouts.already_disbursed',
   PAYOUT_DISBURSEMENT_METHOD_UNSUPPORTED: 'payouts.disbursement_method_unsupported',
+  PAYOUT_PARTNER_NOT_ONBOARDED: 'payouts.partner_not_onboarded',
+  PARTNER_STRIPE_ONBOARDING_FAILED: 'partners.stripe_onboarding_failed',
 
   // ---- notifications -----------------------------------------------
   NOTIFICATION_NOT_FOUND: 'notifications.not_found',

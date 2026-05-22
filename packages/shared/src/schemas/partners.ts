@@ -9,6 +9,19 @@ import {
 } from './common';
 import { kycStatusSchema } from '../enums/misc';
 
+/**
+ * Snapshot of Stripe Express onboarding state. The webhook keeps
+ * this fresh; admin disbursement gates STRIPE_CONNECT on `ACTIVE`.
+ */
+export const StripeConnectStatus = {
+  NOT_STARTED: 'NOT_STARTED',
+  ONBOARDING: 'ONBOARDING',
+  ACTIVE: 'ACTIVE',
+  RESTRICTED: 'RESTRICTED',
+} as const;
+export type StripeConnectStatus = (typeof StripeConnectStatus)[keyof typeof StripeConnectStatus];
+export const stripeConnectStatusSchema = z.nativeEnum(StripeConnectStatus);
+
 export const partnerProfileSchema = z.object({
   id: idSchema,
   userId: idSchema,
@@ -19,11 +32,20 @@ export const partnerProfileSchema = z.object({
   bio: z.string().max(2000).nullable(),
   serviceArea: z.string().max(500).nullable(),
   kycStatus: kycStatusSchema,
+  stripeConnectStatus: stripeConnectStatusSchema,
+  stripeConnectOnboardedAt: isoDateTimeSchema.nullable(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,
 });
 
 export type PartnerProfile = z.infer<typeof partnerProfileSchema>;
+
+export const startStripeOnboardingResponseSchema = z.object({
+  /** Stripe-hosted onboarding URL. Short-lived (~5 minutes). */
+  url: z.string().url(),
+  expiresAt: isoDateTimeSchema,
+});
+export type StartStripeOnboardingResponse = z.infer<typeof startStripeOnboardingResponseSchema>;
 
 export const upsertPartnerProfileSchema = z.object({
   businessName: z.string().trim().min(1).max(200),
