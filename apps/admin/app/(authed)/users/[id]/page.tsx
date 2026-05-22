@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { AdminUser, KycStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { EraseActions } from './erase-actions';
 import { KycActions } from './kyc-actions';
 import { SuspendActions } from './suspend-actions';
 import { ApiError } from '../../../../lib/api';
@@ -108,6 +109,21 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {!isSelf && (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-lg text-destructive">Danger zone</CardTitle>
+            <CardDescription>
+              GDPR erasure anonymises PII, purges owned media from S3, and deletes the PostHog
+              person. Bills and audit rows stay for legal retention.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EraseActions userId={user.id} isAlreadyErased={user.deletedAt !== null} />
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
 }

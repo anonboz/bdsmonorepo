@@ -68,6 +68,22 @@ export class AdminUsersController {
   ): Promise<AdminUser> {
     return this.service.kycDecision(id, body, contextFrom(user, req));
   }
+
+  /**
+   * GDPR erasure (Phase 9.3). Irreversible — anonymises PII, soft-
+   * deletes the User row, purges owned MediaAsset S3 objects, and
+   * fires a PostHog person-delete. Self-erasure blocked.
+   */
+  @Post(':id/erase')
+  @Roles('ADMIN')
+  @HttpCode(200)
+  erase(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: FastifyRequest,
+    @Param('id') id: string,
+  ): Promise<AdminUser> {
+    return this.service.erase(id, contextFrom(user, req));
+  }
 }
 
 function contextFrom(user: AuthenticatedUser, req: FastifyRequest): RequestContext {

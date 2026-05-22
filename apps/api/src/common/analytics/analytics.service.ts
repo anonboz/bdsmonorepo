@@ -103,4 +103,45 @@ export class AnalyticsService implements OnModuleDestroy {
     // is already in PostHog.
     await this.client._shutdown(2_000).catch(() => undefined);
   }
+
+  /**
+   * GDPR person delete (Phase 9.3). Issues a `DELETE` against
+   * PostHog's persons endpoint, scoped to the project. Requires
+   * `POSTHOG_PERSONAL_API_KEY` — the ingest key has no delete perm.
+   *
+   * Returns `{ called: false, status: null }` when the personal API
+   * key is unset; the audit row records that for ops follow-up.
+   * Non-2xx responses don't throw — the orchestrator records the
+   * status code and continues. The DB anonymization is the source
+   * of truth; PostHog deletion is best-effort.
+   */
+  async deletePerson(input: { distinctId: string }): Promise<{
+    called: boolean;
+    status: number | null;
+  }> {
+    if (!env.POSTHOG_PERSONAL_API_KEY) {
+      return { called: false, status: null };
+    }
+    try {
+      const url = new URL(
+        `/api/projects/@current/persons/?distinct_id=${encodeURIComponent(input.distinctId)}`,
+        env.POSTHOG_HOST,
+      );
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${env.POSTHOG_PERSONAL_API_KEY}`,
+        },
+      });
+      if (!response.ok) {
+        this.logger.warn(
+          `posthog deletePerson failed: HTTP ${response.status} for ${input.distinctId}`,
+        );
+      }
+      return { called: true, status: response.status };
+    } catch (err) {
+      this.logger.warn(`posthog deletePerson errored: ${(err as Error).message}`);
+      return { called: true, status: null };
+    }
+  }
 }

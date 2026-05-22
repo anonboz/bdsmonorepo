@@ -1,4 +1,9 @@
-import { PutObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 
@@ -109,6 +114,29 @@ export class StorageService {
       if (status === 404) return null;
       this.logger.warn(
         `headObject failed for ${input.bucket}/${input.key}: ${(err as Error).message}`,
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * Idempotent. S3's `DeleteObject` returns 204 when the key is
+   * already gone; we surface that as a successful no-op too. Used
+   * by the GDPR-erasure flow (Phase 9.3) to purge a user's owned
+   * media assets.
+   *
+   * Errors other than 404 bubble up — the caller (admin-users
+   * service) logs them on the audit row + continues; we never roll
+   * back the User anonymization just because S3 had a hiccup.
+   */
+  async deleteObject(input: { bucket: string; key: string }): Promise<void> {
+    try {
+      await this.client.send(new DeleteObjectCommand({ Bucket: input.bucket, Key: input.key }));
+    } catch (err) {
+      const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+      if (status === 404) return;
+      this.logger.warn(
+        `deleteObject failed for ${input.bucket}/${input.key}: ${(err as Error).message}`,
       );
       throw err;
     }

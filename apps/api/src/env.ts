@@ -68,6 +68,13 @@ const envSchema = z.object({
   SENTRY_RELEASE: z.string().optional(),
   POSTHOG_KEY: z.string().optional(),
   POSTHOG_HOST: url().default('https://us.i.posthog.com'),
+  /**
+   * PostHog Personal API key (admin-scoped). Required only for
+   * GDPR-erasure deletion of a person; the ingest path uses
+   * `POSTHOG_KEY` which has no delete permission. Keep these split
+   * so a leak of either limits blast radius.
+   */
+  POSTHOG_PERSONAL_API_KEY: z.string().optional(),
 
   /**
    * Stripe secret key. When unset the checkout endpoint returns 503
