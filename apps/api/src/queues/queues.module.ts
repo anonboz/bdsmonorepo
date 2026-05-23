@@ -7,6 +7,7 @@ import {
   QUEUE_BILLS_SWEEP,
   QUEUE_CAMPAIGNS_EXPIRY,
   QUEUE_NOTIFICATIONS_SEND,
+  QUEUE_NOTIFICATIONS_STUCK_SWEEP,
   QUEUE_PAYOUTS_RELEASE,
 } from './queue-names.js';
 
@@ -39,6 +40,7 @@ import {
       { name: QUEUE_CAMPAIGNS_EXPIRY },
       { name: QUEUE_PAYOUTS_RELEASE },
       { name: QUEUE_NOTIFICATIONS_SEND },
+      { name: QUEUE_NOTIFICATIONS_STUCK_SWEEP },
     ),
   ],
   exports: [BullModule],

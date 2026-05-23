@@ -6,6 +6,7 @@ import type { Queue } from 'bullmq';
 import type { NotificationTopic } from '@repo/shared';
 
 import { renderNotification, type NotificationData } from './notifications.templates.js';
+import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 import {
   JOB_NOTIFICATIONS_SEND,
@@ -17,6 +18,32 @@ export interface DispatchInput {
   topic: NotificationTopic;
   recipientId: string;
   data: NotificationData;
+}
+
+/** Sweep cap on the per-row retry counter. Past this, the sweeper
+ *  finalizes the row with `failureReason` so it stops re-picking. */
+export const SWEEP_MAX_RETRIES = 3;
+
+/** Rows must be at least this old before the sweeper touches them.
+ *  Long enough for the normal send path (queue → worker → mailer) to
+ *  finish on a healthy day, short enough that a Redis blip doesn't
+ *  delay delivery much past an hour. */
+export const SWEEP_MIN_AGE_MS = 60 * 60 * 1_000; // 1 hour
+
+export interface SweepResult {
+  inspected: number;
+  retried: number;
+  gaveUp: number;
+}
+
+/** Shape of the rows the sweeper acts on. Narrow projection — the
+ *  worker re-reads the full row when it actually sends. */
+interface StuckRow {
+  id: string;
+  userId: string;
+  topic: string;
+  retryCount: number;
+  createdAt: Date;
 }
 
 /**
@@ -36,6 +63,7 @@ export class NotificationsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     @InjectQueue(QUEUE_NOTIFICATIONS_SEND) private readonly queue: Queue<NotificationsSendJobData>,
+    private readonly audit: AuditLogger,
   ) {}
 
   /**
@@ -110,5 +138,130 @@ export class NotificationsService {
     const { id, enqueue } = await this.prisma.$transaction(async (tx) => this.dispatch(tx, input));
     await enqueue();
     return id;
+  }
+
+  // ---- Phase 10.2 — stuck-notifications sweep ---------------------
+
+  /**
+   * Rows older than {@link SWEEP_MIN_AGE_MS} where the send pipeline
+   * never finalized — `sentAt IS NULL AND failureReason IS NULL`. The
+   * sweeper bumps `retryCount` per visit, finalizes with `failureReason`
+   * once the counter hits {@link SWEEP_MAX_RETRIES}, and re-enqueues
+   * `notifications.send` otherwise.
+   *
+   * Ordered by createdAt ascending so the oldest stuck rows clear first.
+   */
+  async findStuck(opts: { olderThan: Date; limit: number }): Promise<StuckRow[]> {
+    return this.prisma.notification.findMany({
+      where: {
+        sentAt: null,
+        failureReason: null,
+        createdAt: { lt: opts.olderThan },
+      },
+      select: {
+        id: true,
+        userId: true,
+        topic: true,
+        retryCount: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+      take: opts.limit,
+    });
+  }
+
+  /**
+   * Sweep entry-point used by the BullMQ scheduler. Drives the
+   * eligibility query + per-row bookkeeping. Provider-side enqueue
+   * happens after each row's tx commits, so a failed enqueue doesn't
+   * roll back the counter bump (the row would re-attempt on the next
+   * sweep window anyway).
+   */
+  async sweepStuck(now: Date = new Date()): Promise<SweepResult> {
+    const cutoff = new Date(now.getTime() - SWEEP_MIN_AGE_MS);
+    const candidates = await this.findStuck({ olderThan: cutoff, limit: 100 });
+    let retried = 0;
+    let gaveUp = 0;
+    for (const row of candidates) {
+      // Re-check inside the tx: the worker may have set `sentAt` or
+      // `failureReason` between the query above and the update below.
+      const outcome = await this.prisma.$transaction(
+        async (tx): Promise<'retry' | 'give-up' | 'raced'> => {
+          const cur = await tx.notification.findUnique({
+            where: { id: row.id },
+            select: { id: true, sentAt: true, failureReason: true, retryCount: true },
+          });
+          if (!cur || cur.sentAt || cur.failureReason) return 'raced';
+
+          const nextCount = cur.retryCount + 1;
+          if (nextCount > SWEEP_MAX_RETRIES) {
+            await tx.notification.update({
+              where: { id: row.id },
+              data: {
+                failureReason: `sweep gave up after ${SWEEP_MAX_RETRIES} retries`,
+                lastAttemptAt: now,
+              },
+            });
+            await this.audit.write(tx, {
+              actorId: null,
+              action: 'notification.sweep.give-up',
+              target: `Notification:${row.id}`,
+              meta: {
+                topic: row.topic,
+                userId: row.userId,
+                retryCount: cur.retryCount,
+                ageMs: now.getTime() - row.createdAt.getTime(),
+              },
+            });
+            return 'give-up';
+          }
+
+          await tx.notification.update({
+            where: { id: row.id },
+            data: { retryCount: nextCount, lastAttemptAt: now },
+          });
+          await this.audit.write(tx, {
+            actorId: null,
+            action: 'notification.sweep.retry',
+            target: `Notification:${row.id}`,
+            meta: {
+              topic: row.topic,
+              userId: row.userId,
+              retryCount: nextCount,
+              ageMs: now.getTime() - row.createdAt.getTime(),
+            },
+          });
+          return 'retry';
+        },
+      );
+
+      if (outcome === 'retry') {
+        try {
+          await this.queue.add(
+            JOB_NOTIFICATIONS_SEND,
+            { notificationId: row.id },
+            {
+              // The sweeper itself is the backoff — give BullMQ a
+              // single attempt and let the next sweep window pick up
+              // any failure.
+              attempts: 1,
+              removeOnComplete: 200,
+              removeOnFail: 100,
+            },
+          );
+          retried += 1;
+        } catch (err) {
+          // Redis flaked between the tx and the enqueue. The counter
+          // is already bumped; next sweep will try again or, if we
+          // hit SWEEP_MAX_RETRIES, finalize.
+          this.logger.warn(`sweep re-enqueue failed for ${row.id}: ${(err as Error).message}`);
+        }
+      } else if (outcome === 'give-up') {
+        gaveUp += 1;
+      }
+      // outcome === 'raced' is intentionally uncounted: the row finalized
+      // between the query and the tx, neither retried nor gave-up here.
+    }
+    return { inspected: candidates.length, retried, gaveUp };
   }
 }

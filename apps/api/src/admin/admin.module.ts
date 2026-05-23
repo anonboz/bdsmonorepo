@@ -17,6 +17,7 @@ import {
   QUEUE_BILLS_GENERATE,
   QUEUE_BILLS_SWEEP,
   QUEUE_CAMPAIGNS_EXPIRY,
+  QUEUE_NOTIFICATIONS_STUCK_SWEEP,
   QUEUE_PAYOUTS_RELEASE,
 } from '../queues/queue-names.js';
 
@@ -31,6 +32,7 @@ import {
       { name: QUEUE_BILLS_SWEEP },
       { name: QUEUE_CAMPAIGNS_EXPIRY },
       { name: QUEUE_PAYOUTS_RELEASE },
+      { name: QUEUE_NOTIFICATIONS_STUCK_SWEEP },
     ),
   ],
   controllers: [

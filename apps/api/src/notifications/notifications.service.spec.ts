@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { NotificationsService } from './notifications.service.js';
+import {
+  NotificationsService,
+  SWEEP_MAX_RETRIES,
+  SWEEP_MIN_AGE_MS,
+} from './notifications.service.js';
 import { renderNotification } from './notifications.templates.js';
 import { NotificationsSendWorker } from './notifications.worker.js';
+import type { AuditLogger } from '../common/audit/audit-logger.service.js';
 import type { MailerService } from '../common/mailer/mailer.service.js';
 
 // `NotificationTopic` is a value re-export from @repo/shared.
@@ -98,13 +103,36 @@ function makeQueueStub() {
   };
 }
 
+interface AuditCall {
+  actorId: string | null;
+  action: string;
+  target?: string | null;
+  meta?: Record<string, unknown> | null;
+}
+
+function makeAuditStub(): { audit: AuditLogger; calls: AuditCall[] } {
+  const calls: AuditCall[] = [];
+  const audit = {
+    write: vi.fn((_tx: unknown, entry: AuditCall) => {
+      calls.push(entry);
+      return Promise.resolve();
+    }),
+    writeOnce: vi.fn((entry: AuditCall) => {
+      calls.push(entry);
+      return Promise.resolve();
+    }),
+  };
+  return { audit: audit as unknown as AuditLogger, calls };
+}
+
 // ---- NotificationsService.dispatch ---------------------------------
 
 describe('NotificationsService.dispatch', () => {
   it('persists a row with the topic renderer title + body, then post-commit enqueues', async () => {
     const prisma = makePrismaStub();
     const queue = makeQueueStub();
-    const service = new NotificationsService(prisma.stub as never, queue.queue as never);
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
 
     const expectedRender = renderNotification(Topic.BILL_ISSUED, {
       amount: 500_000,
@@ -149,7 +177,8 @@ describe('NotificationsService.dispatch', () => {
     const queue = {
       add: vi.fn(() => Promise.reject(new Error('ECONNREFUSED'))),
     };
-    const service = new NotificationsService(prisma.stub as never, queue as never);
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue as never, audit);
     const { enqueue } = await service.dispatch(prisma.stub as never, {
       topic: Topic.BILL_PAID,
       recipientId: 'user_2',
@@ -162,7 +191,8 @@ describe('NotificationsService.dispatch', () => {
   it('dispatchAndEnqueue wraps insert + enqueue and returns the row id', async () => {
     const prisma = makePrismaStub();
     const queue = makeQueueStub();
-    const service = new NotificationsService(prisma.stub as never, queue.queue as never);
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
 
     const id = await service.dispatchAndEnqueue({
       topic: Topic.TICKET_OPENED,
@@ -182,7 +212,8 @@ describe('NotificationsService.dispatch', () => {
     };
     prefStub.findUnique.mockResolvedValueOnce({ muted: true });
     const queue = makeQueueStub();
-    const service = new NotificationsService(prisma.stub as never, queue.queue as never);
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
 
     const result = await service.dispatch(prisma.stub as never, {
       topic: Topic.BILL_ISSUED,
@@ -394,5 +425,213 @@ describe('renderNotification', () => {
     expect(r.emailHtml).not.toContain('<script>alert(1)</script>');
     expect(r.emailHtml).toContain('&lt;script&gt;');
     expect(r.emailHtml).toContain('Eve &amp; friends');
+  });
+});
+
+// ---- NotificationsService.sweepStuck (phase 10.2) -----------------
+
+interface StuckRowSeed {
+  id: string;
+  userId?: string;
+  topic?: string;
+  sentAt?: Date | null;
+  failureReason?: string | null;
+  retryCount?: number;
+  createdAt: Date;
+}
+
+function makeSweepPrismaStub(seeds: StuckRowSeed[]) {
+  const rows = seeds.map((s) => ({
+    id: s.id,
+    userId: s.userId ?? 'user_1',
+    topic: s.topic ?? Topic.BILL_ISSUED,
+    sentAt: s.sentAt ?? null,
+    failureReason: s.failureReason ?? null,
+    retryCount: s.retryCount ?? 0,
+    lastAttemptAt: null as Date | null,
+    createdAt: s.createdAt,
+  }));
+
+  const stub: Record<string, unknown> = {};
+  Object.assign(stub, {
+    notification: {
+      findMany: vi.fn(
+        (args: {
+          where: { sentAt: null; failureReason: null; createdAt: { lt: Date } };
+          take: number;
+          orderBy: { createdAt: 'asc' };
+        }) => {
+          const cutoff = args.where.createdAt.lt;
+          const matched = rows
+            .filter((r) => r.sentAt === null && r.failureReason === null && r.createdAt < cutoff)
+            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+            .slice(0, args.take)
+            .map((r) => ({
+              id: r.id,
+              userId: r.userId,
+              topic: r.topic,
+              retryCount: r.retryCount,
+              createdAt: r.createdAt,
+            }));
+          return Promise.resolve(matched);
+        },
+      ),
+      findUnique: vi.fn(({ where }: { where: { id: string } }) => {
+        const row = rows.find((r) => r.id === where.id);
+        return Promise.resolve(row ?? null);
+      }),
+      update: vi.fn(({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+        const row = rows.find((r) => r.id === where.id);
+        if (!row) throw new Error('not found');
+        Object.assign(row, data);
+        return Promise.resolve(row);
+      }),
+    },
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
+  });
+  return { stub, rows };
+}
+
+describe('NotificationsService.sweepStuck', () => {
+  it('skips rows younger than the 1h floor', async () => {
+    const now = new Date('2026-05-23T12:00:00Z');
+    const prisma = makeSweepPrismaStub([
+      {
+        id: 'fresh_1',
+        // 30 minutes old — younger than SWEEP_MIN_AGE_MS.
+        createdAt: new Date(now.getTime() - 30 * 60 * 1000),
+      },
+    ]);
+    const queue = makeQueueStub();
+    const { audit, calls } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    const result = await service.sweepStuck(now);
+    expect(result).toEqual({ inspected: 0, retried: 0, gaveUp: 0 });
+    expect(queue.adds).toHaveLength(0);
+    expect(calls).toHaveLength(0);
+    // Row left untouched.
+    expect(prisma.rows[0]?.retryCount).toBe(0);
+    expect(prisma.rows[0]?.lastAttemptAt).toBeNull();
+  });
+
+  it('bumps retryCount + writes notification.sweep.retry audit + re-enqueues', async () => {
+    const now = new Date('2026-05-23T12:00:00Z');
+    const prisma = makeSweepPrismaStub([
+      {
+        id: 'stuck_1',
+        // 90 minutes old — over the floor.
+        createdAt: new Date(now.getTime() - 90 * 60 * 1000),
+      },
+    ]);
+    const queue = makeQueueStub();
+    const { audit, calls } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    const result = await service.sweepStuck(now);
+    expect(result).toEqual({ inspected: 1, retried: 1, gaveUp: 0 });
+    expect(prisma.rows[0]?.retryCount).toBe(1);
+    expect(prisma.rows[0]?.lastAttemptAt).toEqual(now);
+    expect(queue.adds).toHaveLength(1);
+    expect(queue.adds[0]).toMatchObject({
+      name: 'send',
+      data: { notificationId: 'stuck_1' },
+      opts: { attempts: 1 },
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      actorId: null,
+      action: 'notification.sweep.retry',
+      target: 'Notification:stuck_1',
+      meta: { retryCount: 1 },
+    });
+  });
+
+  it('marks the row stuck + writes the give-up audit once retryCount hits the cap', async () => {
+    const now = new Date('2026-05-23T12:00:00Z');
+    const prisma = makeSweepPrismaStub([
+      {
+        id: 'tried_max',
+        // Already retried SWEEP_MAX_RETRIES times — the next sweep
+        // visit should finalize, not enqueue.
+        retryCount: SWEEP_MAX_RETRIES,
+        createdAt: new Date(now.getTime() - SWEEP_MIN_AGE_MS - 60_000),
+      },
+    ]);
+    const queue = makeQueueStub();
+    const { audit, calls } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    const result = await service.sweepStuck(now);
+    expect(result).toEqual({ inspected: 1, retried: 0, gaveUp: 1 });
+    expect(prisma.rows[0]?.failureReason).toBe('sweep gave up after 3 retries');
+    expect(prisma.rows[0]?.lastAttemptAt).toEqual(now);
+    // retryCount is NOT bumped on the give-up path — only failureReason
+    // moves. Keeps the counter meaning "successful re-enqueues".
+    expect(prisma.rows[0]?.retryCount).toBe(SWEEP_MAX_RETRIES);
+    expect(queue.adds).toHaveLength(0);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      actorId: null,
+      action: 'notification.sweep.give-up',
+      target: 'Notification:tried_max',
+    });
+  });
+
+  it('skips rows the worker finalized between query + tx (race)', async () => {
+    const now = new Date('2026-05-23T12:00:00Z');
+    const prisma = makeSweepPrismaStub([
+      {
+        id: 'raced_1',
+        createdAt: new Date(now.getTime() - 90 * 60 * 1000),
+      },
+    ]);
+    // Simulate: findMany returns the row, then findUnique inside the tx
+    // sees sentAt populated (worker won the race).
+    const fu = prisma.stub.notification as { findUnique: ReturnType<typeof vi.fn> };
+    fu.findUnique.mockImplementationOnce(() =>
+      Promise.resolve({
+        id: 'raced_1',
+        sentAt: new Date(now.getTime() - 1000),
+        failureReason: null,
+        retryCount: 0,
+      }),
+    );
+
+    const queue = makeQueueStub();
+    const { audit, calls } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    const result = await service.sweepStuck(now);
+    expect(result).toEqual({ inspected: 1, retried: 0, gaveUp: 0 });
+    expect(queue.adds).toHaveLength(0);
+    expect(calls).toHaveLength(0);
+    // Counter never moved because the tx bailed early.
+    expect(prisma.rows[0]?.retryCount).toBe(0);
+  });
+
+  it('swallows a queue.add failure so the counter bump survives', async () => {
+    const now = new Date('2026-05-23T12:00:00Z');
+    const prisma = makeSweepPrismaStub([
+      {
+        id: 'flaky_redis',
+        createdAt: new Date(now.getTime() - 90 * 60 * 1000),
+      },
+    ]);
+    const queue = {
+      add: vi.fn(() => Promise.reject(new Error('ECONNREFUSED'))),
+    };
+    const { audit, calls } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue as never, audit);
+
+    const result = await service.sweepStuck(now);
+    // The tx committed → audit row + counter bump persisted, but we
+    // don't claim a retry succeeded because the enqueue threw.
+    expect(result.inspected).toBe(1);
+    expect(result.retried).toBe(0);
+    expect(result.gaveUp).toBe(0);
+    expect(prisma.rows[0]?.retryCount).toBe(1);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.action).toBe('notification.sweep.retry');
   });
 });

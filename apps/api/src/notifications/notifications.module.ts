@@ -4,9 +4,14 @@ import { Global, Module } from '@nestjs/common';
 import { NotificationsController } from './notifications.controller.js';
 import { NotificationsInboxService } from './notifications.inbox.service.js';
 import { NotificationsService } from './notifications.service.js';
+import { NotificationsStuckSweeper } from './notifications.sweeper.js';
 import { NotificationsSendWorker } from './notifications.worker.js';
+import { AuditModule } from '../common/audit/audit.module.js';
 import { env } from '../env.js';
-import { QUEUE_NOTIFICATIONS_SEND } from '../queues/queue-names.js';
+import {
+  QUEUE_NOTIFICATIONS_SEND,
+  QUEUE_NOTIFICATIONS_STUCK_SWEEP,
+} from '../queues/queue-names.js';
 
 /**
  * Notifications is `@Global()` so every domain module that emits an
@@ -23,12 +28,18 @@ import { QUEUE_NOTIFICATIONS_SEND } from '../queues/queue-names.js';
  */
 @Global()
 @Module({
-  imports: [BullModule.registerQueue({ name: QUEUE_NOTIFICATIONS_SEND })],
+  imports: [
+    AuditModule,
+    BullModule.registerQueue(
+      { name: QUEUE_NOTIFICATIONS_SEND },
+      { name: QUEUE_NOTIFICATIONS_STUCK_SWEEP },
+    ),
+  ],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
     NotificationsInboxService,
-    ...(env.API_DISABLE_QUEUES ? [] : [NotificationsSendWorker]),
+    ...(env.API_DISABLE_QUEUES ? [] : [NotificationsSendWorker, NotificationsStuckSweeper]),
   ],
   exports: [NotificationsService],
 })

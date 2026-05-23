@@ -208,22 +208,22 @@ model User {
   verifications Verification[]
 
   // Domain relations
-  ownedHouses    House[]         @relation("HouseOwner")
-  tenantLeases   Lease[]         @relation("LeaseTenant")
-  ownerLeases    Lease[]         @relation("LeaseOwner")
-  applications   Application[]
-  ticketsRaised  Ticket[]        @relation("TicketReporter")
-  ticketsAssigned Ticket[]       @relation("TicketAssignee")
-  ticketMessages TicketMessage[] @relation("TicketMessageAuthor")
-  ratingsGiven    LeaseRating[]  @relation("RatingRater")
-  ratingsReceived LeaseRating[]  @relation("RatingRated")
-  jobRatingsGiven    JobRating[] @relation("JobRatingRater")
-  jobRatingsReceived JobRating[] @relation("JobRatingRated")
-  partnerProfile PartnerProfile?
-  notifications  Notification[]
+  ownedHouses             House[]                  @relation("HouseOwner")
+  tenantLeases            Lease[]                  @relation("LeaseTenant")
+  ownerLeases             Lease[]                  @relation("LeaseOwner")
+  applications            Application[]
+  ticketsRaised           Ticket[]                 @relation("TicketReporter")
+  ticketsAssigned         Ticket[]                 @relation("TicketAssignee")
+  ticketMessages          TicketMessage[]          @relation("TicketMessageAuthor")
+  ratingsGiven            LeaseRating[]            @relation("RatingRater")
+  ratingsReceived         LeaseRating[]            @relation("RatingRated")
+  jobRatingsGiven         JobRating[]              @relation("JobRatingRater")
+  jobRatingsReceived      JobRating[]              @relation("JobRatingRated")
+  partnerProfile          PartnerProfile?
+  notifications           Notification[]
   notificationPreferences NotificationPreference[]
-  auditLog       AuditLog[]
-  mediaAssets    MediaAsset[]
+  auditLog                AuditLog[]
+  mediaAssets             MediaAsset[]
 
   @@index([deletedAt])
   @@index([createdAt])
@@ -284,11 +284,11 @@ model Verification {
 // ---------- Property domain --------------------------------------------
 
 model House {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   ownerId     String
-  owner       User     @relation("HouseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  name        String   @db.VarChar(120)
-  description String?  @db.VarChar(2000)
+  owner       User    @relation("HouseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  name        String  @db.VarChar(120)
+  description String? @db.VarChar(2000)
 
   // Address (denormalized JSON for v1; can be normalized later if needed)
   addressLine1 String  @db.VarChar(200)
@@ -323,14 +323,14 @@ model House {
 }
 
 model Unit {
-  id     String     @id @default(cuid())
-  houseId String
-  house   House      @relation(fields: [houseId], references: [id], onDelete: Cascade)
-  label   String     @db.VarChar(60)
-  status  UnitStatus @default(VACANT)
-  floor   Int?
-  sqm     Int?
-  bedrooms Int?
+  id        String     @id @default(cuid())
+  houseId   String
+  house     House      @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  label     String     @db.VarChar(60)
+  status    UnitStatus @default(VACANT)
+  floor     Int?
+  sqm       Int?
+  bedrooms  Int?
   bathrooms Int?
 
   leases    Lease[]
@@ -345,18 +345,18 @@ model Unit {
 }
 
 model Lease {
-  id        String      @id @default(cuid())
-  unitId    String
-  unit      Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  tenantId  String
-  tenant    User        @relation("LeaseTenant", fields: [tenantId], references: [id], onDelete: Restrict)
-  ownerId   String
-  owner     User        @relation("LeaseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  id       String @id @default(cuid())
+  unitId   String
+  unit     Unit   @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  tenantId String
+  tenant   User   @relation("LeaseTenant", fields: [tenantId], references: [id], onDelete: Restrict)
+  ownerId  String
+  owner    User   @relation("LeaseOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
   status        LeaseStatus @default(DRAFT)
   rentCycle     RentCycle   @default(MONTHLY)
-  rentAmount    Int         // minor units
-  depositAmount Int         // minor units
+  rentAmount    Int // minor units
+  depositAmount Int // minor units
   currency      String      @db.Char(3)
 
   startDate DateTime
@@ -383,9 +383,9 @@ model Lease {
 // ---------- Billing & payments -----------------------------------------
 
 model Bill {
-  id      String     @id @default(cuid())
+  id      String @id @default(cuid())
   leaseId String
-  lease   Lease      @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  lease   Lease  @relation(fields: [leaseId], references: [id], onDelete: Restrict)
 
   /// Stable key built from `${rentCycle}:${periodStart}` (e.g. `MONTHLY:2026-06-01`).
   /// Together with `leaseId` it gates duplicate generation so a re-fired cron
@@ -398,8 +398,8 @@ model Bill {
   issuedAt    DateTime?
 
   status   BillStatus @default(DRAFT)
-  subtotal Int        // minor units
-  total    Int        // minor units (subtotal + line adjustments)
+  subtotal Int // minor units
+  total    Int // minor units (subtotal + line adjustments)
   currency String     @db.Char(3)
 
   lines    BillLine[]
@@ -419,7 +419,7 @@ model BillLine {
   bill     Bill         @relation(fields: [billId], references: [id], onDelete: Cascade)
   kind     BillLineKind
   label    String       @db.VarChar(200)
-  amount   Int          // minor units (can be negative for adjustments)
+  amount   Int // minor units (can be negative for adjustments)
   quantity Int          @default(1)
   meta     Json?
 
@@ -429,38 +429,38 @@ model BillLine {
 }
 
 model Payment {
-  id        String          @id @default(cuid())
-  billId    String
-  bill      Bill            @relation(fields: [billId], references: [id], onDelete: Restrict)
+  id                  String          @id @default(cuid())
+  billId              String
+  bill                Bill            @relation(fields: [billId], references: [id], onDelete: Restrict)
   /// Minor units. **Signed** — refund rows carry a negative amount
   /// and link back via `refundOfPaymentId`. Bill recompute sums
   /// SUCCEEDED rows so refunds net naturally.
-  amount    Int
-  currency  String          @db.Char(3)
-  status    PaymentStatus   @default(PENDING)
-  provider  PaymentProvider
+  amount              Int
+  currency            String          @db.Char(3)
+  status              PaymentStatus   @default(PENDING)
+  provider            PaymentProvider
   /// Session / checkout / IPN-time reference (Stripe session id,
   /// VNPay TxnRef, MANUAL bank reference). Set by the request that
   /// initiated the charge.
-  providerRef String?
+  providerRef         String?
   /// Settled-transaction reference, populated by the webhook handlers
   /// when the payment confirms — Stripe PaymentIntent id, VNPay
   /// `vnp_TransactionNo`. Required to issue a refund via the
   /// provider API.
-  providerCaptureRef String?
+  providerCaptureRef  String?
   /// Original provider-side transaction timestamp. For VNPay this is
   /// the IPN's `vnp_PayDate` lifted to a `Date`; required to echo
   /// back on refund (VNPay's `vnp_TransactionDate` parameter).
   /// NULL for pre-9.2 captures and MANUAL / Stripe payments
   /// (Stripe refunds via PaymentIntent don't need a date).
   providerCaptureDate DateTime?
-  failureReason String?     @db.VarChar(500)
+  failureReason       String?         @db.VarChar(500)
   /// Free-form note set when recording a MANUAL payment — bank,
   /// reference number, anything the owner wants on the audit trail.
   /// Intentionally kept out of the audit log meta to avoid mirroring
   /// PII-shaped text into a second store.
-  note      String?         @db.VarChar(500)
-  receivedAt DateTime?
+  note                String?         @db.VarChar(500)
+  receivedAt          DateTime?
 
   /// Points to the original SUCCEEDED Payment a refund row reverses.
   /// NULL on regular charges. Self-relation; SetNull on delete keeps
@@ -481,18 +481,18 @@ model Payment {
 // ---------- Tickets ----------------------------------------------------
 
 model Ticket {
-  id         String         @id @default(cuid())
+  id         String  @id @default(cuid())
   leaseId    String
-  lease      Lease          @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  lease      Lease   @relation(fields: [leaseId], references: [id], onDelete: Restrict)
   reporterId String
-  reporter   User           @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  reporter   User    @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: Restrict)
   assigneeId String?
-  assignee   User?          @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignee   User?   @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
-  category  TicketCategory
-  status    TicketStatus   @default(OPEN)
-  title     String         @db.VarChar(200)
-  body      String         @db.VarChar(4000)
+  category TicketCategory
+  status   TicketStatus   @default(OPEN)
+  title    String         @db.VarChar(200)
+  body     String         @db.VarChar(4000)
 
   resolvedAt DateTime?
   closedAt   DateTime?
@@ -555,19 +555,19 @@ model TicketMessage {
 // ---------- Campaigns & applications -----------------------------------
 
 model Campaign {
-  id        String         @id @default(cuid())
-  unitId    String
-  unit      Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  unitId String
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
   /// Denormalized from `unit.house.ownerId` so we can index owner-side
   /// queries without a join. Frozen on create.
   ownerId String
 
-  title     String         @db.VarChar(200)
-  body      String         @db.VarChar(4000)
-  price     Int            // minor units
-  currency  String         @db.Char(3)
-  status    CampaignStatus @default(DRAFT)
+  title       String         @db.VarChar(200)
+  body        String         @db.VarChar(4000)
+  price       Int // minor units
+  currency    String         @db.Char(3)
+  status      CampaignStatus @default(DRAFT)
   publishedAt DateTime?
   expiresAt   DateTime?
 
@@ -591,22 +591,22 @@ model Campaign {
 }
 
 model Application {
-  id         String            @id @default(cuid())
-  campaignId String
-  campaign   Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   applicantId String
-  applicant  User              @relation(fields: [applicantId], references: [id], onDelete: Restrict)
+  applicant   User     @relation(fields: [applicantId], references: [id], onDelete: Restrict)
 
   /// Denormalized from `campaign.unit.house.ownerId` so owner-side
   /// queries don't need a three-level join. Frozen on create.
   ownerId String
 
-  status     ApplicationStatus @default(SUBMITTED)
-  message    String?           @db.VarChar(2000)
+  status  ApplicationStatus @default(SUBMITTED)
+  message String?           @db.VarChar(2000)
 
   decidedAt       DateTime?
   decidedBy       String?
-  rejectionReason String?  @db.VarChar(500)
+  rejectionReason String?   @db.VarChar(500)
 
   /// Lease created on accept. One application → at most one lease.
   createdLeaseId String? @unique
@@ -624,9 +624,9 @@ model Application {
 // ---------- Partner marketplace ----------------------------------------
 
 model PartnerProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   businessName String  @db.VarChar(200)
   bio          String? @db.VarChar(2000)
@@ -676,7 +676,7 @@ model Service {
 
   name        String  @db.VarChar(200)
   description String? @db.VarChar(2000)
-  basePrice   Int     // minor units
+  basePrice   Int // minor units
   currency    String  @db.Char(3)
   isActive    Boolean @default(true)
 
@@ -690,13 +690,13 @@ model Service {
 }
 
 model ServiceJob {
-  id        String    @id @default(cuid())
+  id        String         @id @default(cuid())
   partnerId String
   partner   PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   serviceId String?
-  service   Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  service   Service?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   ticketId  String?
-  ticket    Ticket?   @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  ticket    Ticket?        @relation(fields: [ticketId], references: [id], onDelete: SetNull)
 
   /// Denormalized from the booking owner. Frozen on create — direct
   /// bookings set this from the authenticated owner; ticket-routed
@@ -709,16 +709,16 @@ model ServiceJob {
   /// Owner's free-form request note.
   description String? @db.VarChar(2000)
 
-  status        JobStatus @default(REQUESTED)
-  quotedAmount  Int?      // minor units
-  finalAmount   Int?
-  currency      String?   @db.Char(3)
+  status       JobStatus @default(REQUESTED)
+  quotedAmount Int? // minor units
+  finalAmount  Int?
+  currency     String?   @db.Char(3)
 
-  cancelReason  String?   @db.VarChar(200)
+  cancelReason String?   @db.VarChar(200)
   /// Actor user id who cancelled.
-  cancelledBy   String?
-  scheduledFor  DateTime?
-  completedAt   DateTime?
+  cancelledBy  String?
+  scheduledFor DateTime?
+  completedAt  DateTime?
 
   /// Partner-uploaded proof of work URLs. Populated on COMPLETED.
   proofPhotos String[] @default([])
@@ -740,9 +740,9 @@ model ServiceJob {
 /// (partner credit). Sum is zero by construction; that's the
 /// "ledger entries balance" invariant from the Phase 5 acceptance.
 model JobLedgerEntry {
-  id     String     @id @default(cuid())
-  jobId  String
-  job    ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  id    String     @id @default(cuid())
+  jobId String
+  job   ServiceJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   kind   PayoutEntryKind
   status PayoutEntryStatus @default(PENDING)
@@ -809,25 +809,40 @@ model JobRating {
 // ---------- Cross-cutting ----------------------------------------------
 
 model Notification {
-  id      String              @id @default(cuid())
-  userId  String
-  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  channel NotificationChannel
-  topic   String              @db.VarChar(120)
-  title   String              @db.VarChar(200)
-  body    String?             @db.VarChar(2000)
-  data    Json?
-  readAt  DateTime?
-  sentAt  DateTime?
+  id            String              @id @default(cuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel       NotificationChannel
+  topic         String              @db.VarChar(120)
+  title         String              @db.VarChar(200)
+  body          String?             @db.VarChar(2000)
+  data          Json?
+  readAt        DateTime?
+  sentAt        DateTime?
   /// Set by the notifications worker when a send attempt threw past
   /// BullMQ's max retries. `sentAt IS NULL AND failureReason IS NOT
   /// NULL` is the "stuck delivery" condition ops greps for.
-  failureReason String? @db.VarChar(2000)
+  failureReason String?             @db.VarChar(2000)
+
+  /// Phase 10.2 — number of times the stuck-notifications sweeper has
+  /// re-enqueued this row. Distinct from BullMQ's per-job attempts;
+  /// only the sweeper bumps this so the counter reflects "how many
+  /// rescues did this row need" rather than "how many tries the
+  /// worker made on a single job."
+  retryCount Int @default(0)
+
+  /// Phase 10.2 — set by the sweeper each time it touches the row.
+  lastAttemptAt DateTime?
 
   createdAt DateTime @default(now())
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+  /// Phase 10.2 — supports the sweeper's
+  /// `sentAt IS NULL AND failureReason IS NULL AND createdAt < ?`
+  /// scan. Non-partial because Prisma's partial index syntax
+  /// doesn't play well with our migration generator path.
+  @@index([createdAt], map: "Notification_sweep_idx")
 }
 
 /// Per-`(userId, topic)` mute toggle for notification dispatches
@@ -844,12 +859,12 @@ model NotificationPreference {
   /// taxonomy from Phase 8.2 (`bill.issued`, `ticket.opened`, etc.).
   /// Stored as VARCHAR rather than an enum so adding a topic later
   /// doesn't require a migration here.
-  topic  String  @db.VarChar(120)
+  topic String @db.VarChar(120)
 
   /// TRUE for opt-outs; the dispatch gate keys off this column.
   /// Default TRUE so the row's presence == muted (an unmuted topic
   /// is the absence of a row).
-  muted  Boolean @default(true)
+  muted Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -859,11 +874,11 @@ model NotificationPreference {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   actorId   String?
-  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
-  action    String   @db.VarChar(120) // e.g., "user.suspend", "bill.void"
-  target    String?  @db.VarChar(120) // resource ref, e.g., "User:abc123"
+  actor     User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String  @db.VarChar(120) // e.g., "user.suspend", "bill.void"
+  target    String? @db.VarChar(120) // resource ref, e.g., "User:abc123"
   meta      Json?
   ip        String?
   userAgent String?
@@ -910,31 +925,31 @@ model WebhookEvent {
 /// embeds. The MediaAsset row is the source of truth for ownership +
 /// revocation, not for rendering — see `docs/specs/phase8-media-uploads.md`.
 model MediaAsset {
-  id          String       @id @default(cuid())
+  id          String @id @default(cuid())
   ownerUserId String
-  owner       User         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  owner       User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 
-  purpose     MediaPurpose
-  status      MediaStatus  @default(PENDING)
+  purpose MediaPurpose
+  status  MediaStatus  @default(PENDING)
 
   /// "s3" today; reserved for future providers (e.g. cloudflare R2).
-  provider    String       @default("s3") @db.VarChar(20)
-  bucket      String       @db.VarChar(120)
-  key         String       @db.VarChar(500)
+  provider String @default("s3") @db.VarChar(20)
+  bucket   String @db.VarChar(120)
+  key      String @db.VarChar(500)
 
-  filename    String       @db.VarChar(200)
-  contentType String       @db.VarChar(120)
-  sizeBytes   Int          @default(0)
+  filename    String @db.VarChar(200)
+  contentType String @db.VarChar(120)
+  sizeBytes   Int    @default(0)
 
   /// Cached canonical URL clients embed. May be a public-read S3 path or
   /// a CDN-fronted URL — depends on deploy config. Stored so callers
   /// don't have to re-derive it from bucket + key.
-  publicUrl   String       @db.VarChar(800)
+  publicUrl String @db.VarChar(800)
 
-  uploadedAt  DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
+  uploadedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
 
   @@index([ownerUserId, createdAt])
   @@index([status, createdAt])
