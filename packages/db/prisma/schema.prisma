@@ -954,3 +954,19 @@ enum MediaStatus {
   /// S3 object purged; row kept for audit / link integrity.
   DELETED
 }
+
+/// Singleton config row (Phase 9.6). The literal `@default("singleton")`
+/// id + `@id` constraint mean Prisma will refuse a second insert.
+/// Reads always hit the row by id; writes are upserts so a missing
+/// row (fresh install, bad seed) resolves on the first PUT.
+model PlatformConfig {
+  id String @id @default("singleton")
+
+  /// Platform commission rate in basis points. 1000 = 10%. Bounds
+  /// enforced at the Zod layer (`[0, 5000]` = 0–50%); anything
+  /// outside that range almost certainly indicates a mistake.
+  commissionBps Int @default(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

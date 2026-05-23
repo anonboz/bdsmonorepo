@@ -9,6 +9,7 @@ import { AdminHousesController } from './admin-houses.controller.js';
 import { AdminHousesService } from './admin-houses.service.js';
 import { AdminMetricsController } from './admin-metrics.controller.js';
 import { AdminMetricsService } from './admin-metrics.service.js';
+import { AdminPlatformController } from './admin-platform.controller.js';
 import { AdminUsersController } from './admin-users.controller.js';
 import { AdminUsersService } from './admin-users.service.js';
 import { AuditModule } from '../common/audit/audit.module.js';
@@ -38,6 +39,7 @@ import {
     AdminDashboardController,
     AdminAuditController,
     AdminMetricsController,
+    AdminPlatformController,
   ],
   providers: [
     AdminUsersService,

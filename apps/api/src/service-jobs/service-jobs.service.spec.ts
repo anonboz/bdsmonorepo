@@ -155,13 +155,22 @@ describe('ServiceJobsService', () => {
   let service: ServiceJobsService;
   let store: ReturnType<typeof makePrismaStub>;
 
-  function boot(overrides: Partial<StubOpts> = {}) {
-    store = makePrismaStub({ ownerId, partnerUserId, partnerId, ...overrides });
+  function boot(overrides: Partial<StubOpts> & { commissionBps?: number } = {}) {
+    const { commissionBps = 1000, ...rest } = overrides;
+    store = makePrismaStub({ ownerId, partnerUserId, partnerId, ...rest });
+    // Phase 9.6: ServiceJobsService now reads its commission rate
+    // from PlatformConfig. Stub a service that returns the configured
+    // bps + a no-op update so tests can dial the rate per-case.
+    const platformConfig = {
+      get: vi.fn(() => Promise.resolve({ commissionBps, updatedAt: new Date().toISOString() })),
+      update: vi.fn(),
+    } as unknown as ConstructorParameters<typeof ServiceJobsService>[4];
     service = new ServiceJobsService(
       store.stub as never,
       new AuditLogger(store.stub as never),
       stubNotifications(),
       stubAnalytics(),
+      platformConfig,
     );
   }
 

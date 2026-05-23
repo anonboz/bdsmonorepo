@@ -22,6 +22,7 @@ import type { RequestContext } from '../common/audit/request-context.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { PlatformConfigService } from '../platform/platform-config.service.js';
 
 const JOB_WITH_RELATIONS = {
   include: {
@@ -70,6 +71,7 @@ export class ServiceJobsService {
     private readonly audit: AuditLogger,
     private readonly notifications: NotificationsService,
     private readonly analytics: AnalyticsService,
+    private readonly platformConfig: PlatformConfigService,
   ) {}
 
   // ---- Owner-scoped ------------------------------------------------
@@ -331,7 +333,11 @@ export class ServiceJobsService {
         detail: 'Currency is set at quote time; this state should be unreachable.',
       });
     }
-    const commission = computeCommission(finalAmount);
+    // Phase 9.6: rate now lives in `PlatformConfig`. Read once per
+    // mint so a concurrent rate change applies to the next job, not
+    // this one (no "rate change mid-tx" surprises).
+    const { commissionBps } = await this.platformConfig.get();
+    const commission = computeCommission(finalAmount, commissionBps);
     const partnerCut = finalAmount - commission;
     const now = new Date();
     const cooldownUntil = new Date(now.getTime() + PAYOUT_COOLDOWN_MS);
@@ -589,16 +595,23 @@ export const SERVICE_JOB_OWNER_TRANSITIONS = OWNER_TRANSITIONS;
 export const SERVICE_JOB_PARTNER_TRANSITIONS = PARTNER_TRANSITIONS;
 
 /**
- * Hardcoded platform commission rate in basis points.
+ * Schema default for the platform commission rate. The canonical
+ * source is `PlatformConfig.commissionBps` (Phase 9.6); this constant
+ * stays exported because the unit specs that construct a stub
+ * `PlatformConfigService` still want a stable literal.
  *
- * 1000 bps = 10%. Moves to a config table once the deferred
- * "fee / commission config" Phase 3.4 item ships.
+ * 1000 bps = 10%.
  */
-export const PLATFORM_COMMISSION_BPS = 1000;
+export const DEFAULT_COMMISSION_BPS = 1000;
 export const PAYOUT_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 
-/** Floor toward zero so the partner picks up rounding remainders. */
-export function computeCommission(finalAmount: number): number {
+/**
+ * Pure-function commission math. Floor toward zero so the partner
+ * picks up rounding remainders. The bps rate is a required arg —
+ * callers pass it explicitly so the policy is visible at the call
+ * site instead of buried in a module constant.
+ */
+export function computeCommission(finalAmount: number, bps: number): number {
   if (finalAmount <= 0) return 0;
-  return Math.floor((finalAmount * PLATFORM_COMMISSION_BPS) / 10_000);
+  return Math.floor((finalAmount * bps) / 10_000);
 }

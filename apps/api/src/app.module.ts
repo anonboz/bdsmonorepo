@@ -21,6 +21,7 @@ import { OwnerDashboardModule } from './owner-dashboard/owner-dashboard.module.j
 import { PartnersModule } from './partners/partners.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { PayoutsModule } from './payouts/payouts.module.js';
+import { PlatformConfigModule } from './platform/platform-config.module.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { RatingsModule } from './ratings/ratings.module.js';
 import { ServiceJobsModule } from './service-jobs/service-jobs.module.js';
@@ -54,6 +55,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     MailerModule,
     StorageModule,
     AnalyticsModule,
+    PlatformConfigModule,
     QueuesModule,
     NotificationsModule,
     MediaModule,

@@ -101,10 +101,20 @@ export default async function HomePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Platform config</CardTitle>
+          <CardDescription>Commission rate + future platform-wide knobs.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/platform-config">Open</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>
-            Refund moderation, fee config, and Stripe Connect onboarding.
-          </CardDescription>
+          <CardDescription>Refund moderation and Stripe Connect oversight.</CardDescription>
         </CardHeader>
       </Card>
     </main>
