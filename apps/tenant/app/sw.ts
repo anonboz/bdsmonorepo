@@ -62,3 +62,36 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// Phase 10.5 — render incoming web push notifications. Payload shape
+// matches what the API's `notifications.worker.ts` sends:
+// `{ title, body, url, topic }`.
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let payload: { title?: string; body?: string; url?: string; topic?: string };
+  try {
+    payload = event.data.json() as typeof payload;
+  } catch {
+    payload = { title: event.data.text() };
+  }
+  const title = payload.title ?? 'Notification';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body ?? '',
+      tag: payload.topic ?? 'default',
+      data: { url: payload.url ?? '/notifications' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data as { url?: string } | undefined)?.url ?? '/notifications';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => c.url.includes(url));
+      if (existing) return existing.focus();
+      return self.clients.openWindow(url);
+    }),
+  );
+});

@@ -20,4 +20,5 @@ export * from './platform-dashboard';
 export * from './admin';
 export * from './notifications';
 export * from './media';
+export * from './push';
 export * from './platform';

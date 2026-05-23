@@ -63,6 +63,19 @@ const envSchema = z.object({
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: port.default(1025),
 
+  /**
+   * Phase 10.5 — VAPID keypair for web-push. When unset the push
+   * fanout is a no-op (worker logs once on boot) and the
+   * `POST /push-subscriptions` endpoint returns 503
+   * `push.provider_disabled`. Keep `_PRIVATE_KEY` server-only;
+   * `_PUBLIC_KEY` is what the PWA reads via `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
+   * `VAPID_SUBJECT` is the `mailto:` / URL the push provider contacts
+   * about issues; required by the spec.
+   */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default('mailto:ops@localhost'),
+
   SENTRY_DSN: z.string().url().optional(),
   /** Tag passed to Sentry for release-based grouping. Free-form. */
   SENTRY_RELEASE: z.string().optional(),

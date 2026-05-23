@@ -159,10 +159,12 @@ enum NotificationChannel {
 /// Phase 10.4 — preference scope. `ALL` is the legacy 9.4 behaviour:
 /// the row mutes both in-app and email together. `EMAIL` mutes only
 /// outbound email but keeps the in-app row; `IN_APP` is the reverse.
+/// Phase 10.5 adds `PUSH` to mute the web-push fanout independently.
 enum NotificationPreferenceScope {
   ALL
   EMAIL
   IN_APP
+  PUSH
 }
 
 enum WebhookEventStatus {
@@ -232,6 +234,7 @@ model User {
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
   notificationQuietHours  NotificationQuietHours?
+  pushSubscriptions       PushSubscription[]
   auditLog                AuditLog[]
   mediaAssets             MediaAsset[]
 
@@ -887,6 +890,36 @@ model NotificationPreference {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, topic, scope])
+  @@index([userId])
+}
+
+/// Phase 10.5 — browser PushSubscription rows. One row per
+/// (user, browser endpoint). `web-push` reads `endpoint` + the two
+/// `keys` fields and POSTs the encrypted payload to the push service.
+/// The send worker deletes the row on a terminal 404 / 410 so users
+/// don't carry "ghost" subscriptions across browser resets.
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint String @db.VarChar(800)
+  p256dh   String @db.VarChar(200)
+  auth     String @db.VarChar(60)
+
+  /// Free-form label (typically navigator.userAgent at subscribe time)
+  /// so the user can recognize "which one is my phone" in settings.
+  userAgent String? @db.VarChar(200)
+
+  /// Set by the worker the moment a push attempt fails terminally.
+  /// We delete the row immediately after, so this is only meaningful
+  /// for the audit trail of a failed delivery if we keep the row.
+  failedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, endpoint])
   @@index([userId])
 }
 

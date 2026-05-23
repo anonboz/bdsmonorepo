@@ -76,6 +76,9 @@ export const NotificationPreferenceScope = {
   ALL: 'ALL',
   EMAIL: 'EMAIL',
   IN_APP: 'IN_APP',
+  /** Phase 10.5 — mute the web-push fanout while keeping in-app /
+   *  email behaviour unchanged. */
+  PUSH: 'PUSH',
 } as const;
 export type NotificationPreferenceScope =
   (typeof NotificationPreferenceScope)[keyof typeof NotificationPreferenceScope];

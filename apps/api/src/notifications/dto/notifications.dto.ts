@@ -1,5 +1,6 @@
 import {
   type notificationSchema,
+  createPushSubscriptionSchema,
   listNotificationsQuerySchema,
   notificationQuietHoursSchema,
   upsertNotificationPreferenceSchema,
@@ -15,5 +16,8 @@ export type UpsertNotificationPreferenceDto = typeof upsertNotificationPreferenc
 
 export const UpsertQuietHoursDto = createZodDto(notificationQuietHoursSchema);
 export type UpsertQuietHoursDto = typeof notificationQuietHoursSchema._type;
+
+export const CreatePushSubscriptionDto = createZodDto(createPushSubscriptionSchema);
+export type CreatePushSubscriptionDto = typeof createPushSubscriptionSchema._type;
 
 export type NotificationResponse = typeof notificationSchema._type;

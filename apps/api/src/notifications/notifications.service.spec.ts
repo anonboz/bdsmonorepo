@@ -86,6 +86,9 @@ function makePrismaStub() {
       // Default stub: no preferences set → every dispatch goes through.
       // Individual tests override via mockResolvedValueOnce below.
       findMany: vi.fn(() => Promise.resolve([])),
+      // The worker's per-scope mute check (`scope=PUSH muted=true`).
+      // Default null → unmuted; tests override per-call.
+      findUnique: vi.fn(() => Promise.resolve(null)),
     },
     notificationQuietHours: {
       // Default stub: no quiet hours.
@@ -357,6 +360,47 @@ describe('NotificationsService.dispatch per-scope + quiet hours', () => {
 
 // ---- NotificationsSendWorker --------------------------------------
 
+interface PushSubscriptionTarget {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+function makePushSubscriptionsStub(opts: { targets?: PushSubscriptionTarget[] } = {}) {
+  const targets = opts.targets ?? [];
+  const deleted: string[] = [];
+  return {
+    listForRecipient: vi.fn(() => Promise.resolve(targets)),
+    deleteByEndpoint: vi.fn((endpoint: string) => {
+      deleted.push(endpoint);
+      return Promise.resolve();
+    }),
+    _deleted: deleted,
+  };
+}
+
+function makePushSenderStub(opts: { enabled?: boolean; outcomes?: Record<string, string> } = {}) {
+  const enabled = opts.enabled ?? false;
+  const outcomes = opts.outcomes ?? {};
+  const sent: { endpoint: string; payload: unknown }[] = [];
+  return {
+    enabled,
+    send: vi.fn((target: PushSubscriptionTarget, payload: unknown) => {
+      sent.push({ endpoint: target.endpoint, payload });
+      const outcome = outcomes[target.endpoint] ?? 'sent';
+      if (outcome === 'gone') {
+        return Promise.resolve({ status: 'gone', statusCode: 410, reason: 'Gone' });
+      }
+      if (outcome === 'error') {
+        return Promise.resolve({ status: 'error', statusCode: 500, reason: 'boom' });
+      }
+      return Promise.resolve({ status: 'sent', statusCode: 201 });
+    }),
+    _sent: sent,
+  };
+}
+
 function makeMailer(): MailerService & { sent: { to: string; subject: string }[] } {
   const sent: { to: string; subject: string }[] = [];
   const mailer = {
@@ -378,7 +422,12 @@ describe('NotificationsSendWorker.process', () => {
   beforeEach(() => {
     prisma = makePrismaStub();
     mailer = makeMailer();
-    worker = new NotificationsSendWorker(prisma.stub as never, mailer);
+    worker = new NotificationsSendWorker(
+      prisma.stub as never,
+      mailer,
+      makePushSubscriptionsStub() as never,
+      makePushSenderStub() as never,
+    );
   });
 
   function seed(extra: Partial<{ sentAt: Date; _userEmail: string | null; topic: string }> = {}) {
@@ -412,7 +461,7 @@ describe('NotificationsSendWorker.process', () => {
       name: 'send',
       data: { notificationId: row.id },
     } as never);
-    expect(result).toEqual({ status: 'sent' });
+    expect(result).toMatchObject({ status: 'sent' });
     expect(mailer.sent).toHaveLength(1);
     expect(mailer.sent[0]?.subject).toContain('2026-06-08');
     const after = prisma.rows.find((r) => r.id === row.id);
@@ -461,11 +510,162 @@ describe('NotificationsSendWorker.process', () => {
   });
 });
 
+// ---- Phase 10.5 — push fanout -------------------------------------
+
+describe('NotificationsSendWorker push fanout', () => {
+  function seedRow(prisma: ReturnType<typeof makePrismaStub>) {
+    const row = {
+      id: 'notif_push_1',
+      userId: 'user_1',
+      channel: 'EMAIL' as const,
+      topic: Topic.BILL_ISSUED,
+      title: 'Your bill is ready',
+      body: 'body',
+      data: { amount: 100, currency: 'VND' },
+      readAt: null,
+      sentAt: null,
+      failureReason: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    prisma.rows.push(row);
+    return row;
+  }
+
+  it('fans out push to every active subscription when enabled', async () => {
+    const prisma = makePrismaStub();
+    const row = seedRow(prisma);
+    const subs = makePushSubscriptionsStub({
+      targets: [
+        { id: 'sub_a', endpoint: 'https://push/a', p256dh: 'p1', auth: 'a1' },
+        { id: 'sub_b', endpoint: 'https://push/b', p256dh: 'p2', auth: 'a2' },
+      ],
+    });
+    const sender = makePushSenderStub({ enabled: true });
+    const worker = new NotificationsSendWorker(
+      prisma.stub as never,
+      makeMailer(),
+      subs as never,
+      sender as never,
+    );
+    const result = await worker.process({
+      name: 'send',
+      data: { notificationId: row.id },
+    } as never);
+    expect(result).toMatchObject({ status: 'sent', pushDelivered: 2, pushPruned: 0 });
+    expect(sender._sent.map((s) => s.endpoint)).toEqual(['https://push/a', 'https://push/b']);
+  });
+
+  it('skips push fanout when scope=PUSH muted=true', async () => {
+    const prisma = makePrismaStub();
+    const row = seedRow(prisma);
+    const prefStub = prisma.stub.notificationPreference as {
+      findUnique: ReturnType<typeof vi.fn>;
+    };
+    prefStub.findUnique.mockResolvedValueOnce({ muted: true });
+    const subs = makePushSubscriptionsStub({
+      targets: [{ id: 'sub_a', endpoint: 'https://push/a', p256dh: 'p1', auth: 'a1' }],
+    });
+    const sender = makePushSenderStub({ enabled: true });
+    const worker = new NotificationsSendWorker(
+      prisma.stub as never,
+      makeMailer(),
+      subs as never,
+      sender as never,
+    );
+    const result = await worker.process({
+      name: 'send',
+      data: { notificationId: row.id },
+    } as never);
+    expect(result).toMatchObject({ status: 'sent', pushDelivered: 0, pushPruned: 0 });
+    expect(sender._sent).toHaveLength(0);
+  });
+
+  it('prunes the subscription on 410 Gone', async () => {
+    const prisma = makePrismaStub();
+    const row = seedRow(prisma);
+    const subs = makePushSubscriptionsStub({
+      targets: [
+        { id: 'sub_a', endpoint: 'https://push/a', p256dh: 'p1', auth: 'a1' },
+        { id: 'sub_b', endpoint: 'https://push/b', p256dh: 'p2', auth: 'a2' },
+      ],
+    });
+    const sender = makePushSenderStub({
+      enabled: true,
+      outcomes: { 'https://push/a': 'gone' },
+    });
+    const worker = new NotificationsSendWorker(
+      prisma.stub as never,
+      makeMailer(),
+      subs as never,
+      sender as never,
+    );
+    const result = await worker.process({
+      name: 'send',
+      data: { notificationId: row.id },
+    } as never);
+    expect(result).toMatchObject({ pushDelivered: 1, pushPruned: 1 });
+    expect(subs._deleted).toEqual(['https://push/a']);
+  });
+
+  it('no-op when sender is disabled (no VAPID keys)', async () => {
+    const prisma = makePrismaStub();
+    const row = seedRow(prisma);
+    const subs = makePushSubscriptionsStub({
+      targets: [{ id: 'sub_a', endpoint: 'https://push/a', p256dh: 'p1', auth: 'a1' }],
+    });
+    const sender = makePushSenderStub({ enabled: false });
+    const worker = new NotificationsSendWorker(
+      prisma.stub as never,
+      makeMailer(),
+      subs as never,
+      sender as never,
+    );
+    const result = await worker.process({
+      name: 'send',
+      data: { notificationId: row.id },
+    } as never);
+    expect(result).toMatchObject({ pushDelivered: 0, pushPruned: 0 });
+    expect(sender._sent).toHaveLength(0);
+    // The subscription lookup is skipped entirely when disabled.
+    expect(subs.listForRecipient).not.toHaveBeenCalled();
+  });
+
+  it('error from push provider logs but does not prune', async () => {
+    const prisma = makePrismaStub();
+    const row = seedRow(prisma);
+    const subs = makePushSubscriptionsStub({
+      targets: [{ id: 'sub_a', endpoint: 'https://push/a', p256dh: 'p1', auth: 'a1' }],
+    });
+    const sender = makePushSenderStub({
+      enabled: true,
+      outcomes: { 'https://push/a': 'error' },
+    });
+    const worker = new NotificationsSendWorker(
+      prisma.stub as never,
+      makeMailer(),
+      subs as never,
+      sender as never,
+    );
+    const result = await worker.process({
+      name: 'send',
+      data: { notificationId: row.id },
+    } as never);
+    expect(result).toMatchObject({ pushDelivered: 0, pushPruned: 0 });
+    expect(subs._deleted).toHaveLength(0);
+  });
+});
+
 describe('NotificationsSendWorker.onFailed', () => {
   it('sets failureReason on the row once attemptsMade equals opts.attempts', async () => {
     const prisma = makePrismaStub();
     const mailer = makeMailer();
-    const worker = new NotificationsSendWorker(prisma.stub as never, mailer);
+    const worker = new NotificationsSendWorker(
+      prisma.stub as never,
+      mailer,
+      makePushSubscriptionsStub() as never,
+      makePushSenderStub() as never,
+    );
     const row = {
       id: 'notif_failed_1',
       userId: 'user_x',
@@ -490,7 +690,12 @@ describe('NotificationsSendWorker.onFailed', () => {
   it('does NOT set failureReason while retries remain', async () => {
     const prisma = makePrismaStub();
     const mailer = makeMailer();
-    const worker = new NotificationsSendWorker(prisma.stub as never, mailer);
+    const worker = new NotificationsSendWorker(
+      prisma.stub as never,
+      mailer,
+      makePushSubscriptionsStub() as never,
+      makePushSenderStub() as never,
+    );
     const row = {
       id: 'notif_pending_retry',
       userId: 'user_x',

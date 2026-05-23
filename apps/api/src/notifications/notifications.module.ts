@@ -6,6 +6,8 @@ import { NotificationsInboxService } from './notifications.inbox.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { NotificationsStuckSweeper } from './notifications.sweeper.js';
 import { NotificationsSendWorker } from './notifications.worker.js';
+import { PushSender } from './push-sender.js';
+import { PushSubscriptionsService } from './push-subscriptions.service.js';
 import { AuditModule } from '../common/audit/audit.module.js';
 import { env } from '../env.js';
 import {
@@ -39,8 +41,10 @@ import {
   providers: [
     NotificationsService,
     NotificationsInboxService,
+    PushSubscriptionsService,
+    PushSender,
     ...(env.API_DISABLE_QUEUES ? [] : [NotificationsSendWorker, NotificationsStuckSweeper]),
   ],
-  exports: [NotificationsService],
+  exports: [NotificationsService, PushSubscriptionsService],
 })
 export class NotificationsModule {}

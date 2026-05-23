@@ -16,20 +16,24 @@ import {
   notificationTopicSchema,
   type GetQuietHoursResponse,
   type ListNotificationPreferencesResponse,
+  type ListPushSubscriptionsResponse,
   type MarkAllReadResponse,
   type Notification,
   type NotificationPreference,
   type NotificationQuietHours,
   type Page,
+  type PushSubscription,
   type UnreadCountResponse,
 } from '@repo/shared';
 
 import {
+  CreatePushSubscriptionDto,
   ListNotificationsQueryDto,
   UpsertNotificationPreferenceDto,
   UpsertQuietHoursDto,
 } from './dto/notifications.dto.js';
 import { NotificationsInboxService } from './notifications.inbox.service.js';
+import { PushSubscriptionsService } from './push-subscriptions.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -47,7 +51,10 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 @ApiBearerAuth()
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly service: NotificationsInboxService) {}
+  constructor(
+    private readonly service: NotificationsInboxService,
+    private readonly push: PushSubscriptionsService,
+  ) {}
 
   @Get()
   @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
@@ -131,5 +138,35 @@ export class NotificationsController {
   @HttpCode(204)
   async clearQuietHours(@CurrentUser() user: AuthenticatedUser): Promise<void> {
     await this.service.clearQuietHours(user.id);
+  }
+
+  // ---- Web push subscriptions (Phase 10.5) ------------------------
+
+  @Get('push-subscriptions')
+  @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
+  listPushSubscriptions(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ListPushSubscriptionsResponse> {
+    return this.push.list(user.id);
+  }
+
+  @Post('push-subscriptions')
+  @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
+  @HttpCode(201)
+  createPushSubscription(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: CreatePushSubscriptionDto,
+  ): Promise<PushSubscription> {
+    return this.push.create(user.id, body);
+  }
+
+  @Delete('push-subscriptions/:id')
+  @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
+  @HttpCode(204)
+  async deletePushSubscription(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<void> {
+    await this.push.deleteByIdForUser(user.id, id);
   }
 }

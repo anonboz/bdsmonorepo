@@ -126,6 +126,11 @@ export const ErrorCodes = {
   MEDIA_NOT_PENDING: 'media.not_pending',
   MEDIA_UPLOAD_NOT_FOUND: 'media.upload_not_found',
   MEDIA_SIZE_MISMATCH: 'media.size_mismatch',
+
+  // ---- push (Phase 10.5) -------------------------------------------
+  PUSH_PROVIDER_DISABLED: 'push.provider_disabled',
+  PUSH_LIMIT_REACHED: 'push.limit_reached',
+  PUSH_SUBSCRIPTION_NOT_FOUND: 'push.not_found',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
