@@ -340,6 +340,38 @@ Acceptance:
 
 ---
 
+### Phase 11 — Localization + Vietnamese-market polish (Week 33–36)
+
+Goal: stop shipping an English-first product to a Vietnamese-first audience.
+The four PWAs render in the user's language (Vietnamese by default, English
+optional), emails + push notifications follow the recipient's preference, and
+OTP delivery picks up an SMS channel for users whose primary contact is a
+phone number. Closes the §8 open decisions on language + OTP transport.
+
+Locale set for v1: **`vi` (default) + `en`**. No additional languages, no RTL,
+no per-property currency switching — the platform stays single-currency
+(VND) per deployment.
+
+1. **i18n infrastructure.** Adopt `next-intl` across the four PWAs. Set up message catalogs under `packages/i18n` (new package) with `en.json` + `vi.json` namespaces per app. Locale routing via the Next.js App Router middleware (`/vi/...`, `/en/...`); auto-detect on first visit from `Accept-Language` + a `locale` cookie. Provide `useTranslations()` + `getTranslations()` wrappers + format helpers in a shared client component file so per-app screens have one import to reach for.
+2. **User-scoped locale persistence.** Add `User.locale` (`'vi' | 'en'`, default `'vi'`). New `PATCH /v1/me` (or extend the existing one) lets the user flip it; pre-auth, the cookie is the source of truth. The Auth flow stamps `User.locale` from the cookie on first signup so a returning user lands in the language they already chose.
+3. **Tenant PWA localization (Vietnamese first).** Extract every user-facing string in `apps/tenant` to message catalogs. Ship Vietnamese as the default; English remains an opt-in via the locale switcher. Highest-traffic surface goes first so we catch translation-quality issues before they cascade.
+4. **Owner + Partner PWA localization.** Same treatment for `apps/owner` + `apps/partner`. Admin stays English-only (internal-facing, smaller surface); a per-app `CLAUDE.md` note documents the carve-out.
+5. **Locale-aware notification templates.** Extend `notifications.templates.ts` to take a `locale` and render the topic in the recipient's language. Touches email subject + body + push payload. PostHog events stay English (keys are stable IDs, not user-facing).
+6. **SMS OTP via a Vietnamese gateway.** Closes §8's OTP-transport decision. Pluggable `SmsProvider` interface; ship one concrete implementation (Speedio or Twilio with a Vietnamese number — pick at slice-start). Auth flow falls back to SMS when the user has a phone but no email; UI surfaces "Send code to phone" as an explicit choice. Rate-limit per-phone like the existing email path.
+7. **Locale-aware money + date helpers.** Replace the per-app `formatMoney` / `formatDateTime` with a shared `@repo/ui` (or new `@repo/i18n`) helper that takes a locale + emits `Intl.NumberFormat({ currency, locale }).format(amount / 100)` for money and `Intl.DateTimeFormat` for dates. One canonical source so a future locale add (or a currency change) doesn't have to chase every PWA.
+
+Acceptance:
+
+- A new tenant signing up from a Vietnamese-locale browser sees the entire signup → first-bill flow in Vietnamese without touching a locale switcher.
+- An owner toggles "English" in their profile; the next page renders in English + the next `bill.issued` email arrives in English.
+- Admin keeps operating in English — the locale carve-out is documented and the admin app is unchanged.
+- A new user signs up via phone (no email), receives the OTP on their phone via the VN SMS gateway, and completes auth.
+- Money amounts render as `1.000.000 ₫` in `vi` and `1,000,000 VND` in `en`. Dates follow each locale's conventions.
+- `pnpm turbo typecheck` / `lint` / `test` clean; per-PWA Playwright happy-path test covers the locale switcher.
+- Out of scope (still): additional languages, RTL layout, per-property currency, voice / phone-call OTP, in-app live translation of user-generated content (ticket bodies, campaign descriptions stay in the language the author wrote them).
+
+---
+
 ## 6. Working rhythm with Claude Code
 
 For every feature:
@@ -383,9 +415,9 @@ A task is done only when **all** are true:
 Track here so we don't re-debate them mid-build:
 
 - [ ] Payment provider for VN market (VNPay vs MoMo vs both). Phase 7.4 starts with VNPay; MoMo as follow-up.
-- [ ] OTP transport provider (Twilio Verify, local SMS gateway, or email-only at start). Phase 8.1 ships email-only via Resend; SMS deferred.
+- [ ] OTP transport provider (Twilio Verify, local SMS gateway, or email-only at start). Phase 8.1 ships email-only via Resend; SMS deferred → **Phase 11.6 picks a VN gateway**.
 - [ ] Single-app vs subdomain-per-role deployment topology.
-- [ ] Default currency, timezone, language (and whether i18n is needed in v1).
+- [ ] Default currency, timezone, language (and whether i18n is needed in v1). Phase 11 commits to **vi default + en optional, VND single-currency**.
 - [ ] Contract e-signature — v1 or v2?
 
 When decided, move the item to an ADR under `docs/adr/`.
