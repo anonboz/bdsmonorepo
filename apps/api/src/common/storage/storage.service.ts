@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -117,6 +118,53 @@ export class StorageService {
       );
       throw err;
     }
+  }
+
+  /**
+   * Fetches the raw bytes for an object. Used by the Phase 10.3
+   * image-processing worker which needs the bytes in memory to
+   * strip EXIF + generate the thumbnail variant. Returns null on
+   * 404 (mirrors `headObject` semantics).
+   */
+  async getObject(input: { bucket: string; key: string }): Promise<Buffer | null> {
+    try {
+      const result = await this.client.send(
+        new GetObjectCommand({ Bucket: input.bucket, Key: input.key }),
+      );
+      if (!result.Body) return null;
+      // @aws-sdk/client-s3 returns a stream-or-blob depending on
+      // runtime; `transformToByteArray` is the cross-runtime helper.
+      const bytes = await result.Body.transformToByteArray();
+      return Buffer.from(bytes);
+    } catch (err) {
+      const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+      if (status === 404) return null;
+      this.logger.warn(
+        `getObject failed for ${input.bucket}/${input.key}: ${(err as Error).message}`,
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * Writes raw bytes to S3 under the given key. Used by Phase 10.3
+   * to land the EXIF-stripped original + the thumbnail variant.
+   * Overwrites by key — re-running an idempotent worker is safe.
+   */
+  async putObject(input: {
+    bucket: string;
+    key: string;
+    body: Buffer;
+    contentType: string;
+  }): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: input.bucket,
+        Key: input.key,
+        Body: input.body,
+        ContentType: input.contentType,
+      }),
+    );
   }
 
   /**

@@ -946,6 +946,22 @@ model MediaAsset {
   /// don't have to re-derive it from bucket + key.
   publicUrl String @db.VarChar(800)
 
+  /// Phase 10.3 — populated by the image-processing worker once a
+  /// 320px JPEG variant is in S3. Null while processing is in flight
+  /// or for rows that pre-date the worker; clients fall back to
+  /// `publicUrl` in that case.
+  thumbnailUrl String? @db.VarChar(800)
+  thumbnailKey String? @db.VarChar(500)
+
+  /// Phase 10.3 — set when processing finishes regardless of
+  /// outcome. Pair with `processingFailureReason` to tell success
+  /// from rejection without joining the audit log.
+  processedAt DateTime?
+
+  /// Phase 10.3 — set on the failure path (oversize bytes after
+  /// EXIF strip, or worker gave up past max attempts).
+  processingFailureReason String? @db.VarChar(2000)
+
   uploadedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -968,6 +984,10 @@ enum MediaStatus {
   UPLOADED
   /// S3 object purged; row kept for audit / link integrity.
   DELETED
+  /// Phase 10.3 — image processor rejected the bytes (exceeded
+  /// MAX_UPLOAD_BYTES after EXIF strip, or processing failed past
+  /// max retries). S3 source is purged; row stays for audit.
+  REJECTED
 }
 
 /// Singleton config row (Phase 9.6). The literal `@default("singleton")`

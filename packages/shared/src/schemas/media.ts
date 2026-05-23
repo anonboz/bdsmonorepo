@@ -19,6 +19,10 @@ export const MediaStatus = {
   PENDING: 'PENDING',
   UPLOADED: 'UPLOADED',
   DELETED: 'DELETED',
+  /** Phase 10.3 — image processor rejected the bytes (exceeded
+   *  MAX_UPLOAD_BYTES after EXIF strip, or processing failed past
+   *  max retries). The S3 source is purged; the row stays for audit. */
+  REJECTED: 'REJECTED',
 } as const;
 export type MediaStatus = (typeof MediaStatus)[keyof typeof MediaStatus];
 export const mediaStatusSchema = z.nativeEnum(MediaStatus);
@@ -64,6 +68,10 @@ export const mediaAssetSchema = z.object({
   contentType: z.string(),
   sizeBytes: z.number().int().nonnegative(),
   publicUrl: z.string().url(),
+  /** Phase 10.3 — set by the image processor once the 320px JPEG
+   *  variant is in S3. Null while in flight or for pre-10.3 rows;
+   *  clients should fall back to `publicUrl` when null. */
+  thumbnailUrl: z.string().url().nullable(),
   filename: z.string(),
   createdAt: isoDateTimeSchema,
   uploadedAt: isoDateTimeSchema.nullable(),
