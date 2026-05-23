@@ -235,6 +235,7 @@ model User {
   notificationPreferences NotificationPreference[]
   notificationQuietHours  NotificationQuietHours?
   pushSubscriptions       PushSubscription[]
+  accountErasureRequest   AccountErasureRequest?
   auditLog                AuditLog[]
   mediaAssets             MediaAsset[]
 
@@ -893,6 +894,29 @@ model NotificationPreference {
   @@index([userId])
 }
 
+/// Phase 10.6 — self-serve account-deletion request. 1:1 with User
+/// (only one pending request at a time). The sweeper picks rows
+/// where `executeAfter <= now AND cancelledAt IS NULL AND
+/// completedAt IS NULL` and runs the same anonymization flow as the
+/// 9.3 admin-erase endpoint.
+model AccountErasureRequest {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  requestedAt  DateTime  @default(now())
+  executeAfter DateTime
+  /// 64-char hex; the public undo endpoint authenticates with this.
+  undoToken String @db.VarChar(128)
+
+  cancelledAt DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([executeAfter, cancelledAt, completedAt])
+}
+
 /// Phase 10.5 — browser PushSubscription rows. One row per
 /// (user, browser endpoint). `web-push` reads `endpoint` + the two
 /// `keys` fields and POSTs the encrypted payload to the push service.
@@ -1073,6 +1097,11 @@ model PlatformConfig {
   /// enforced at the Zod layer (`[0, 5000]` = 0–50%); anything
   /// outside that range almost certainly indicates a mistake.
   commissionBps Int @default(1000)
+
+  /// Phase 10.6 — grace window between a user requesting self-serve
+  /// erasure and the sweeper executing. Days, integer; the Zod layer
+  /// keeps it in `[0, 90]` so a typo can't park accounts indefinitely.
+  accountErasureGraceDays Int @default(7)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

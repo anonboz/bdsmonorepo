@@ -11,6 +11,7 @@ export const QUEUE_PAYOUTS_RELEASE = 'payouts.release-sweep';
 export const QUEUE_NOTIFICATIONS_SEND = 'notifications.send';
 export const QUEUE_NOTIFICATIONS_STUCK_SWEEP = 'notifications.stuck-sweep';
 export const QUEUE_MEDIA_PROCESS = 'media.process';
+export const QUEUE_ACCOUNT_ERASURE_SWEEP = 'account.erasure-sweep';
 
 export const JOB_BILLS_GENERATE = 'generate';
 export const JOB_BILLS_DAILY_SWEEP = 'daily-sweep';
@@ -19,6 +20,7 @@ export const JOB_PAYOUTS_DAILY_RELEASE = 'daily-release';
 export const JOB_NOTIFICATIONS_SEND = 'send';
 export const JOB_NOTIFICATIONS_STUCK_SWEEP = 'stuck-sweep';
 export const JOB_MEDIA_PROCESS = 'process';
+export const JOB_ACCOUNT_ERASURE_SWEEP = 'daily-sweep';
 
 /** Stable job ids for repeating sweeps — lets us safely re-register on
  *  every boot without queueing duplicate schedulers. */
@@ -26,6 +28,7 @@ export const REPEAT_JOB_ID_BILLS_DAILY_SWEEP = 'bills.daily-sweep:singleton';
 export const REPEAT_JOB_ID_CAMPAIGNS_DAILY_EXPIRY = 'campaigns.daily-expiry:singleton';
 export const REPEAT_JOB_ID_PAYOUTS_DAILY_RELEASE = 'payouts.daily-release:singleton';
 export const REPEAT_JOB_ID_NOTIFICATIONS_STUCK_SWEEP = 'notifications.stuck-sweep:singleton';
+export const REPEAT_JOB_ID_ACCOUNT_ERASURE_SWEEP = 'account.erasure-sweep:singleton';
 
 export interface BillsGenerateJobData {
   leaseId: string;

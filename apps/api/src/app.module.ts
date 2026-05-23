@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 
+import { AccountErasureModule } from './account/account-erasure.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { ApplicationsModule } from './applications/applications.module.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -78,6 +79,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     JobRatingsModule,
     WebhooksModule,
     AdminModule,
+    AccountErasureModule,
   ],
 })
 export class AppModule {}

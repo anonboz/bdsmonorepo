@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 
 import { env } from '../env.js';
 import {
+  QUEUE_ACCOUNT_ERASURE_SWEEP,
   QUEUE_BILLS_GENERATE,
   QUEUE_BILLS_SWEEP,
   QUEUE_CAMPAIGNS_EXPIRY,
@@ -43,6 +44,7 @@ import {
       { name: QUEUE_NOTIFICATIONS_SEND },
       { name: QUEUE_NOTIFICATIONS_STUCK_SWEEP },
       { name: QUEUE_MEDIA_PROCESS },
+      { name: QUEUE_ACCOUNT_ERASURE_SWEEP },
     ),
   ],
   exports: [BullModule],

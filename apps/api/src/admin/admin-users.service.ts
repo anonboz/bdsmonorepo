@@ -209,6 +209,16 @@ export class AdminUsersService {
    */
   async erase(id: string, ctx: RequestContext): Promise<AdminUser> {
     this.assertNotSelf(id, ctx);
+    return this.performErasure(id, ctx);
+  }
+
+  /**
+   * Phase 10.6 — body of the erasure flow, shared between the
+   * admin-driven path ({@link erase}) and the self-serve sweeper.
+   * Skips the "cannot act on self" check (callers do that or, for
+   * the sweeper, the user IS the actor by definition).
+   */
+  async performErasure(id: string, ctx: RequestContext): Promise<AdminUser> {
     const current = await this.prisma.user.findUnique({ where: { id } });
     if (!current) throw this.notFound();
     if (current.deletedAt) {

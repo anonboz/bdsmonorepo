@@ -14,6 +14,7 @@ import { AdminUsersController } from './admin-users.controller.js';
 import { AdminUsersService } from './admin-users.service.js';
 import { AuditModule } from '../common/audit/audit.module.js';
 import {
+  QUEUE_ACCOUNT_ERASURE_SWEEP,
   QUEUE_BILLS_GENERATE,
   QUEUE_BILLS_SWEEP,
   QUEUE_CAMPAIGNS_EXPIRY,
@@ -35,6 +36,7 @@ import {
       { name: QUEUE_PAYOUTS_RELEASE },
       { name: QUEUE_NOTIFICATIONS_STUCK_SWEEP },
       { name: QUEUE_MEDIA_PROCESS },
+      { name: QUEUE_ACCOUNT_ERASURE_SWEEP },
     ),
   ],
   controllers: [
@@ -52,5 +54,8 @@ import {
     AdminAuditService,
     AdminMetricsService,
   ],
+  // Phase 10.6 — AccountErasureService re-uses AdminUsersService.performErasure
+  // as the shared anonymization body, so we expose it here.
+  exports: [AdminUsersService],
 })
 export class AdminModule {}

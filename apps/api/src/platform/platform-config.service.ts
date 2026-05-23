@@ -10,6 +10,9 @@ import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
  *  Prisma model and the seed migration. Triple-sourcing the literal
  *  is annoying but keeps each layer self-bootstrapping. */
 const DEFAULT_COMMISSION_BPS = 1000;
+/** Phase 10.6 — default grace window between self-serve erasure
+ *  request and execution. Mirrored in the Prisma model. */
+const DEFAULT_ACCOUNT_ERASURE_GRACE_DAYS = 7;
 
 /**
  * Singleton platform-config row backed by `PlatformConfig` (Phase 9.6).
@@ -37,11 +40,13 @@ export class PlatformConfigService {
       this.logger.warn('PlatformConfig singleton row missing — serving schema defaults');
       return {
         commissionBps: DEFAULT_COMMISSION_BPS,
+        accountErasureGraceDays: DEFAULT_ACCOUNT_ERASURE_GRACE_DAYS,
         updatedAt: new Date().toISOString(),
       };
     }
     return {
       commissionBps: row.commissionBps,
+      accountErasureGraceDays: row.accountErasureGraceDays,
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -56,18 +61,30 @@ export class PlatformConfigService {
       where: { id: 'singleton' },
     });
     const previousBps = previous?.commissionBps ?? DEFAULT_COMMISSION_BPS;
+    const previousGrace = previous?.accountErasureGraceDays ?? DEFAULT_ACCOUNT_ERASURE_GRACE_DAYS;
+    const nextBps = input.commissionBps ?? previousBps;
+    const nextGrace = input.accountErasureGraceDays ?? previousGrace;
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.platformConfig.upsert({
         where: { id: 'singleton' },
-        create: { id: 'singleton', commissionBps: input.commissionBps },
-        update: { commissionBps: input.commissionBps },
+        create: {
+          id: 'singleton',
+          commissionBps: nextBps,
+          accountErasureGraceDays: nextGrace,
+        },
+        update: { commissionBps: nextBps, accountErasureGraceDays: nextGrace },
       });
       await this.audit.write(tx, {
         actorId: ctx.actorId,
         action: 'platform.config.update',
         target: 'PlatformConfig:singleton',
-        meta: { previousBps, nextBps: input.commissionBps },
+        meta: {
+          previousBps,
+          nextBps,
+          previousAccountErasureGraceDays: previousGrace,
+          nextAccountErasureGraceDays: nextGrace,
+        },
         ip: ctx.ip,
         userAgent: ctx.userAgent,
       });
@@ -76,6 +93,7 @@ export class PlatformConfigService {
 
     return {
       commissionBps: updated.commissionBps,
+      accountErasureGraceDays: updated.accountErasureGraceDays,
       updatedAt: updated.updatedAt.toISOString(),
     };
   }

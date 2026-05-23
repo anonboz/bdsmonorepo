@@ -7,6 +7,7 @@ import type { MetricsResponse, QueueDepth } from '@repo/shared';
 import { env } from '../env.js';
 import { isSentryEnabled } from '../observability/sentry.js';
 import {
+  QUEUE_ACCOUNT_ERASURE_SWEEP,
   QUEUE_BILLS_GENERATE,
   QUEUE_BILLS_SWEEP,
   QUEUE_CAMPAIGNS_EXPIRY,
@@ -35,6 +36,7 @@ export class AdminMetricsService {
     @InjectQueue(QUEUE_PAYOUTS_RELEASE) payoutsRelease: Queue,
     @InjectQueue(QUEUE_NOTIFICATIONS_STUCK_SWEEP) notificationsStuck: Queue,
     @InjectQueue(QUEUE_MEDIA_PROCESS) mediaProcess: Queue,
+    @InjectQueue(QUEUE_ACCOUNT_ERASURE_SWEEP) accountErasure: Queue,
   ) {
     this.queues = [
       { name: QUEUE_BILLS_GENERATE, queue: this.billsGenerate },
@@ -43,6 +45,7 @@ export class AdminMetricsService {
       { name: QUEUE_PAYOUTS_RELEASE, queue: payoutsRelease },
       { name: QUEUE_NOTIFICATIONS_STUCK_SWEEP, queue: notificationsStuck },
       { name: QUEUE_MEDIA_PROCESS, queue: mediaProcess },
+      { name: QUEUE_ACCOUNT_ERASURE_SWEEP, queue: accountErasure },
     ];
   }
 

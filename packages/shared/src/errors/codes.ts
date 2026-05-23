@@ -131,6 +131,10 @@ export const ErrorCodes = {
   PUSH_PROVIDER_DISABLED: 'push.provider_disabled',
   PUSH_LIMIT_REACHED: 'push.limit_reached',
   PUSH_SUBSCRIPTION_NOT_FOUND: 'push.not_found',
+
+  // ---- account erasure (Phase 10.6) --------------------------------
+  ACCOUNT_ALREADY_ERASED: 'account.already_erased',
+  ACCOUNT_ERASURE_TOKEN_INVALID: 'account.erasure_token_invalid',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
