@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 
 import { prisma } from '@repo/db';
 
+import { getPostHog } from '../common/analytics/analytics.client.js';
 import { getMailer } from '../common/mailer/mailer.client.js';
 import { renderMagicLinkTemplate, renderOtpTemplate } from '../common/mailer/templates.js';
 import { env } from '../env.js';
@@ -16,7 +17,7 @@ import { env } from '../env.js';
  */
 async function writeAuthAudit(entry: {
   actorId: string | null;
-  action: 'auth.login' | 'auth.logout';
+  action: 'auth.login' | 'auth.logout' | 'user.signup';
   target: string | null;
   meta: Record<string, unknown>;
   ip: string | null;
@@ -110,6 +111,42 @@ export const auth = betterAuth({
             ip: session.ipAddress ?? null,
             userAgent: session.userAgent ?? null,
           });
+        },
+      },
+    },
+    /**
+     * Phase 9.5 — signup funnel inlet. Fires once per new User row,
+     * writes a `user.signup` audit row + a `user.signed_up` PostHog
+     * capture. Both are best-effort; either failing must not block
+     * the signup flow.
+     *
+     * `via` is hardcoded to `'email'` in v1 because both our auth
+     * plugins (emailOTP, magicLink) are email-based; the hook's
+     * `user` arg doesn't include the originating plugin. Refine to
+     * `email_otp` / `magic_link` / `oauth` / etc. when a non-email
+     * path lands.
+     */
+    user: {
+      create: {
+        after: async (user) => {
+          await writeAuthAudit({
+            actorId: user.id,
+            action: 'user.signup',
+            target: `User:${user.id}`,
+            meta: { via: 'email' },
+            ip: null,
+            userAgent: null,
+          });
+          try {
+            getPostHog()?.capture({
+              distinctId: user.id,
+              event: 'user.signed_up',
+              properties: { via: 'email' },
+            });
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.warn('[auth] posthog user.signed_up capture failed', err);
+          }
         },
       },
     },

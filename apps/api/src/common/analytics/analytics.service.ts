@@ -3,6 +3,7 @@ import { PostHog } from 'posthog-node';
 
 import type { Role } from '@repo/shared';
 
+import { getPostHog } from './analytics.client.js';
 import { env } from '../../env.js';
 
 export interface CaptureInput {
@@ -52,13 +53,10 @@ export class AnalyticsService implements OnModuleDestroy {
   private getClient(): PostHog | null {
     if (this.initialized) return this.client;
     this.initialized = true;
-    if (!env.POSTHOG_KEY) return null;
-    this.client = new PostHog(env.POSTHOG_KEY, {
-      host: env.POSTHOG_HOST,
-      // Conservative defaults — batch up to 20 events or 10s.
-      flushAt: 20,
-      flushInterval: 10_000,
-    });
+    // Delegate to the module-level singleton so the better-auth
+    // hook (which runs outside Nest DI) and the service share one
+    // PostHog instance.
+    this.client = getPostHog();
     return this.client;
   }
 
