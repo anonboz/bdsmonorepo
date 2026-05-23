@@ -3,10 +3,29 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import type { ServiceJob } from '@repo/shared';
-import { Alert, AlertDescription, AlertTitle, Button, Input, Spinner } from '@repo/ui';
+import type { CreateMediaUploadResponse, MediaAsset, ServiceJob } from '@repo/shared';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Input,
+  MediaUploader,
+  Spinner,
+} from '@repo/ui';
 
 import { ApiError, api } from '../../../../lib/api';
+
+/** Concrete uploader-client bound to this app's typed api wrapper. */
+const uploaderClient = {
+  createUpload: (body: {
+    purpose: 'CAMPAIGN_PHOTO' | 'JOB_PROOF';
+    filename: string;
+    contentType: string;
+    sizeBytes: number;
+  }) => api.post<CreateMediaUploadResponse>('/v1/media/uploads', body),
+  confirmUpload: (assetId: string) => api.post<MediaAsset>(`/v1/media/uploads/${assetId}/confirm`),
+};
 
 type Action = 'quote' | 'start' | 'complete' | 'cancel';
 
@@ -21,7 +40,8 @@ export function JobActions({ job }: { job: ServiceJob }) {
   const [error, setError] = useState<string | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [currency, setCurrency] = useState<string>('VND');
-  const [proofUrls, setProofUrls] = useState<string>('');
+  const [proofUrls, setProofUrls] = useState<string[]>([]);
+  const [uploaderBusy, setUploaderBusy] = useState(false);
 
   async function call(action: Action, body?: Record<string, unknown>): Promise<void> {
     setBusy(action);
@@ -46,11 +66,7 @@ export function JobActions({ job }: { job: ServiceJob }) {
   }
 
   async function complete(): Promise<void> {
-    const photos = proofUrls
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    await call('complete', photos.length > 0 ? { proofPhotos: photos } : {});
+    await call('complete', proofUrls.length > 0 ? { proofPhotos: proofUrls } : {});
   }
 
   async function cancel(): Promise<void> {
@@ -110,12 +126,17 @@ export function JobActions({ job }: { job: ServiceJob }) {
       {job.status === 'IN_PROGRESS' && (
         <div className="space-y-2">
           <p className="text-sm font-semibold">Mark complete</p>
-          <Input
-            value={proofUrls}
-            onChange={(e) => setProofUrls(e.target.value)}
-            placeholder="Optional comma-separated photo URLs"
+          <p className="text-xs text-muted-foreground">
+            Optional proof photos (up to 10). Uploaded directly to our storage.
+          </p>
+          <MediaUploader
+            purpose="JOB_PROOF"
+            maxFiles={10}
+            onChange={setProofUrls}
+            onBusyChange={setUploaderBusy}
+            apiClient={uploaderClient}
           />
-          <Button onClick={complete} disabled={busy != null}>
+          <Button onClick={complete} disabled={busy != null || uploaderBusy}>
             {busy === 'complete' && <Spinner />}
             Mark complete
           </Button>

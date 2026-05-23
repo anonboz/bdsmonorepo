@@ -10,3 +10,4 @@ export * from './components/spinner';
 export * from './components/form-field';
 export * from './components/notification-bell';
 export * from './components/notification-inbox';
+export * from './components/media-uploader';

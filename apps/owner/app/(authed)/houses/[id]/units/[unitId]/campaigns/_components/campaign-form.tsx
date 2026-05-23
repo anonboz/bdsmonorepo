@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { type Campaign, createCampaignSchema } from '@repo/shared';
+import type { Campaign, CreateMediaUploadResponse, MediaAsset } from '@repo/shared';
+import { createCampaignSchema } from '@repo/shared';
 import {
   Alert,
   AlertDescription,
@@ -13,18 +14,29 @@ import {
   Button,
   FormField,
   Input,
+  MediaUploader,
   Spinner,
   Textarea,
 } from '@repo/ui';
 
 import { ApiError, api } from '../../../../../../../../lib/api';
 
+/** Concrete uploader-client bound to this app's typed api wrapper. */
+const uploaderClient = {
+  createUpload: (body: {
+    purpose: 'CAMPAIGN_PHOTO' | 'JOB_PROOF';
+    filename: string;
+    contentType: string;
+    sizeBytes: number;
+  }) => api.post<CreateMediaUploadResponse>('/v1/media/uploads', body),
+  confirmUpload: (assetId: string) => api.post<MediaAsset>(`/v1/media/uploads/${assetId}/confirm`),
+};
+
 interface FormValues {
   title: string;
   body: string;
   price: number;
   currency: string;
-  photos: string;
 }
 
 /**
@@ -45,25 +57,21 @@ export function CampaignForm({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>(initial?.photos ?? []);
+  const [uploaderBusy, setUploaderBusy] = useState(false);
 
   const form = useForm<FormValues>({
-    // Reuse the input schema for client-side hints but transform photos at submit.
     resolver: zodResolver(createCampaignSchema.omit({ photos: true, expiresAt: true })),
     defaultValues: {
       title: initial?.title ?? '',
       body: initial?.body ?? '',
       price: initial?.price ?? 0,
       currency: initial?.currency ?? 'VND',
-      photos: initial?.photos.join(', ') ?? '',
     },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
     setError(null);
-    const photos = values.photos
-      .split(',')
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0);
 
     const payload = {
       title: values.title,
@@ -138,20 +146,24 @@ export function CampaignForm({
       </div>
 
       <FormField
-        label="Photo URLs"
-        htmlFor="photos"
-        description="Comma-separated list. Upload widget lands later."
+        label="Photos"
+        htmlFor="campaign-photos"
+        description="Up to 20 images. Uploaded directly to our storage."
       >
-        <Textarea
-          id="photos"
-          rows={2}
-          {...form.register('photos')}
-          placeholder="https://…/p1.jpg, https://…/p2.jpg"
-        />
+        <div id="campaign-photos">
+          <MediaUploader
+            purpose="CAMPAIGN_PHOTO"
+            initial={photos}
+            maxFiles={20}
+            onChange={setPhotos}
+            onBusyChange={setUploaderBusy}
+            apiClient={uploaderClient}
+          />
+        </div>
       </FormField>
 
       <div className="flex gap-3">
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" disabled={form.formState.isSubmitting || uploaderBusy}>
           {form.formState.isSubmitting && <Spinner />}
           {mode === 'create' ? 'Create draft' : 'Save changes'}
         </Button>
