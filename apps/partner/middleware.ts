@@ -1,13 +1,16 @@
+import { localeMiddleware } from '@repo/i18n';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * Lightweight middleware: forwards everything as-is. Real auth gating happens
  * in `app/layout.tsx` server component, where we can hit `/v1/me` and read
  * roles. Middleware here only excludes asset/PWA paths from any future
- * processing and adds a trace id so the API can correlate logs.
+ * processing, adds a trace id, and stamps the Phase 11.1 locale cookie on
+ * first visit.
  */
 export function middleware(req: NextRequest) {
   const res = NextResponse.next();
+  localeMiddleware(req, res);
   const traceId =
     req.headers.get('x-trace-id') ??
     (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : '');

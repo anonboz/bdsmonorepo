@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from 'next';
+import { getLocale, getMessages } from 'next-intl/server';
+
+import { I18nProvider, type Locale } from '@repo/i18n';
 
 import { APP_NAME } from '../lib/app-config';
 import { ServiceWorkerRegister } from './_components/sw-register';
@@ -18,12 +21,19 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Admin's user-facing strings stay English-only (see apps/admin/CLAUDE.md);
+  // the locale wiring is still in place so a future localization is a config
+  // flip rather than a re-plumbing.
+  const locale = (await getLocale()) as Locale;
+  const messages = await getMessages();
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body className="min-h-dvh bg-background text-foreground antialiased">
         <ServiceWorkerRegister />
-        {children}
+        <I18nProvider locale={locale} messages={messages}>
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

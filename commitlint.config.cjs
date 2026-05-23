@@ -37,6 +37,7 @@ module.exports = {
         'repo',
         'ci',
         'deps',
+        'i18n',
       ],
     ],
     'subject-case': [2, 'never', ['upper-case', 'pascal-case', 'start-case']],

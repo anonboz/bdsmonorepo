@@ -1,0 +1,15 @@
+{
+  "appName": {
+    "tenant": "BDS Người thuê",
+    "owner": "BDS Chủ nhà",
+    "partner": "BDS Đối tác",
+    "admin": "BDS Quản trị"
+  },
+  "localeSwitcher": {
+    "label": "Ngôn ngữ",
+    "locales": {
+      "vi": "Tiếng Việt",
+      "en": "English"
+    }
+  }
+}
