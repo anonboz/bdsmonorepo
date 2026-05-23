@@ -6,6 +6,11 @@ and how to do the common ops things without paging the team.
 If you got here from a page, jump to **§1 Incident response**
 first, then back to the relevant triage flowchart in §2.
 
+For first-prod cutovers + post-cutover monitoring, see
+[`docs/runbook/go-live.md`](./runbook/go-live.md). The cutover
+runbook is intentionally separate so it can be followed at 2am
+without scrolling past steady-state ops content.
+
 ---
 
 ## 0. Read this when paged
