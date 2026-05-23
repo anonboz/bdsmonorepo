@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import type { AdminUser, KycStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { BillsCard, PaymentsCard, TicketsCard } from './_components/support-lists';
 import { EraseActions } from './erase-actions';
 import { KycActions } from './kyc-actions';
 import { SuspendActions } from './suspend-actions';
@@ -109,6 +110,12 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           </CardDescription>
         </CardHeader>
       </Card>
+
+      {/* Phase 10.7 — read-only support views. No actions live here;
+          support uses the canonical mutating endpoints when they need to. */}
+      <TicketsCard userId={user.id} />
+      <BillsCard userId={user.id} />
+      <PaymentsCard userId={user.id} />
 
       {!isSelf && (
         <Card className="border-destructive/40">

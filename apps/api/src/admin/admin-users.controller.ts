@@ -2,11 +2,19 @@ import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestj
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
 
-import type { AdminNotificationStateResponse, AdminUser, Page } from '@repo/shared';
+import type {
+  AdminNotificationStateResponse,
+  AdminUser,
+  Bill,
+  Page,
+  Payment,
+  Ticket,
+} from '@repo/shared';
 
 import { AdminUsersService, type RequestContext } from './admin-users.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import {
+  AdminUserListQueryDto,
   KycDecisionDto,
   ListAdminUsersQueryDto,
   SuspendUserDto,
@@ -42,6 +50,32 @@ export class AdminUsersController {
   @Roles('ADMIN')
   getNotificationState(@Param('id') id: string): Promise<AdminNotificationStateResponse> {
     return this.service.getNotificationState(id);
+  }
+
+  // ---- Phase 10.7 — read-only support views ----------------------
+
+  @Get(':id/tickets')
+  @Roles('ADMIN')
+  listTickets(
+    @Param('id') id: string,
+    @Query() query: AdminUserListQueryDto,
+  ): Promise<Page<Ticket>> {
+    return this.service.listTicketsForUser(id, query);
+  }
+
+  @Get(':id/bills')
+  @Roles('ADMIN')
+  listBills(@Param('id') id: string, @Query() query: AdminUserListQueryDto): Promise<Page<Bill>> {
+    return this.service.listBillsForUser(id, query);
+  }
+
+  @Get(':id/payments')
+  @Roles('ADMIN')
+  listPayments(
+    @Param('id') id: string,
+    @Query() query: AdminUserListQueryDto,
+  ): Promise<Page<Payment>> {
+    return this.service.listPaymentsForUser(id, query);
   }
 
   @Post(':id/suspend')

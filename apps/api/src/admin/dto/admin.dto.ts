@@ -3,6 +3,7 @@ import {
   kycDecisionSchema,
   listAdminUsersQuerySchema,
   listAuditLogQuerySchema,
+  paginationQuerySchema,
   suspendUserSchema,
   unsuspendUserSchema,
   type adminUserSchema,
@@ -24,6 +25,10 @@ export type KycDecisionDto = typeof kycDecisionSchema._type;
 
 export const ListAuditLogQueryDto = createZodDto(listAuditLogQuerySchema);
 export type ListAuditLogQueryDto = typeof listAuditLogQuerySchema._type;
+
+/** Phase 10.7 — shared pagination DTO for the read-only user views. */
+export const AdminUserListQueryDto = createZodDto(paginationQuerySchema);
+export type AdminUserListQueryDto = typeof paginationQuerySchema._type;
 
 export type AdminUserResponse = typeof adminUserSchema._type;
 export type AuditLogEntryResponse = typeof auditLogEntrySchema._type;

@@ -121,8 +121,175 @@ function makePrismaStub(opts: {
       Promise.resolve(quietHours.find((q) => q.userId === where.userId) ?? null),
     ),
   };
+
+  // Phase 10.7 — minimal stubs for the three read-only support views.
+  const tickets: TicketSeed[] = [];
+  stub.ticket = {
+    findMany: vi.fn(
+      ({
+        where,
+        take,
+        cursor,
+        skip,
+      }: {
+        where: { OR?: { reporterId?: string; assigneeId?: string }[]; deletedAt: null };
+        take: number;
+        cursor?: { id: string };
+        skip?: number;
+      }) => {
+        let filtered = tickets.filter((t) => {
+          if (t.deletedAt) return false;
+          const ors = where.OR ?? [];
+          return ors.some(
+            (o) =>
+              (o.reporterId !== undefined && o.reporterId === t.reporterId) ||
+              (o.assigneeId !== undefined && o.assigneeId === t.assigneeId),
+          );
+        });
+        if (cursor) {
+          const idx = filtered.findIndex((t) => t.id === cursor.id);
+          if (idx >= 0) filtered = filtered.slice(idx + (skip ?? 0));
+        }
+        return Promise.resolve(filtered.slice(0, take));
+      },
+    ),
+  };
+  const bills: BillSeed[] = [];
+  stub.bill = {
+    findMany: vi.fn(
+      ({
+        where,
+        take,
+        cursor,
+        skip,
+      }: {
+        where: { lease: { OR: { tenantId?: string; ownerId?: string }[] } };
+        take: number;
+        cursor?: { id: string };
+        skip?: number;
+      }) => {
+        const ors = where.lease.OR;
+        let filtered = bills.filter((b) =>
+          ors.some(
+            (o) =>
+              (o.tenantId !== undefined && o.tenantId === b._tenantId) ||
+              (o.ownerId !== undefined && o.ownerId === b._ownerId),
+          ),
+        );
+        if (cursor) {
+          const idx = filtered.findIndex((b) => b.id === cursor.id);
+          if (idx >= 0) filtered = filtered.slice(idx + (skip ?? 0));
+        }
+        return Promise.resolve(filtered.slice(0, take));
+      },
+    ),
+  };
+  const payments: PaymentSeed[] = [];
+  stub.payment = {
+    findMany: vi.fn(
+      ({
+        where,
+        take,
+        cursor,
+        skip,
+      }: {
+        where: { bill: { lease: { OR: { tenantId?: string; ownerId?: string }[] } } };
+        take: number;
+        cursor?: { id: string };
+        skip?: number;
+      }) => {
+        const ors = where.bill.lease.OR;
+        let filtered = payments.filter((p) =>
+          ors.some(
+            (o) =>
+              (o.tenantId !== undefined && o.tenantId === p._tenantId) ||
+              (o.ownerId !== undefined && o.ownerId === p._ownerId),
+          ),
+        );
+        if (cursor) {
+          const idx = filtered.findIndex((p) => p.id === cursor.id);
+          if (idx >= 0) filtered = filtered.slice(idx + (skip ?? 0));
+        }
+        return Promise.resolve(filtered.slice(0, take));
+      },
+    ),
+  };
+
   stub.$transaction = vi.fn(<T>(fn: (tx: unknown) => Promise<T>) => fn(stub));
-  return { stub, users, mediaAssets, auditRows, notificationPrefs, quietHours };
+  return {
+    stub,
+    users,
+    mediaAssets,
+    auditRows,
+    notificationPrefs,
+    quietHours,
+    tickets,
+    bills,
+    payments,
+  };
+}
+
+interface TicketSeed {
+  id: string;
+  leaseId: string;
+  lease: { unitId: string; unit: { houseId: string } };
+  reporterId: string;
+  reporter: { displayName: string };
+  assigneeId: string | null;
+  category: 'REPAIR' | 'REPORT' | 'COMPLAINT' | 'REQUEST' | 'OTHER';
+  status: 'OPEN' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'REOPENED';
+  title: string;
+  body: string;
+  resolvedAt: Date | null;
+  closedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+}
+
+interface BillSeed {
+  id: string;
+  leaseId: string;
+  _tenantId: string;
+  _ownerId: string;
+  periodStart: Date;
+  periodEnd: Date;
+  dueDate: Date;
+  issuedAt: Date | null;
+  status: 'DRAFT' | 'ISSUED' | 'PAID' | 'OVERDUE' | 'VOID' | 'PARTIALLY_PAID';
+  subtotal: number;
+  total: number;
+  currency: string;
+  lines: {
+    id: string;
+    billId: string;
+    kind: 'RENT' | 'DEPOSIT' | 'OTHER' | 'LATE_FEE' | 'ADJUSTMENT' | 'SERVICE_FEE';
+    label: string;
+    amount: number;
+    quantity: number;
+    createdAt: Date;
+  }[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface PaymentSeed {
+  id: string;
+  billId: string;
+  _tenantId: string;
+  _ownerId: string;
+  amount: number;
+  currency: string;
+  status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
+  provider: 'STRIPE' | 'VNPAY' | 'MANUAL' | 'MOMO';
+  providerRef: string | null;
+  providerCaptureRef: string | null;
+  note: string | null;
+  receivedAt: Date | null;
+  failureReason: string | null;
+  refundOfPaymentId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const ctx = { actorId: 'admin_1', ip: '127.0.0.1', userAgent: 'curl/test' };
@@ -359,4 +526,123 @@ describe('AdminUsersService', () => {
   it('getNotificationState 404 on unknown / erased target', async () => {
     await expect(service.getNotificationState('not_a_user')).rejects.toBeInstanceOf(ProblemError);
   });
+
+  // ---- Phase 10.7 — read-only support views ---------------------
+
+  it('listTicketsForUser includes reporter + assignee rows', async () => {
+    stub.tickets.push(
+      makeTicket('t_a', { reporterId: targetId }),
+      makeTicket('t_b', { assigneeId: targetId, reporterId: 'other' }),
+      makeTicket('t_c', { reporterId: 'other', assigneeId: 'other' }),
+    );
+    const res = await service.listTicketsForUser(targetId, { limit: 20, sort: 'desc' });
+    expect(res.items.map((t) => t.id).sort()).toEqual(['t_a', 't_b']);
+    expect(res.nextCursor).toBeNull();
+  });
+
+  it('listTicketsForUser 404 for an unknown user', async () => {
+    await expect(
+      service.listTicketsForUser('not_a_user', { limit: 20, sort: 'desc' }),
+    ).rejects.toBeInstanceOf(ProblemError);
+  });
+
+  it('listTicketsForUser paginates with nextCursor when more rows are available', async () => {
+    for (let i = 0; i < 25; i++) {
+      stub.tickets.push(makeTicket(`t_${i}`, { reporterId: targetId }));
+    }
+    const res = await service.listTicketsForUser(targetId, { limit: 20, sort: 'desc' });
+    expect(res.items).toHaveLength(20);
+    expect(res.nextCursor).toBe('t_19');
+  });
+
+  it('listBillsForUser includes tenant-side + owner-side rows', async () => {
+    stub.bills.push(
+      makeBill('b_t', { tenantId: targetId, ownerId: 'other' }),
+      makeBill('b_o', { tenantId: 'other', ownerId: targetId }),
+      makeBill('b_n', { tenantId: 'other', ownerId: 'other' }),
+    );
+    const res = await service.listBillsForUser(targetId, { limit: 20, sort: 'desc' });
+    expect(res.items.map((b) => b.id).sort()).toEqual(['b_o', 'b_t']);
+  });
+
+  it('listPaymentsForUser surfaces refunds alongside their original charge', async () => {
+    stub.payments.push(
+      makePayment('p_charge', { tenantId: targetId, amount: 1000, refundOf: null }),
+      makePayment('p_refund', {
+        tenantId: targetId,
+        amount: -1000,
+        refundOf: 'p_charge',
+      }),
+      makePayment('p_other', { tenantId: 'other', amount: 500, refundOf: null }),
+    );
+    const res = await service.listPaymentsForUser(targetId, { limit: 20, sort: 'desc' });
+    expect(res.items.map((p) => p.id).sort()).toEqual(['p_charge', 'p_refund']);
+    const refund = res.items.find((p) => p.id === 'p_refund');
+    expect(refund?.refundOfPaymentId).toBe('p_charge');
+    expect(refund?.amount).toBe(-1000);
+  });
 });
+
+function makeTicket(id: string, opts: Partial<TicketSeed>): TicketSeed {
+  return {
+    id,
+    leaseId: opts.leaseId ?? 'lease_1',
+    lease: { unitId: 'unit_1', unit: { houseId: 'house_1' } },
+    reporterId: opts.reporterId ?? 'someone',
+    reporter: { displayName: 'Test' },
+    assigneeId: opts.assigneeId ?? null,
+    category: opts.category ?? 'REPAIR',
+    status: opts.status ?? 'OPEN',
+    title: opts.title ?? 'Title',
+    body: opts.body ?? 'Body',
+    resolvedAt: null,
+    closedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  };
+}
+
+function makeBill(id: string, opts: { tenantId: string; ownerId: string }): BillSeed {
+  return {
+    id,
+    leaseId: `lease_${id}`,
+    _tenantId: opts.tenantId,
+    _ownerId: opts.ownerId,
+    periodStart: new Date('2026-05-01'),
+    periodEnd: new Date('2026-05-31'),
+    dueDate: new Date('2026-05-15'),
+    issuedAt: null,
+    status: 'ISSUED',
+    subtotal: 1_000_000,
+    total: 1_000_000,
+    currency: 'VND',
+    lines: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function makePayment(
+  id: string,
+  opts: { tenantId: string; amount: number; refundOf: string | null },
+): PaymentSeed {
+  return {
+    id,
+    billId: 'bill_1',
+    _tenantId: opts.tenantId,
+    _ownerId: 'someone',
+    amount: opts.amount,
+    currency: 'VND',
+    status: 'SUCCEEDED',
+    provider: 'MANUAL',
+    providerRef: null,
+    providerCaptureRef: null,
+    note: null,
+    receivedAt: null,
+    failureReason: null,
+    refundOfPaymentId: opts.refundOf,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}

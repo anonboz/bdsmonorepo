@@ -5,8 +5,12 @@ import {
   ErrorCodes,
   type AdminNotificationStateResponse,
   type AdminUser,
+  type Bill,
   type NotificationPreference,
   type Page,
+  type PaginationQuery,
+  type Payment,
+  type Ticket,
 } from '@repo/shared';
 
 import type {
@@ -114,6 +118,101 @@ export class AdminUsersService {
       quietHours: quiet
         ? { startUtcMinute: quiet.startUtcMinute, endUtcMinute: quiet.endUtcMinute }
         : null,
+    };
+  }
+
+  // ---- Phase 10.7 — read-only support views -----------------------
+
+  /**
+   * Tickets where the target user is reporter or assignee. Cursor-
+   * paginated; same `{ items, nextCursor }` shape as the user's own
+   * list endpoints, so support sees a consistent view.
+   *
+   * 404 when the user is missing or soft-deleted (mirrors `getById`).
+   */
+  async listTicketsForUser(id: string, query: PaginationQuery): Promise<Page<Ticket>> {
+    await this.loadOrFail(id);
+    const where: Prisma.TicketWhereInput = {
+      OR: [{ reporterId: id }, { assigneeId: id }],
+      deletedAt: null,
+    };
+    const findArgs: Prisma.TicketFindManyArgs = {
+      where,
+      orderBy: [{ createdAt: query.sort }, { id: query.sort }],
+      take: query.limit + 1,
+      include: {
+        lease: { select: { unitId: true, unit: { select: { houseId: true } } } },
+        reporter: { select: { displayName: true } },
+      },
+    };
+    if (query.cursor) {
+      findArgs.cursor = { id: query.cursor };
+      findArgs.skip = 1;
+    }
+    const rows = await this.prisma.ticket.findMany(findArgs);
+    const hasMore = rows.length > query.limit;
+    const items = (hasMore ? rows.slice(0, query.limit) : rows) as TicketWithRelations[];
+    return {
+      items: items.map((r) => toTicketResponse(r)),
+      nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null,
+    };
+  }
+
+  /**
+   * Bills where the target user is the lease's tenant OR owner.
+   * Captures both sides of the billing relationship — a tenant sees
+   * what they pay, an owner sees what they're owed.
+   */
+  async listBillsForUser(id: string, query: PaginationQuery): Promise<Page<Bill>> {
+    await this.loadOrFail(id);
+    const where: Prisma.BillWhereInput = {
+      lease: { OR: [{ tenantId: id }, { ownerId: id }] },
+    };
+    const findArgs: Prisma.BillFindManyArgs = {
+      where,
+      orderBy: [{ createdAt: query.sort }, { id: query.sort }],
+      take: query.limit + 1,
+      include: { lines: true },
+    };
+    if (query.cursor) {
+      findArgs.cursor = { id: query.cursor };
+      findArgs.skip = 1;
+    }
+    const rows = await this.prisma.bill.findMany(findArgs);
+    const hasMore = rows.length > query.limit;
+    const items = (hasMore ? rows.slice(0, query.limit) : rows) as BillWithLines[];
+    return {
+      items: items.map((r) => toBillResponse(r)),
+      nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null,
+    };
+  }
+
+  /**
+   * Payments on bills under leases where the target user is tenant
+   * OR owner. Includes refund rows alongside the charges they
+   * reverse — `refundOfPaymentId` is set on refunds, so the UI can
+   * group if it wants.
+   */
+  async listPaymentsForUser(id: string, query: PaginationQuery): Promise<Page<Payment>> {
+    await this.loadOrFail(id);
+    const where: Prisma.PaymentWhereInput = {
+      bill: { lease: { OR: [{ tenantId: id }, { ownerId: id }] } },
+    };
+    const findArgs: Prisma.PaymentFindManyArgs = {
+      where,
+      orderBy: [{ createdAt: query.sort }, { id: query.sort }],
+      take: query.limit + 1,
+    };
+    if (query.cursor) {
+      findArgs.cursor = { id: query.cursor };
+      findArgs.skip = 1;
+    }
+    const rows = await this.prisma.payment.findMany(findArgs);
+    const hasMore = rows.length > query.limit;
+    const items = hasMore ? rows.slice(0, query.limit) : rows;
+    return {
+      items: items.map((r) => toPaymentResponse(r)),
+      nextCursor: hasMore ? (items.at(-1)?.id ?? null) : null,
     };
   }
 
@@ -361,6 +460,83 @@ export class AdminUsersService {
       deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
     };
   }
+}
+
+// ---- Phase 10.7 — row shapes + response helpers --------------------
+
+type TicketWithRelations = Prisma.TicketGetPayload<{
+  include: {
+    lease: { select: { unitId: true; unit: { select: { houseId: true } } } };
+    reporter: { select: { displayName: true } };
+  };
+}>;
+
+type BillWithLines = Prisma.BillGetPayload<{ include: { lines: true } }>;
+type PaymentRow = Prisma.PaymentGetPayload<Record<string, never>>;
+
+function toTicketResponse(row: TicketWithRelations): Ticket {
+  return {
+    id: row.id,
+    leaseId: row.leaseId,
+    unitId: row.lease.unitId,
+    houseId: row.lease.unit.houseId,
+    reporterId: row.reporterId,
+    reporterName: row.reporter.displayName,
+    assigneeId: row.assigneeId,
+    category: row.category,
+    status: row.status,
+    title: row.title,
+    body: row.body,
+    resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
+    closedAt: row.closedAt ? row.closedAt.toISOString() : null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function toBillResponse(row: BillWithLines): Bill {
+  return {
+    id: row.id,
+    leaseId: row.leaseId,
+    periodStart: row.periodStart.toISOString().slice(0, 10),
+    periodEnd: row.periodEnd.toISOString().slice(0, 10),
+    dueDate: row.dueDate.toISOString().slice(0, 10),
+    issuedAt: row.issuedAt ? row.issuedAt.toISOString() : null,
+    status: row.status,
+    subtotal: row.subtotal,
+    total: row.total,
+    currency: row.currency,
+    lines: row.lines.map((l) => ({
+      id: l.id,
+      billId: l.billId,
+      kind: l.kind,
+      label: l.label,
+      amount: l.amount,
+      quantity: l.quantity,
+      createdAt: l.createdAt.toISOString(),
+    })),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function toPaymentResponse(row: PaymentRow): Payment {
+  return {
+    id: row.id,
+    billId: row.billId,
+    amount: row.amount,
+    currency: row.currency,
+    status: row.status,
+    provider: row.provider,
+    providerRef: row.providerRef,
+    providerCaptureRef: row.providerCaptureRef,
+    note: row.note,
+    receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null,
+    failureReason: row.failureReason,
+    refundOfPaymentId: row.refundOfPaymentId,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
 }
 
 // ---- KYC mapping ------------------------------------------------------
