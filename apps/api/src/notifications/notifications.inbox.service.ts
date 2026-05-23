@@ -3,8 +3,11 @@ import { Prisma } from '@prisma/client';
 
 import {
   ErrorCodes,
+  NotificationTopic,
+  type ListNotificationPreferencesResponse,
   type MarkAllReadResponse,
   type Notification,
+  type NotificationPreference,
   type Page,
   type UnreadCountResponse,
 } from '@repo/shared';
@@ -82,6 +85,52 @@ export class NotificationsInboxService {
   async unreadCount(userId: string): Promise<UnreadCountResponse> {
     const unread = await this.prisma.notification.count({ where: { userId, readAt: null } });
     return { unread };
+  }
+
+  // ---- Preferences (Phase 9.4) ------------------------------------
+
+  /**
+   * Returns the full topic taxonomy with the caller's current mute
+   * state. Topics without an explicit row default to `muted: false`.
+   */
+  async listPreferences(userId: string): Promise<ListNotificationPreferencesResponse> {
+    const rows = await this.prisma.notificationPreference.findMany({
+      where: { userId },
+      select: { topic: true, muted: true },
+    });
+    const muted = new Map(rows.map((r) => [r.topic, r.muted]));
+    const preferences: NotificationPreference[] = Object.values(NotificationTopic).map((topic) => ({
+      topic,
+      muted: muted.get(topic) ?? false,
+    }));
+    return { preferences };
+  }
+
+  /**
+   * Upserts a preference. `muted: true` creates / sets the row;
+   * `muted: false` deletes any existing row (the default behaviour is
+   * the absence of a row).
+   *
+   * Returns the resulting `{ topic, muted }` shape so the client can
+   * update its UI without re-fetching the full list.
+   */
+  async upsertPreference(
+    userId: string,
+    topic: NotificationPreference['topic'],
+    muted: boolean,
+  ): Promise<NotificationPreference> {
+    if (muted) {
+      await this.prisma.notificationPreference.upsert({
+        where: { userId_topic: { userId, topic } },
+        create: { userId, topic, muted: true },
+        update: { muted: true },
+      });
+      return { topic, muted: true };
+    }
+    // Unmute = delete the row. `deleteMany` is idempotent (count:0
+    // when nothing matched) so a noop re-unmute doesn't 404.
+    await this.prisma.notificationPreference.deleteMany({ where: { userId, topic } });
+    return { topic, muted: false };
   }
 
   private notFound(): ProblemError {

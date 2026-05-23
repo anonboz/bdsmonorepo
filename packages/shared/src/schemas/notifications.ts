@@ -63,3 +63,29 @@ export const markAllReadResponseSchema = z.object({
   updated: z.number().int().nonnegative(),
 });
 export type MarkAllReadResponse = z.infer<typeof markAllReadResponseSchema>;
+
+// ---- Preferences (Phase 9.4) ----------------------------------------
+
+/**
+ * Per-`(userId, topic)` opt-out toggle. The dispatch gate consults
+ * this; `muted = true` skips both the Notification row and the email.
+ */
+export const notificationPreferenceSchema = z.object({
+  topic: notificationTopicSchema,
+  muted: z.boolean(),
+});
+export type NotificationPreference = z.infer<typeof notificationPreferenceSchema>;
+
+export const listNotificationPreferencesResponseSchema = z.object({
+  /** Every topic from the canonical taxonomy with the caller's
+   *  current state. Missing rows default to `muted: false`. */
+  preferences: z.array(notificationPreferenceSchema),
+});
+export type ListNotificationPreferencesResponse = z.infer<
+  typeof listNotificationPreferencesResponseSchema
+>;
+
+export const upsertNotificationPreferenceSchema = z.object({
+  muted: z.boolean(),
+});
+export type UpsertNotificationPreferenceInput = z.infer<typeof upsertNotificationPreferenceSchema>;

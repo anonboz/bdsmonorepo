@@ -43,11 +43,25 @@ export class NotificationsService {
    * caller is responsible for invoking the returned enqueue function
    * AFTER the tx commits — see the §5 dispatch flow in
    * docs/specs/phase8-notification-fanout.md.
+   *
+   * Phase 9.4: when the recipient has muted this topic via
+   * `NotificationPreference`, this is a no-op — no row, no enqueue.
+   * Callers don't have to branch; the returned `enqueue` is just a
+   * cheap async no-op in that case.
    */
   async dispatch(
     tx: Prisma.TransactionClient,
     input: DispatchInput,
-  ): Promise<{ id: string; enqueue: () => Promise<void> }> {
+  ): Promise<{ id: string | null; enqueue: () => Promise<void>; muted: boolean }> {
+    // Cheap point-read on the unique (userId, topic) index. A missing
+    // row means "default, not muted" — the table only stores opt-outs.
+    const pref = await tx.notificationPreference.findUnique({
+      where: { userId_topic: { userId: input.recipientId, topic: input.topic } },
+    });
+    if (pref?.muted) {
+      return { id: null, enqueue: () => Promise.resolve(), muted: true };
+    }
+
     const { title, body } = renderNotification(input.topic, input.data);
     const row = await tx.notification.create({
       data: {
@@ -62,6 +76,7 @@ export class NotificationsService {
     const id = row.id;
     return {
       id,
+      muted: false,
       enqueue: async () => {
         try {
           await this.queue.add(
@@ -91,7 +106,7 @@ export class NotificationsService {
    * its own short transaction. Use when the caller hasn't already
    * opened a $transaction.
    */
-  async dispatchAndEnqueue(input: DispatchInput): Promise<string> {
+  async dispatchAndEnqueue(input: DispatchInput): Promise<string | null> {
     const { id, enqueue } = await this.prisma.$transaction(async (tx) => this.dispatch(tx, input));
     await enqueue();
     return id;

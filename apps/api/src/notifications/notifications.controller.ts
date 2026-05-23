@@ -1,9 +1,20 @@
-import { Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import type { MarkAllReadResponse, Notification, Page, UnreadCountResponse } from '@repo/shared';
+import {
+  notificationTopicSchema,
+  type ListNotificationPreferencesResponse,
+  type MarkAllReadResponse,
+  type Notification,
+  type NotificationPreference,
+  type Page,
+  type UnreadCountResponse,
+} from '@repo/shared';
 
-import { ListNotificationsQueryDto } from './dto/notifications.dto.js';
+import {
+  ListNotificationsQueryDto,
+  UpsertNotificationPreferenceDto,
+} from './dto/notifications.dto.js';
 import { NotificationsInboxService } from './notifications.inbox.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
@@ -55,5 +66,31 @@ export class NotificationsController {
   @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
   markRead(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string): Promise<Notification> {
     return this.service.markRead(user.id, id);
+  }
+
+  // ---- Preferences (Phase 9.4) ------------------------------------
+
+  @Get('preferences')
+  @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
+  listPreferences(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ListNotificationPreferencesResponse> {
+    return this.service.listPreferences(user.id);
+  }
+
+  @Put('preferences/:topic')
+  @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
+  @HttpCode(200)
+  upsertPreference(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('topic') topic: string,
+    @Body() body: UpsertNotificationPreferenceDto,
+  ): Promise<NotificationPreference> {
+    // Topic comes from the URL path; validate it against the canonical
+    // taxonomy here (the Zod pipe only validates the body). Anything
+    // outside the enum lands as a 422 problem so the client gets a
+    // structured failure instead of a 404.
+    const parsed = notificationTopicSchema.parse(topic);
+    return this.service.upsertPreference(user.id, parsed, body.muted);
   }
 }

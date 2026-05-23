@@ -75,6 +75,11 @@ function makePrismaStub() {
         },
       ),
     },
+    notificationPreference: {
+      // Default stub: no preferences set → every dispatch goes through.
+      // Individual tests override via `prisma.muted` below.
+      findUnique: vi.fn(() => Promise.resolve(null)),
+    },
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
   });
   return { stub, rows };
@@ -166,6 +171,30 @@ describe('NotificationsService.dispatch', () => {
     });
     expect(id).toBe(prisma.rows[0]?.id);
     expect(queue.adds).toHaveLength(1);
+  });
+
+  it('skips insert + enqueue when the user has muted that topic (Phase 9.4)', async () => {
+    const prisma = makePrismaStub();
+    // Force the preference lookup to return a muted row for the test's
+    // (user, topic) pair.
+    const prefStub = prisma.stub.notificationPreference as {
+      findUnique: ReturnType<typeof vi.fn>;
+    };
+    prefStub.findUnique.mockResolvedValueOnce({ muted: true });
+    const queue = makeQueueStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never);
+
+    const result = await service.dispatch(prisma.stub as never, {
+      topic: Topic.BILL_ISSUED,
+      recipientId: 'user_1',
+      data: { amount: 500_000, currency: 'VND' },
+    });
+
+    expect(result.muted).toBe(true);
+    expect(result.id).toBeNull();
+    expect(prisma.rows).toHaveLength(0);
+    await result.enqueue();
+    expect(queue.adds).toHaveLength(0);
   });
 });
 

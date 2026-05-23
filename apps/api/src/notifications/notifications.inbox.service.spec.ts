@@ -89,8 +89,55 @@ function makePrismaStub(seeds: Seed[]) {
         Promise.resolve(rows.filter((r) => r.userId === where.userId && r.readAt === null).length),
       ),
     },
+    notificationPreference: makePreferenceStub(),
   };
   return { stub, rows };
+}
+
+interface PreferenceRow {
+  userId: string;
+  topic: string;
+  muted: boolean;
+}
+
+function makePreferenceStub() {
+  const prefs: PreferenceRow[] = [];
+  return {
+    findMany: vi.fn(({ where }: { where: { userId: string } }) =>
+      Promise.resolve(prefs.filter((p) => p.userId === where.userId)),
+    ),
+    upsert: vi.fn(
+      ({
+        where,
+        create,
+        update,
+      }: {
+        where: { userId_topic: { userId: string; topic: string } };
+        create: PreferenceRow;
+        update: { muted: boolean };
+      }) => {
+        const existing = prefs.find(
+          (p) => p.userId === where.userId_topic.userId && p.topic === where.userId_topic.topic,
+        );
+        if (existing) {
+          existing.muted = update.muted;
+          return Promise.resolve(existing);
+        }
+        prefs.push(create);
+        return Promise.resolve(create);
+      },
+    ),
+    deleteMany: vi.fn(({ where }: { where: { userId: string; topic: string } }) => {
+      const idx = prefs.findIndex((p) => p.userId === where.userId && p.topic === where.topic);
+      if (idx >= 0) {
+        prefs.splice(idx, 1);
+        return Promise.resolve({ count: 1 });
+      }
+      return Promise.resolve({ count: 0 });
+    }),
+    // Exposed for tests that want to peek at the underlying state.
+    _rows: prefs,
+  };
 }
 
 describe('NotificationsInboxService.listForUser', () => {
@@ -223,5 +270,76 @@ describe('NotificationsInboxService.unreadCount', () => {
     const svc = new NotificationsInboxService(stub as never);
     const res = await svc.unreadCount('me');
     expect(res.unread).toBe(2);
+  });
+});
+
+// ---- Preferences (Phase 9.4) ----------------------------------------
+
+describe('NotificationsInboxService.listPreferences', () => {
+  it('returns the full topic taxonomy with defaults (muted: false) when no rows exist', async () => {
+    const { stub } = makePrismaStub([]);
+    const svc = new NotificationsInboxService(stub as never);
+    const res = await svc.listPreferences('me');
+    // Every canonical topic surfaces.
+    expect(res.preferences.map((p) => p.topic)).toEqual(
+      expect.arrayContaining([
+        'bill.issued',
+        'bill.paid',
+        'bill.refunded',
+        'ticket.opened',
+        'ticket.resolved',
+        'job.completed',
+        'payout.disbursed',
+      ]),
+    );
+    // All default-on (not muted).
+    expect(res.preferences.every((p) => !p.muted)).toBe(true);
+  });
+
+  it('overlays stored mutes onto the default-on baseline', async () => {
+    const { stub } = makePrismaStub([]);
+    const prefStub = stub.notificationPreference as {
+      _rows: { userId: string; topic: string; muted: boolean }[];
+    };
+    prefStub._rows.push({ userId: 'me', topic: 'bill.issued', muted: true });
+    const svc = new NotificationsInboxService(stub as never);
+    const res = await svc.listPreferences('me');
+    const billIssued = res.preferences.find((p) => p.topic === 'bill.issued');
+    const billPaid = res.preferences.find((p) => p.topic === 'bill.paid');
+    expect(billIssued?.muted).toBe(true);
+    expect(billPaid?.muted).toBe(false);
+  });
+});
+
+describe('NotificationsInboxService.upsertPreference', () => {
+  it('mute creates the row (idempotent re-mute keeps a single row)', async () => {
+    const { stub } = makePrismaStub([]);
+    const prefStub = stub.notificationPreference as {
+      _rows: { userId: string; topic: string; muted: boolean }[];
+    };
+    const svc = new NotificationsInboxService(stub as never);
+
+    await svc.upsertPreference('me', 'bill.issued', true);
+    await svc.upsertPreference('me', 'bill.issued', true);
+    expect(
+      prefStub._rows.filter((r) => r.userId === 'me' && r.topic === 'bill.issued'),
+    ).toHaveLength(1);
+  });
+
+  it('unmute deletes the row (idempotent — no row also returns muted: false)', async () => {
+    const { stub } = makePrismaStub([]);
+    const prefStub = stub.notificationPreference as {
+      _rows: { userId: string; topic: string; muted: boolean }[];
+    };
+    prefStub._rows.push({ userId: 'me', topic: 'bill.issued', muted: true });
+    const svc = new NotificationsInboxService(stub as never);
+
+    const result = await svc.upsertPreference('me', 'bill.issued', false);
+    expect(result).toEqual({ topic: 'bill.issued', muted: false });
+    expect(prefStub._rows).toHaveLength(0);
+
+    // Re-unmuting (already gone) is a no-op.
+    const again = await svc.upsertPreference('me', 'bill.issued', false);
+    expect(again).toEqual({ topic: 'bill.issued', muted: false });
   });
 });

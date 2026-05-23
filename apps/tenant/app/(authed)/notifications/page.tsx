@@ -1,6 +1,7 @@
 import type { Notification, Page } from '@repo/shared';
 
 import { InboxClient } from './_components/inbox-client';
+import { PreferencesCard } from './_components/preferences-card';
 import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Notifications' };
@@ -18,6 +19,7 @@ export default async function NotificationsPage() {
         </p>
       </header>
       <InboxClient initial={initial} />
+      <PreferencesCard />
     </main>
   );
 }
