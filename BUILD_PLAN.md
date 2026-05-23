@@ -311,6 +311,35 @@ Acceptance:
 
 ---
 
+### Phase 10 — Post-launch UX + reliability polish (Week 29–32)
+
+Goal: close the experience gaps Phase 8/9 explicitly deferred. Real users are
+now on the platform; this slice fills in the backends-shipped-but-no-UI corners
+and adds the reliability sweepers ops needs once real traffic shapes the work.
+No new business capabilities — every slice maps to a "follow-up" or "out of
+scope" line in a prior spec.
+
+1. **Per-app photo upload UI.** Closes the Phase 8.4 follow-up. Owners get a real file picker on the campaign create / edit screens (replaces the "paste a URL" input); partners get the same on job-completion proof; tenants on ticket attachments. The 8.4 `/v1/media/uploads` + `/confirm` endpoints are already shipping — this is purely the per-app UI plumbing + an inline preview component in `@repo/ui`.
+2. **Stuck-notifications sweeper.** Closes the 8.2 follow-up. New BullMQ scheduler picks up `Notification` rows where `sentAt IS NULL AND createdAt < now() - 1h` and re-enqueues them. Audits each retry; finalizes to `failureReason` if it's tried 3 times. Mirrors the bills + payouts sweeper pattern from Phase 5.
+3. **Image processing pipeline.** Closes the 8.4 polish item. New BullMQ worker fires on `media.confirm`: reads the S3 object, strips EXIF, generates a thumbnail variant, writes both back. Adds `thumbnailUrl` to `MediaAsset` so the inbox + listing surfaces can render a lighter image. Rejects oversized uploads after the fact (file-byte-level enforcement, not the declared-size soft-cap from 8.4).
+4. **Per-channel notification preferences + quiet hours.** Closes 9.4's out-of-scope items. Extends `NotificationPreference` with `(channel, quietHoursStartUtc, quietHoursEndUtc)` so users can mute email but keep in-app, or set 22:00–08:00 quiet hours. Dispatch gate reads both fields. Admin tooling tells support "this user has muted X" so they can advise.
+5. **Web push notifications.** Closes the Phase 8 explicit out-of-scope. Each PWA's existing Serwist service worker registers a push subscription via the standard Push API; the API stores `(userId, endpoint, p256dh, auth)` rows. The `notifications.send` worker (8.2) gets a new channel: when a user has an active push sub + their preference allows it, fan out via `web-push` alongside email. No per-platform native ID dance — browser-managed only in v1.
+6. **Self-serve account deletion.** Closes the 9.3 follow-up. User-initiated `POST /v1/me/erase-request` schedules a soft-delete 7 days out (configurable via PlatformConfig); a confirmation email lands with an undo link. After the window, the existing 9.3 admin erasure flow runs unattended via a sweeper. User gets a final goodbye email on completion.
+7. **Admin support tooling.** Closes various "admin can't see user-side" deferrals. Admin gets a read-only view of any user's tickets + bills + payments from `/admin/users/:id`. No write access from the admin side; if support needs to act, they do it through the legitimate channel + audit-row themselves.
+
+Acceptance:
+
+- Owner can attach photos to a draft campaign through a file picker; the photos render in the public listing.
+- Partner uploads job-proof photos through the same pipeline; the thumbnail variant renders in the owner's job-detail card.
+- A `Notification` row with `sentAt: null` for more than an hour gets re-enqueued automatically; ops sees a sweep-retry audit row.
+- An uploaded photo larger than 20 MB after EXIF strip is rejected with a clear error code; smaller ones land with a thumbnail.
+- Tenant can set 22:00–08:00 quiet hours; a `bill.issued` dispatched during the window persists the row but sends the email after the window closes.
+- A user can request account deletion from their own profile, receive a confirmation email with the undo link, and (if they do nothing for 7 days) be erased automatically.
+- Admin can read any user's bills + tickets from `/admin/users/:id`; no edit affordance.
+- Out of scope (still): SMS delivery, mobile native apps, multi-currency payouts, per-house commission carve-outs, marketing-page CMS, A/B test infrastructure.
+
+---
+
 ## 6. Working rhythm with Claude Code
 
 For every feature:
