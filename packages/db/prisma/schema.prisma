@@ -156,6 +156,15 @@ enum NotificationChannel {
   SMS
 }
 
+/// Phase 10.4 — preference scope. `ALL` is the legacy 9.4 behaviour:
+/// the row mutes both in-app and email together. `EMAIL` mutes only
+/// outbound email but keeps the in-app row; `IN_APP` is the reverse.
+enum NotificationPreferenceScope {
+  ALL
+  EMAIL
+  IN_APP
+}
+
 enum WebhookEventStatus {
   RECEIVED
   PROCESSED
@@ -222,6 +231,7 @@ model User {
   partnerProfile          PartnerProfile?
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
+  notificationQuietHours  NotificationQuietHours?
   auditLog                AuditLog[]
   mediaAssets             MediaAsset[]
 
@@ -845,11 +855,13 @@ model Notification {
   @@index([createdAt], map: "Notification_sweep_idx")
 }
 
-/// Per-`(userId, topic)` mute toggle for notification dispatches
-/// (Phase 9.4). The table only stores **opt-outs** — the absence of
-/// a row means "default, not muted". `NotificationsService.dispatch`
-/// consults this table before persisting the Notification row, so a
-/// muted topic produces neither the in-app entry nor the email.
+/// Per-`(userId, topic, scope)` mute toggle for notification dispatches
+/// (Phase 9.4; per-scope split added in Phase 10.4). The table stores
+/// **opt-outs** — the absence of a row means "default, not muted".
+/// Each row carries a `scope`: `ALL` mutes both channels (the 9.4
+/// behaviour); `EMAIL` mutes only the outbound email but keeps the
+/// in-app row; `IN_APP` is the reverse. `NotificationsService.dispatch`
+/// reads every row for the (user, topic) pair before deciding.
 model NotificationPreference {
   id     String @id @default(cuid())
   userId String
@@ -861,6 +873,11 @@ model NotificationPreference {
   /// doesn't require a migration here.
   topic String @db.VarChar(120)
 
+  /// Phase 10.4 — which channel(s) the mute applies to. Defaults to
+  /// `ALL` so legacy 9.4 rows continue to mute everything after the
+  /// migration's column add.
+  scope NotificationPreferenceScope @default(ALL)
+
   /// TRUE for opt-outs; the dispatch gate keys off this column.
   /// Default TRUE so the row's presence == muted (an unmuted topic
   /// is the absence of a row).
@@ -869,8 +886,30 @@ model NotificationPreference {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, topic])
+  @@unique([userId, topic, scope])
   @@index([userId])
+}
+
+/// Phase 10.4 — per-user quiet-hours window. Single row per user; the
+/// dispatch gate consults it after the preference check. When the
+/// current UTC minute falls within `[startUtcMinute, endUtcMinute)`
+/// the gate delays the email enqueue until the window's `end` instead
+/// of dropping the row. In-app surfacing is unaffected.
+///
+/// Minute offsets (0..1439) keep the math trivial server-side; the
+/// client converts to the viewer's locale on render.
+model NotificationQuietHours {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Start of the window, minutes since UTC midnight (0..1439).
+  startUtcMinute Int
+  /// End of the window, minutes since UTC midnight (0..1439).
+  /// `end < start` means the window wraps midnight (e.g. 22:00..08:00).
+  endUtcMinute Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AuditLog {

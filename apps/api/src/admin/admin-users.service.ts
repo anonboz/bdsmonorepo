@@ -1,7 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
-import { ErrorCodes, type AdminUser, type Page } from '@repo/shared';
+import {
+  ErrorCodes,
+  type AdminNotificationStateResponse,
+  type AdminUser,
+  type NotificationPreference,
+  type Page,
+} from '@repo/shared';
 
 import type {
   KycDecisionDto,
@@ -80,6 +86,35 @@ export class AdminUsersService {
     const row = await this.prisma.user.findUnique({ where: { id } });
     if (!row || row.deletedAt) throw this.notFound();
     return this.toResponse(row);
+  }
+
+  /**
+   * Phase 10.4 — read-only support surface. Returns the target's
+   * per-(topic, scope) preferences + their quiet-hours window so
+   * support can advise users without write access to either.
+   */
+  async getNotificationState(id: string): Promise<AdminNotificationStateResponse> {
+    // existence-check + soft-delete gate via the same helper the
+    // mutating endpoints use.
+    await this.loadOrFail(id);
+    const [prefs, quiet] = await Promise.all([
+      this.prisma.notificationPreference.findMany({
+        where: { userId: id },
+        select: { topic: true, scope: true, muted: true },
+      }),
+      this.prisma.notificationQuietHours.findUnique({ where: { userId: id } }),
+    ]);
+    const preferences: NotificationPreference[] = prefs.map((p) => ({
+      topic: p.topic as NotificationPreference['topic'],
+      scope: p.scope,
+      muted: p.muted,
+    }));
+    return {
+      preferences,
+      quietHours: quiet
+        ? { startUtcMinute: quiet.startUtcMinute, endUtcMinute: quiet.endUtcMinute }
+        : null,
+    };
   }
 
   // ---- Mutations ----------------------------------------------------

@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestj
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
 
-import type { AdminUser, Page } from '@repo/shared';
+import type { AdminNotificationStateResponse, AdminUser, Page } from '@repo/shared';
 
 import { AdminUsersService, type RequestContext } from './admin-users.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
@@ -31,6 +31,17 @@ export class AdminUsersController {
   @Roles('ADMIN')
   getOne(@Param('id') id: string): Promise<AdminUser> {
     return this.service.getById(id);
+  }
+
+  /**
+   * Phase 10.4 — read-only notification-state view for support.
+   * Returns the target user's per-(topic, scope) preferences + quiet
+   * hours so support can advise without write access from this side.
+   */
+  @Get(':id/notification-state')
+  @Roles('ADMIN')
+  getNotificationState(@Param('id') id: string): Promise<AdminNotificationStateResponse> {
+    return this.service.getNotificationState(id);
   }
 
   @Post(':id/suspend')

@@ -1,6 +1,7 @@
 import {
   type notificationSchema,
   listNotificationsQuerySchema,
+  notificationQuietHoursSchema,
   upsertNotificationPreferenceSchema,
 } from '@repo/shared';
 
@@ -11,5 +12,8 @@ export type ListNotificationsQueryDto = typeof listNotificationsQuerySchema._typ
 
 export const UpsertNotificationPreferenceDto = createZodDto(upsertNotificationPreferenceSchema);
 export type UpsertNotificationPreferenceDto = typeof upsertNotificationPreferenceSchema._type;
+
+export const UpsertQuietHoursDto = createZodDto(notificationQuietHoursSchema);
+export type UpsertQuietHoursDto = typeof notificationQuietHoursSchema._type;
 
 export type NotificationResponse = typeof notificationSchema._type;

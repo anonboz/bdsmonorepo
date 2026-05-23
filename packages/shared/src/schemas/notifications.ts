@@ -64,21 +64,39 @@ export const markAllReadResponseSchema = z.object({
 });
 export type MarkAllReadResponse = z.infer<typeof markAllReadResponseSchema>;
 
-// ---- Preferences (Phase 9.4) ----------------------------------------
+// ---- Preferences (Phase 9.4; per-scope split + quiet hours in 10.4) -
 
 /**
- * Per-`(userId, topic)` opt-out toggle. The dispatch gate consults
- * this; `muted = true` skips both the Notification row and the email.
+ * Phase 10.4 — which channel(s) the mute applies to. `ALL` is the
+ * legacy 9.4 behaviour (both in-app and email muted together).
+ * `EMAIL` mutes only outbound email but keeps the in-app row;
+ * `IN_APP` is the reverse.
+ */
+export const NotificationPreferenceScope = {
+  ALL: 'ALL',
+  EMAIL: 'EMAIL',
+  IN_APP: 'IN_APP',
+} as const;
+export type NotificationPreferenceScope =
+  (typeof NotificationPreferenceScope)[keyof typeof NotificationPreferenceScope];
+export const notificationPreferenceScopeSchema = z.nativeEnum(NotificationPreferenceScope);
+
+/**
+ * Per-`(userId, topic, scope)` opt-out toggle. The dispatch gate
+ * consults this before deciding which channels to fan out on.
  */
 export const notificationPreferenceSchema = z.object({
   topic: notificationTopicSchema,
+  scope: notificationPreferenceScopeSchema,
   muted: z.boolean(),
 });
 export type NotificationPreference = z.infer<typeof notificationPreferenceSchema>;
 
 export const listNotificationPreferencesResponseSchema = z.object({
   /** Every topic from the canonical taxonomy with the caller's
-   *  current state. Missing rows default to `muted: false`. */
+   *  current state. Topics with no rows return a single
+   *  `scope: 'ALL', muted: false` entry — preserves the 9.4 single-
+   *  toggle contract for clients that haven't upgraded. */
   preferences: z.array(notificationPreferenceSchema),
 });
 export type ListNotificationPreferencesResponse = z.infer<
@@ -86,6 +104,35 @@ export type ListNotificationPreferencesResponse = z.infer<
 >;
 
 export const upsertNotificationPreferenceSchema = z.object({
+  /** Defaults to ALL when omitted so the legacy single-toggle UI
+   *  continues to work without a body-shape change. */
+  scope: notificationPreferenceScopeSchema.optional(),
   muted: z.boolean(),
 });
 export type UpsertNotificationPreferenceInput = z.infer<typeof upsertNotificationPreferenceSchema>;
+
+/**
+ * Phase 10.4 — per-user quiet-hours window. When dispatch happens
+ * inside the window the email is delayed to the window's end; the
+ * in-app row persists immediately. Minute offsets (0..1439) from UTC
+ * midnight; `end < start` means the window wraps midnight.
+ */
+export const notificationQuietHoursSchema = z.object({
+  startUtcMinute: z.number().int().min(0).max(1439),
+  endUtcMinute: z.number().int().min(0).max(1439),
+});
+export type NotificationQuietHours = z.infer<typeof notificationQuietHoursSchema>;
+
+export const getQuietHoursResponseSchema = notificationQuietHoursSchema.nullable();
+export type GetQuietHoursResponse = z.infer<typeof getQuietHoursResponseSchema>;
+
+/**
+ * Phase 10.4 — combined read-only view used by the admin support
+ * tool. No mutations on the admin side: support directs users to
+ * the in-app settings if a change is wanted.
+ */
+export const adminNotificationStateResponseSchema = z.object({
+  preferences: z.array(notificationPreferenceSchema),
+  quietHours: notificationQuietHoursSchema.nullable(),
+});
+export type AdminNotificationStateResponse = z.infer<typeof adminNotificationStateResponseSchema>;

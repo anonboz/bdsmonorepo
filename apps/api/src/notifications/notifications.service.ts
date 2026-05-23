@@ -72,23 +72,49 @@ export class NotificationsService {
    * AFTER the tx commits — see the §5 dispatch flow in
    * docs/specs/phase8-notification-fanout.md.
    *
-   * Phase 9.4: when the recipient has muted this topic via
-   * `NotificationPreference`, this is a no-op — no row, no enqueue.
-   * Callers don't have to branch; the returned `enqueue` is just a
-   * cheap async no-op in that case.
+   * Phase 9.4 / 10.4: the dispatch gate consults
+   * {@link NotificationPreference} (per-scope) + {@link NotificationQuietHours}
+   * before deciding what to fan out on. The result is:
+   *
+   *   - **Full mute** (any `scope=ALL muted=true` row): nothing persists,
+   *     the returned `enqueue` is a no-op and `muted=true`. Same shape
+   *     as 9.4 so existing audit-log paths don't change.
+   *   - **Email-only mute**: row persists with `failureReason` set so
+   *     the 10.2 sweeper leaves it alone; `enqueue` is a no-op.
+   *   - **Quiet hours active**: row persists; `enqueue` schedules the
+   *     send with `delay` until the window's end.
+   *   - **Default**: identical to 9.4 — row persists, `enqueue` fires
+   *     the BullMQ job immediately.
    */
   async dispatch(
     tx: Prisma.TransactionClient,
     input: DispatchInput,
+    now: Date = new Date(),
   ): Promise<{ id: string | null; enqueue: () => Promise<void>; muted: boolean }> {
-    // Cheap point-read on the unique (userId, topic) index. A missing
-    // row means "default, not muted" — the table only stores opt-outs.
-    const pref = await tx.notificationPreference.findUnique({
-      where: { userId_topic: { userId: input.recipientId, topic: input.topic } },
+    // One findMany covers ALL / EMAIL / IN_APP scopes for the (user,
+    // topic) pair. Order doesn't matter — we just need set-membership.
+    const prefs = await tx.notificationPreference.findMany({
+      where: { userId: input.recipientId, topic: input.topic },
+      select: { scope: true, muted: true },
     });
-    if (pref?.muted) {
+    const fullMute = prefs.some((p) => p.scope === 'ALL' && p.muted);
+    if (fullMute) {
       return { id: null, enqueue: () => Promise.resolve(), muted: true };
     }
+    const emailMute = prefs.some((p) => p.scope === 'EMAIL' && p.muted);
+    const inAppMute = prefs.some((p) => p.scope === 'IN_APP' && p.muted);
+    if (emailMute && inAppMute) {
+      // Both channels independently muted — treat like full mute.
+      return { id: null, enqueue: () => Promise.resolve(), muted: true };
+    }
+
+    const quietHours = await tx.notificationQuietHours.findUnique({
+      where: { userId: input.recipientId },
+    });
+    const delayMs = quietHours
+      ? msUntilQuietHoursEnd(now, quietHours.startUtcMinute, quietHours.endUtcMinute)
+      : 0;
+    const inQuietHours = delayMs > 0;
 
     const { title, body } = renderNotification(input.topic, input.data);
     const row = await tx.notification.create({
@@ -99,6 +125,11 @@ export class NotificationsService {
         title,
         body,
         data: input.data as Prisma.InputJsonValue,
+        // Email muted at the channel scope — finalize the row so the
+        // 10.2 stuck-notifications sweeper doesn't pick it up.
+        ...(emailMute && {
+          failureReason: 'email channel muted by user preference',
+        }),
       },
     });
     const id = row.id;
@@ -106,6 +137,7 @@ export class NotificationsService {
       id,
       muted: false,
       enqueue: async () => {
+        if (emailMute) return;
         try {
           await this.queue.add(
             JOB_NOTIFICATIONS_SEND,
@@ -115,6 +147,7 @@ export class NotificationsService {
               backoff: { type: 'exponential', delay: 2000 },
               removeOnComplete: 200,
               removeOnFail: 100,
+              ...(inQuietHours && { delay: delayMs }),
             },
           );
         } catch (err) {
@@ -264,4 +297,37 @@ export class NotificationsService {
     }
     return { inspected: candidates.length, retried, gaveUp };
   }
+}
+
+/**
+ * Returns the milliseconds remaining until the quiet-hours window
+ * closes for the given `now`. Zero means we're outside the window.
+ *
+ * The window is inclusive of `start` and exclusive of `end`. When
+ * `end < start` the window wraps midnight (e.g. start=1320 end=480
+ * → 22:00..08:00 UTC).
+ *
+ * Exported so the dispatch tests can assert the math without going
+ * through Prisma.
+ */
+export function msUntilQuietHoursEnd(
+  now: Date,
+  startUtcMinute: number,
+  endUtcMinute: number,
+): number {
+  const nowMinute = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const wraps = endUtcMinute < startUtcMinute;
+  const inWindow = wraps
+    ? nowMinute >= startUtcMinute || nowMinute < endUtcMinute
+    : nowMinute >= startUtcMinute && nowMinute < endUtcMinute;
+  if (!inWindow) return 0;
+  // Remaining whole minutes to the window end, accounting for the
+  // sub-minute portion of `now`. We add the leftover seconds so the
+  // delay matches the wall-clock moment the window ends.
+  const minutesToEnd =
+    wraps && nowMinute >= startUtcMinute
+      ? 1440 - nowMinute + endUtcMinute
+      : endUtcMinute - nowMinute;
+  const subMinuteMs = now.getUTCSeconds() * 1000 + now.getUTCMilliseconds();
+  return minutesToEnd * 60_000 - subMinuteMs;
 }

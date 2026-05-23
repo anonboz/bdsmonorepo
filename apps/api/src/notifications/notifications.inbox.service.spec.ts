@@ -90,6 +90,7 @@ function makePrismaStub(seeds: Seed[]) {
       ),
     },
     notificationPreference: makePreferenceStub(),
+    notificationQuietHours: makeQuietHoursStub(),
   };
   return { stub, rows };
 }
@@ -97,7 +98,52 @@ function makePrismaStub(seeds: Seed[]) {
 interface PreferenceRow {
   userId: string;
   topic: string;
+  scope: 'ALL' | 'EMAIL' | 'IN_APP';
   muted: boolean;
+}
+
+interface QuietHoursRow {
+  userId: string;
+  startUtcMinute: number;
+  endUtcMinute: number;
+}
+
+function makeQuietHoursStub() {
+  const rows: QuietHoursRow[] = [];
+  return {
+    findUnique: vi.fn(({ where }: { where: { userId: string } }) =>
+      Promise.resolve(rows.find((r) => r.userId === where.userId) ?? null),
+    ),
+    upsert: vi.fn(
+      ({
+        where,
+        create,
+        update,
+      }: {
+        where: { userId: string };
+        create: QuietHoursRow;
+        update: { startUtcMinute: number; endUtcMinute: number };
+      }) => {
+        const existing = rows.find((r) => r.userId === where.userId);
+        if (existing) {
+          existing.startUtcMinute = update.startUtcMinute;
+          existing.endUtcMinute = update.endUtcMinute;
+          return Promise.resolve(existing);
+        }
+        rows.push(create);
+        return Promise.resolve(create);
+      },
+    ),
+    deleteMany: vi.fn(({ where }: { where: { userId: string } }) => {
+      const idx = rows.findIndex((r) => r.userId === where.userId);
+      if (idx >= 0) {
+        rows.splice(idx, 1);
+        return Promise.resolve({ count: 1 });
+      }
+      return Promise.resolve({ count: 0 });
+    }),
+    _rows: rows,
+  };
 }
 
 function makePreferenceStub() {
@@ -112,12 +158,15 @@ function makePreferenceStub() {
         create,
         update,
       }: {
-        where: { userId_topic: { userId: string; topic: string } };
+        where: {
+          userId_topic_scope: { userId: string; topic: string; scope: PreferenceRow['scope'] };
+        };
         create: PreferenceRow;
         update: { muted: boolean };
       }) => {
+        const key = where.userId_topic_scope;
         const existing = prefs.find(
-          (p) => p.userId === where.userId_topic.userId && p.topic === where.userId_topic.topic,
+          (p) => p.userId === key.userId && p.topic === key.topic && p.scope === key.scope,
         );
         if (existing) {
           existing.muted = update.muted;
@@ -127,15 +176,21 @@ function makePreferenceStub() {
         return Promise.resolve(create);
       },
     ),
-    deleteMany: vi.fn(({ where }: { where: { userId: string; topic: string } }) => {
-      const idx = prefs.findIndex((p) => p.userId === where.userId && p.topic === where.topic);
-      if (idx >= 0) {
-        prefs.splice(idx, 1);
-        return Promise.resolve({ count: 1 });
-      }
-      return Promise.resolve({ count: 0 });
-    }),
-    // Exposed for tests that want to peek at the underlying state.
+    deleteMany: vi.fn(
+      ({ where }: { where: { userId: string; topic: string; scope?: PreferenceRow['scope'] } }) => {
+        const idx = prefs.findIndex(
+          (p) =>
+            p.userId === where.userId &&
+            p.topic === where.topic &&
+            (where.scope === undefined || p.scope === where.scope),
+        );
+        if (idx >= 0) {
+          prefs.splice(idx, 1);
+          return Promise.resolve({ count: 1 });
+        }
+        return Promise.resolve({ count: 0 });
+      },
+    ),
     _rows: prefs,
   };
 }
@@ -299,9 +354,9 @@ describe('NotificationsInboxService.listPreferences', () => {
   it('overlays stored mutes onto the default-on baseline', async () => {
     const { stub } = makePrismaStub([]);
     const prefStub = stub.notificationPreference as {
-      _rows: { userId: string; topic: string; muted: boolean }[];
+      _rows: PreferenceRow[];
     };
-    prefStub._rows.push({ userId: 'me', topic: 'bill.issued', muted: true });
+    prefStub._rows.push({ userId: 'me', topic: 'bill.issued', scope: 'ALL', muted: true });
     const svc = new NotificationsInboxService(stub as never);
     const res = await svc.listPreferences('me');
     const billIssued = res.preferences.find((p) => p.topic === 'bill.issued');
@@ -314,9 +369,7 @@ describe('NotificationsInboxService.listPreferences', () => {
 describe('NotificationsInboxService.upsertPreference', () => {
   it('mute creates the row (idempotent re-mute keeps a single row)', async () => {
     const { stub } = makePrismaStub([]);
-    const prefStub = stub.notificationPreference as {
-      _rows: { userId: string; topic: string; muted: boolean }[];
-    };
+    const prefStub = stub.notificationPreference as { _rows: PreferenceRow[] };
     const svc = new NotificationsInboxService(stub as never);
 
     await svc.upsertPreference('me', 'bill.issued', true);
@@ -328,18 +381,83 @@ describe('NotificationsInboxService.upsertPreference', () => {
 
   it('unmute deletes the row (idempotent — no row also returns muted: false)', async () => {
     const { stub } = makePrismaStub([]);
-    const prefStub = stub.notificationPreference as {
-      _rows: { userId: string; topic: string; muted: boolean }[];
-    };
-    prefStub._rows.push({ userId: 'me', topic: 'bill.issued', muted: true });
+    const prefStub = stub.notificationPreference as { _rows: PreferenceRow[] };
+    prefStub._rows.push({ userId: 'me', topic: 'bill.issued', scope: 'ALL', muted: true });
     const svc = new NotificationsInboxService(stub as never);
 
     const result = await svc.upsertPreference('me', 'bill.issued', false);
-    expect(result).toEqual({ topic: 'bill.issued', muted: false });
+    expect(result).toEqual({ topic: 'bill.issued', scope: 'ALL', muted: false });
     expect(prefStub._rows).toHaveLength(0);
+  });
+});
+
+// ---- Phase 10.4 — per-scope upserts -------------------------------
+
+describe('NotificationsInboxService.upsertPreference per scope', () => {
+  it('mutes only the email channel without affecting in-app', async () => {
+    const { stub } = makePrismaStub([]);
+    const prefStub = stub.notificationPreference as { _rows: PreferenceRow[] };
+    const svc = new NotificationsInboxService(stub as never);
+
+    const res = await svc.upsertPreference('me', 'bill.issued', true, 'EMAIL');
+    expect(res).toEqual({ topic: 'bill.issued', scope: 'EMAIL', muted: true });
+    expect(prefStub._rows).toEqual([
+      { userId: 'me', topic: 'bill.issued', scope: 'EMAIL', muted: true },
+    ]);
+  });
+
+  it('unmute at one scope leaves rows at other scopes intact', async () => {
+    const { stub } = makePrismaStub([]);
+    const prefStub = stub.notificationPreference as { _rows: PreferenceRow[] };
+    prefStub._rows.push({ userId: 'me', topic: 'bill.issued', scope: 'EMAIL', muted: true });
+    prefStub._rows.push({ userId: 'me', topic: 'bill.issued', scope: 'IN_APP', muted: true });
+    const svc = new NotificationsInboxService(stub as never);
+
+    await svc.upsertPreference('me', 'bill.issued', false, 'EMAIL');
+    expect(prefStub._rows.map((r) => r.scope)).toEqual(['IN_APP']);
 
     // Re-unmuting (already gone) is a no-op.
     const again = await svc.upsertPreference('me', 'bill.issued', false);
-    expect(again).toEqual({ topic: 'bill.issued', muted: false });
+    expect(again).toEqual({ topic: 'bill.issued', scope: 'ALL', muted: false });
+  });
+});
+
+describe('NotificationsInboxService quiet hours (phase 10.4)', () => {
+  it('returns null when no row exists', async () => {
+    const { stub } = makePrismaStub([]);
+    const svc = new NotificationsInboxService(stub as never);
+    expect(await svc.getQuietHours('me')).toBeNull();
+  });
+
+  it('round-trips: set then get returns the same shape', async () => {
+    const { stub } = makePrismaStub([]);
+    const svc = new NotificationsInboxService(stub as never);
+    await svc.setQuietHours('me', { startUtcMinute: 1320, endUtcMinute: 480 });
+    expect(await svc.getQuietHours('me')).toEqual({ startUtcMinute: 1320, endUtcMinute: 480 });
+  });
+
+  it('upserts on subsequent setQuietHours calls (no duplicate row)', async () => {
+    const { stub } = makePrismaStub([]);
+    const qhStub = stub.notificationQuietHours as { _rows: QuietHoursRow[] };
+    const svc = new NotificationsInboxService(stub as never);
+    await svc.setQuietHours('me', { startUtcMinute: 1320, endUtcMinute: 480 });
+    await svc.setQuietHours('me', { startUtcMinute: 60, endUtcMinute: 120 });
+    expect(qhStub._rows).toHaveLength(1);
+    expect(qhStub._rows[0]).toMatchObject({
+      userId: 'me',
+      startUtcMinute: 60,
+      endUtcMinute: 120,
+    });
+  });
+
+  it('clearQuietHours removes the row idempotently', async () => {
+    const { stub } = makePrismaStub([]);
+    const qhStub = stub.notificationQuietHours as { _rows: QuietHoursRow[] };
+    const svc = new NotificationsInboxService(stub as never);
+    await svc.setQuietHours('me', { startUtcMinute: 0, endUtcMinute: 60 });
+    await svc.clearQuietHours('me');
+    expect(qhStub._rows).toHaveLength(0);
+    // No throw on second clear.
+    await expect(svc.clearQuietHours('me')).resolves.toBeUndefined();
   });
 });

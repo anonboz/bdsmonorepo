@@ -104,8 +104,25 @@ function makePrismaStub(opts: {
       return Promise.resolve(auditRows.at(-1));
     }),
   };
+  const notificationPrefs: {
+    userId: string;
+    topic: string;
+    scope: 'ALL' | 'EMAIL' | 'IN_APP';
+    muted: boolean;
+  }[] = [];
+  stub.notificationPreference = {
+    findMany: vi.fn(({ where }: { where: { userId: string } }) =>
+      Promise.resolve(notificationPrefs.filter((p) => p.userId === where.userId)),
+    ),
+  };
+  const quietHours: { userId: string; startUtcMinute: number; endUtcMinute: number }[] = [];
+  stub.notificationQuietHours = {
+    findUnique: vi.fn(({ where }: { where: { userId: string } }) =>
+      Promise.resolve(quietHours.find((q) => q.userId === where.userId) ?? null),
+    ),
+  };
   stub.$transaction = vi.fn(<T>(fn: (tx: unknown) => Promise<T>) => fn(stub));
-  return { stub, users, mediaAssets, auditRows };
+  return { stub, users, mediaAssets, auditRows, notificationPrefs, quietHours };
 }
 
 const ctx = { actorId: 'admin_1', ip: '127.0.0.1', userAgent: 'curl/test' };
@@ -312,5 +329,34 @@ describe('AdminUsersService', () => {
       status: 422,
       type: 'admin.user_already_erased',
     });
+  });
+
+  // ---- Phase 10.4 — notification-state read ----------------------
+
+  it('getNotificationState returns prefs + quiet hours for the target', async () => {
+    stub.notificationPrefs.push(
+      { userId: targetId, topic: 'bill.issued', scope: 'EMAIL', muted: true },
+      { userId: targetId, topic: 'ticket.opened', scope: 'ALL', muted: true },
+    );
+    stub.quietHours.push({ userId: targetId, startUtcMinute: 1320, endUtcMinute: 480 });
+
+    const res = await service.getNotificationState(targetId);
+    expect(res.preferences).toEqual(
+      expect.arrayContaining([
+        { topic: 'bill.issued', scope: 'EMAIL', muted: true },
+        { topic: 'ticket.opened', scope: 'ALL', muted: true },
+      ]),
+    );
+    expect(res.quietHours).toEqual({ startUtcMinute: 1320, endUtcMinute: 480 });
+  });
+
+  it('getNotificationState returns empty prefs + null quiet hours when nothing set', async () => {
+    const res = await service.getNotificationState(targetId);
+    expect(res.preferences).toEqual([]);
+    expect(res.quietHours).toBeNull();
+  });
+
+  it('getNotificationState 404 on unknown / erased target', async () => {
+    await expect(service.getNotificationState('not_a_user')).rejects.toBeInstanceOf(ProblemError);
   });
 });

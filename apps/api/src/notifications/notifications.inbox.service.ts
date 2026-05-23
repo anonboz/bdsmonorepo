@@ -3,11 +3,13 @@ import { Prisma } from '@prisma/client';
 
 import {
   ErrorCodes,
+  NotificationPreferenceScope,
   NotificationTopic,
   type ListNotificationPreferencesResponse,
   type MarkAllReadResponse,
   type Notification,
   type NotificationPreference,
+  type NotificationQuietHours,
   type Page,
   type UnreadCountResponse,
 } from '@repo/shared';
@@ -87,50 +89,84 @@ export class NotificationsInboxService {
     return { unread };
   }
 
-  // ---- Preferences (Phase 9.4) ------------------------------------
+  // ---- Preferences (Phase 9.4; per-scope in 10.4) -----------------
 
   /**
-   * Returns the full topic taxonomy with the caller's current mute
-   * state. Topics without an explicit row default to `muted: false`.
+   * Returns one entry per existing (topic, scope) row plus a default
+   * `{ scope: ALL, muted: false }` placeholder for any topic the
+   * caller has zero rows for. The placeholder preserves the 9.4
+   * single-toggle UX (each topic in the picker has a row).
    */
   async listPreferences(userId: string): Promise<ListNotificationPreferencesResponse> {
     const rows = await this.prisma.notificationPreference.findMany({
       where: { userId },
-      select: { topic: true, muted: true },
+      select: { topic: true, scope: true, muted: true },
     });
-    const muted = new Map(rows.map((r) => [r.topic, r.muted]));
-    const preferences: NotificationPreference[] = Object.values(NotificationTopic).map((topic) => ({
-      topic,
-      muted: muted.get(topic) ?? false,
+    const seen = new Set(rows.map((r) => r.topic));
+    const preferences: NotificationPreference[] = rows.map((r) => ({
+      topic: r.topic as NotificationPreference['topic'],
+      scope: r.scope,
+      muted: r.muted,
     }));
+    for (const topic of Object.values(NotificationTopic)) {
+      if (seen.has(topic)) continue;
+      preferences.push({ topic, scope: NotificationPreferenceScope.ALL, muted: false });
+    }
     return { preferences };
   }
 
   /**
-   * Upserts a preference. `muted: true` creates / sets the row;
-   * `muted: false` deletes any existing row (the default behaviour is
-   * the absence of a row).
+   * Upserts a preference at the given scope. `muted: true` creates /
+   * sets the row; `muted: false` deletes any existing row for that
+   * (topic, scope) — the default state is the absence of a row.
    *
-   * Returns the resulting `{ topic, muted }` shape so the client can
-   * update its UI without re-fetching the full list.
+   * `scope` defaults to `ALL` so the existing single-toggle PUT
+   * route (no scope in the body) keeps working.
    */
   async upsertPreference(
     userId: string,
     topic: NotificationPreference['topic'],
     muted: boolean,
+    scope: NotificationPreference['scope'] = NotificationPreferenceScope.ALL,
   ): Promise<NotificationPreference> {
     if (muted) {
       await this.prisma.notificationPreference.upsert({
-        where: { userId_topic: { userId, topic } },
-        create: { userId, topic, muted: true },
+        where: { userId_topic_scope: { userId, topic, scope } },
+        create: { userId, topic, scope, muted: true },
         update: { muted: true },
       });
-      return { topic, muted: true };
+      return { topic, scope, muted: true };
     }
-    // Unmute = delete the row. `deleteMany` is idempotent (count:0
-    // when nothing matched) so a noop re-unmute doesn't 404.
-    await this.prisma.notificationPreference.deleteMany({ where: { userId, topic } });
-    return { topic, muted: false };
+    await this.prisma.notificationPreference.deleteMany({
+      where: { userId, topic, scope },
+    });
+    return { topic, scope, muted: false };
+  }
+
+  // ---- Quiet hours (Phase 10.4) -----------------------------------
+
+  async getQuietHours(userId: string): Promise<NotificationQuietHours | null> {
+    const row = await this.prisma.notificationQuietHours.findUnique({
+      where: { userId },
+    });
+    if (!row) return null;
+    return { startUtcMinute: row.startUtcMinute, endUtcMinute: row.endUtcMinute };
+  }
+
+  async setQuietHours(
+    userId: string,
+    input: NotificationQuietHours,
+  ): Promise<NotificationQuietHours> {
+    await this.prisma.notificationQuietHours.upsert({
+      where: { userId },
+      create: { userId, ...input },
+      update: { ...input },
+    });
+    return input;
+  }
+
+  async clearQuietHours(userId: string): Promise<void> {
+    await this.prisma.notificationQuietHours.deleteMany({ where: { userId } });
   }
 
   private notFound(): ProblemError {

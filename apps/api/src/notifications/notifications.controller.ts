@@ -1,12 +1,25 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import {
   notificationTopicSchema,
+  type GetQuietHoursResponse,
   type ListNotificationPreferencesResponse,
   type MarkAllReadResponse,
   type Notification,
   type NotificationPreference,
+  type NotificationQuietHours,
   type Page,
   type UnreadCountResponse,
 } from '@repo/shared';
@@ -14,6 +27,7 @@ import {
 import {
   ListNotificationsQueryDto,
   UpsertNotificationPreferenceDto,
+  UpsertQuietHoursDto,
 } from './dto/notifications.dto.js';
 import { NotificationsInboxService } from './notifications.inbox.service.js';
 import type { AuthenticatedUser } from '../auth/auth.types.js';
@@ -91,6 +105,31 @@ export class NotificationsController {
     // outside the enum lands as a 422 problem so the client gets a
     // structured failure instead of a 404.
     const parsed = notificationTopicSchema.parse(topic);
-    return this.service.upsertPreference(user.id, parsed, body.muted);
+    return this.service.upsertPreference(user.id, parsed, body.muted, body.scope);
+  }
+
+  // ---- Quiet hours (Phase 10.4) -----------------------------------
+
+  @Get('quiet-hours')
+  @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
+  getQuietHours(@CurrentUser() user: AuthenticatedUser): Promise<GetQuietHoursResponse> {
+    return this.service.getQuietHours(user.id);
+  }
+
+  @Put('quiet-hours')
+  @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
+  @HttpCode(200)
+  setQuietHours(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: UpsertQuietHoursDto,
+  ): Promise<NotificationQuietHours> {
+    return this.service.setQuietHours(user.id, body);
+  }
+
+  @Delete('quiet-hours')
+  @Roles('TENANT', 'OWNER', 'PARTNER', 'ADMIN')
+  @HttpCode(204)
+  async clearQuietHours(@CurrentUser() user: AuthenticatedUser): Promise<void> {
+    await this.service.clearQuietHours(user.id);
   }
 }

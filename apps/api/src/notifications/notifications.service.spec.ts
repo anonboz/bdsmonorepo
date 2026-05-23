@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  msUntilQuietHoursEnd,
   NotificationsService,
   SWEEP_MAX_RETRIES,
   SWEEP_MIN_AGE_MS,
@@ -31,12 +32,13 @@ function makePrismaStub() {
       create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
         const row = {
           id: `notif_${rows.length + 1}`,
-          ...data,
           readAt: null,
           sentAt: null,
           failureReason: null,
           createdAt: new Date(),
           updatedAt: new Date(),
+          // `data` last so explicit fields (e.g. failureReason) win.
+          ...data,
         };
         rows.push(row);
         return Promise.resolve(row);
@@ -82,7 +84,11 @@ function makePrismaStub() {
     },
     notificationPreference: {
       // Default stub: no preferences set → every dispatch goes through.
-      // Individual tests override via `prisma.muted` below.
+      // Individual tests override via mockResolvedValueOnce below.
+      findMany: vi.fn(() => Promise.resolve([])),
+    },
+    notificationQuietHours: {
+      // Default stub: no quiet hours.
       findUnique: vi.fn(() => Promise.resolve(null)),
     },
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
@@ -205,12 +211,11 @@ describe('NotificationsService.dispatch', () => {
 
   it('skips insert + enqueue when the user has muted that topic (Phase 9.4)', async () => {
     const prisma = makePrismaStub();
-    // Force the preference lookup to return a muted row for the test's
-    // (user, topic) pair.
+    // Force the preference lookup to return a full-scope mute row.
     const prefStub = prisma.stub.notificationPreference as {
-      findUnique: ReturnType<typeof vi.fn>;
+      findMany: ReturnType<typeof vi.fn>;
     };
-    prefStub.findUnique.mockResolvedValueOnce({ muted: true });
+    prefStub.findMany.mockResolvedValueOnce([{ scope: 'ALL', muted: true }]);
     const queue = makeQueueStub();
     const { audit } = makeAuditStub();
     const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
@@ -226,6 +231,127 @@ describe('NotificationsService.dispatch', () => {
     expect(prisma.rows).toHaveLength(0);
     await result.enqueue();
     expect(queue.adds).toHaveLength(0);
+  });
+});
+
+// ---- Phase 10.4 — per-scope + quiet hours -------------------------
+
+describe('NotificationsService.dispatch per-scope + quiet hours', () => {
+  it('email-scope mute persists the row + sets failureReason + no enqueue', async () => {
+    const prisma = makePrismaStub();
+    const prefStub = prisma.stub.notificationPreference as {
+      findMany: ReturnType<typeof vi.fn>;
+    };
+    prefStub.findMany.mockResolvedValueOnce([{ scope: 'EMAIL', muted: true }]);
+    const queue = makeQueueStub();
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    const { id, enqueue, muted } = await service.dispatch(prisma.stub as never, {
+      topic: Topic.BILL_ISSUED,
+      recipientId: 'user_1',
+      data: { amount: 100, currency: 'VND' },
+    });
+    expect(muted).toBe(false);
+    expect(id).not.toBeNull();
+    expect(prisma.rows).toHaveLength(1);
+    expect(prisma.rows[0]?.failureReason).toBe('email channel muted by user preference');
+    await enqueue();
+    expect(queue.adds).toHaveLength(0);
+  });
+
+  it('IN_APP + EMAIL muted via two separate rows is treated as full-mute', async () => {
+    const prisma = makePrismaStub();
+    const prefStub = prisma.stub.notificationPreference as {
+      findMany: ReturnType<typeof vi.fn>;
+    };
+    prefStub.findMany.mockResolvedValueOnce([
+      { scope: 'EMAIL', muted: true },
+      { scope: 'IN_APP', muted: true },
+    ]);
+    const queue = makeQueueStub();
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    const { id, muted } = await service.dispatch(prisma.stub as never, {
+      topic: Topic.BILL_ISSUED,
+      recipientId: 'user_1',
+      data: { amount: 100, currency: 'VND' },
+    });
+    expect(muted).toBe(true);
+    expect(id).toBeNull();
+    expect(prisma.rows).toHaveLength(0);
+  });
+
+  it('quiet hours active: row persists, enqueue carries a delay until window end', async () => {
+    const prisma = makePrismaStub();
+    const qhStub = prisma.stub.notificationQuietHours as {
+      findUnique: ReturnType<typeof vi.fn>;
+    };
+    // 22:00 - 08:00 UTC quiet hours.
+    qhStub.findUnique.mockResolvedValueOnce({ startUtcMinute: 22 * 60, endUtcMinute: 8 * 60 });
+    const queue = makeQueueStub();
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    // Pretend wall-clock is 23:30 UTC; window wraps.
+    const now = new Date('2026-05-23T23:30:00Z');
+    const { enqueue } = await service.dispatch(
+      prisma.stub as never,
+      { topic: Topic.BILL_ISSUED, recipientId: 'user_1', data: { amount: 100, currency: 'VND' } },
+      now,
+    );
+    await enqueue();
+    expect(queue.adds).toHaveLength(1);
+    const opts = queue.adds[0]?.opts as { delay?: number };
+    // 23:30 → 08:00 next day = 8h30m = 30,600,000 ms.
+    expect(opts.delay).toBe(8.5 * 60 * 60_000);
+  });
+
+  it('quiet hours configured but outside window: no delay, immediate enqueue', async () => {
+    const prisma = makePrismaStub();
+    const qhStub = prisma.stub.notificationQuietHours as {
+      findUnique: ReturnType<typeof vi.fn>;
+    };
+    qhStub.findUnique.mockResolvedValueOnce({ startUtcMinute: 22 * 60, endUtcMinute: 8 * 60 });
+    const queue = makeQueueStub();
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    const now = new Date('2026-05-23T15:30:00Z'); // 15:30 UTC — outside 22-08 window
+    const { enqueue } = await service.dispatch(
+      prisma.stub as never,
+      { topic: Topic.BILL_ISSUED, recipientId: 'user_1', data: { amount: 100, currency: 'VND' } },
+      now,
+    );
+    await enqueue();
+    expect(queue.adds).toHaveLength(1);
+    const opts = queue.adds[0]?.opts as { delay?: number };
+    expect(opts.delay).toBeUndefined();
+  });
+
+  it('email-mute beats quiet-hours: row persists with failureReason, no enqueue', async () => {
+    const prisma = makePrismaStub();
+    const prefStub = prisma.stub.notificationPreference as {
+      findMany: ReturnType<typeof vi.fn>;
+    };
+    prefStub.findMany.mockResolvedValueOnce([{ scope: 'EMAIL', muted: true }]);
+    const qhStub = prisma.stub.notificationQuietHours as {
+      findUnique: ReturnType<typeof vi.fn>;
+    };
+    qhStub.findUnique.mockResolvedValueOnce({ startUtcMinute: 0, endUtcMinute: 1439 });
+    const queue = makeQueueStub();
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    const { enqueue } = await service.dispatch(prisma.stub as never, {
+      topic: Topic.BILL_ISSUED,
+      recipientId: 'user_1',
+      data: { amount: 100, currency: 'VND' },
+    });
+    await enqueue();
+    expect(queue.adds).toHaveLength(0);
+    expect(prisma.rows[0]?.failureReason).toBe('email channel muted by user preference');
   });
 });
 
@@ -425,6 +551,44 @@ describe('renderNotification', () => {
     expect(r.emailHtml).not.toContain('<script>alert(1)</script>');
     expect(r.emailHtml).toContain('&lt;script&gt;');
     expect(r.emailHtml).toContain('Eve &amp; friends');
+  });
+});
+
+// ---- msUntilQuietHoursEnd helper (phase 10.4) --------------------
+
+describe('msUntilQuietHoursEnd', () => {
+  it('returns 0 when now is outside a non-wrapping window', () => {
+    const now = new Date('2026-05-23T03:00:00Z');
+    expect(msUntilQuietHoursEnd(now, 12 * 60, 18 * 60)).toBe(0);
+  });
+
+  it('returns ms to end when now is inside a non-wrapping window', () => {
+    const now = new Date('2026-05-23T13:00:00Z');
+    expect(msUntilQuietHoursEnd(now, 12 * 60, 18 * 60)).toBe(5 * 60 * 60_000);
+  });
+
+  it('handles wrap-around window when now is past midnight', () => {
+    const now = new Date('2026-05-23T02:00:00Z');
+    // window 22:00..08:00 — we're 6 hours from end (08:00).
+    expect(msUntilQuietHoursEnd(now, 22 * 60, 8 * 60)).toBe(6 * 60 * 60_000);
+  });
+
+  it('handles wrap-around window when now is before midnight', () => {
+    const now = new Date('2026-05-23T23:00:00Z');
+    // window 22:00..08:00 — 9 hours from end (next day 08:00).
+    expect(msUntilQuietHoursEnd(now, 22 * 60, 8 * 60)).toBe(9 * 60 * 60_000);
+  });
+
+  it('handles wrap-around window when now is outside the wrap', () => {
+    const now = new Date('2026-05-23T10:00:00Z');
+    expect(msUntilQuietHoursEnd(now, 22 * 60, 8 * 60)).toBe(0);
+  });
+
+  it('subtracts the sub-minute portion of now so the delay aligns with wall clock', () => {
+    const now = new Date('2026-05-23T13:30:30.500Z');
+    // window 12:00..14:00 — 30 min - 30.5s remain.
+    const expected = 30 * 60_000 - (30 * 1000 + 500);
+    expect(msUntilQuietHoursEnd(now, 12 * 60, 14 * 60)).toBe(expected);
   });
 });
 
