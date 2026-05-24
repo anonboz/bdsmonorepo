@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { BillStatus, Payment, RecordPaymentResponse } from '@repo/shared';
@@ -45,6 +46,7 @@ export function PaymentsPanel({
   remaining: number;
   initialPayments: Payment[];
 }) {
+  const t = useTranslations('owner.bills.payments');
   const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>(initialPayments);
   const [amount, setAmount] = useState<string>(String(remaining));
@@ -53,7 +55,6 @@ export function PaymentsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Refund-dialog state: which Payment row is being refunded.
   const [refundTarget, setRefundTarget] = useState<Payment | null>(null);
   const [refundError, setRefundError] = useState<string | null>(null);
 
@@ -63,7 +64,7 @@ export function PaymentsPanel({
     e.preventDefault();
     const amt = Number.parseInt(amount, 10);
     if (!Number.isFinite(amt) || amt <= 0) {
-      setError('Amount must be a positive integer (minor units).');
+      setError(t('amountInvalid'));
       return;
     }
     setBusy(true);
@@ -87,22 +88,17 @@ export function PaymentsPanel({
       setNote('');
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Failed to record payment');
+      setError(err instanceof ApiError ? err.problem.title : t('recordFailed'));
     } finally {
       setBusy(false);
     }
   }
 
-  /**
-   * Refundable balance for a charge row = `original.amount - sum(refunds against it)`.
-   * The local `payments` list shows everything we know; treat it as the source of
-   * truth for the dialog's "max" input. The server re-checks.
-   */
   function refundableFor(charge: Payment): number {
     if (charge.amount <= 0 || charge.status !== 'SUCCEEDED') return 0;
     const refunded = payments
       .filter((p) => p.refundOfPaymentId === charge.id && p.status === 'SUCCEEDED')
-      .reduce((acc, r) => acc + r.amount, 0); // refunds carry negative amounts
+      .reduce((acc, r) => acc + r.amount, 0);
     return charge.amount + refunded;
   }
 
@@ -120,7 +116,7 @@ export function PaymentsPanel({
       setRefundTarget(null);
       router.refresh();
     } catch (err) {
-      setRefundError(err instanceof ApiError ? err.problem.title : 'Failed to refund');
+      setRefundError(err instanceof ApiError ? err.problem.title : t('refundFailed'));
     } finally {
       setBusy(false);
     }
@@ -130,11 +126,9 @@ export function PaymentsPanel({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Payments</CardTitle>
+          <CardTitle className="text-lg">{t('title')}</CardTitle>
           <CardDescription>
-            {payments.length === 0
-              ? 'No payments recorded yet.'
-              : `${payments.length} payment${payments.length === 1 ? '' : 's'} on file.`}
+            {payments.length === 0 ? t('empty') : t('count', { count: payments.length })}
           </CardDescription>
         </CardHeader>
         {payments.length > 0 && (
@@ -142,12 +136,12 @@ export function PaymentsPanel({
             <table className="w-full text-sm">
               <thead className="border-y text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2 font-medium">Received</th>
-                  <th className="px-4 py-2 font-medium text-right">Amount</th>
-                  <th className="px-4 py-2 font-medium">Provider</th>
-                  <th className="px-4 py-2 font-medium">Ref</th>
-                  <th className="px-4 py-2 font-medium">Note</th>
-                  <th className="px-4 py-2 font-medium">Action</th>
+                  <th className="px-4 py-2 font-medium">{t('tableReceived')}</th>
+                  <th className="px-4 py-2 font-medium text-right">{t('tableAmount')}</th>
+                  <th className="px-4 py-2 font-medium">{t('tableProvider')}</th>
+                  <th className="px-4 py-2 font-medium">{t('tableRef')}</th>
+                  <th className="px-4 py-2 font-medium">{t('tableNote')}</th>
+                  <th className="px-4 py-2 font-medium">{t('tableAction')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -167,13 +161,15 @@ export function PaymentsPanel({
                         {formatMoney(p.amount, p.currency)}
                         {isRefund && (
                           <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-rose-800">
-                            refund
+                            {t('refundBadge')}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs">{p.provider.toLowerCase()}</td>
-                      <td className="px-4 py-3 text-xs">{p.providerRef ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{p.note ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs">{p.providerRef ?? t('noneDash')}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {p.note ?? t('noneDash')}
+                      </td>
                       <td className="px-4 py-3 text-xs">
                         {!isRefund && refundable > 0 && (
                           <Button
@@ -185,7 +181,7 @@ export function PaymentsPanel({
                               setRefundTarget(p);
                             }}
                           >
-                            Refund
+                            {t('refundButton')}
                           </Button>
                         )}
                       </td>
@@ -212,21 +208,21 @@ export function PaymentsPanel({
       {canRecord && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Record payment</CardTitle>
+            <CardTitle className="text-lg">{t('recordTitle')}</CardTitle>
             <CardDescription>
-              Outstanding balance: {formatMoney(remaining, currency)}
+              {t('recordSubtitle', { amount: formatMoney(remaining, currency) })}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={submit}>
               {error && (
                 <Alert variant="destructive">
-                  <AlertTitle>Could not record payment</AlertTitle>
+                  <AlertTitle>{t('recordFailedTitle')}</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
               <div className="grid gap-2">
-                <Label htmlFor="amount">Amount (minor units, {currency})</Label>
+                <Label htmlFor="amount">{t('amountLabel', { currency })}</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -239,17 +235,17 @@ export function PaymentsPanel({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="providerRef">Reference (optional)</Label>
+                <Label htmlFor="providerRef">{t('refLabel')}</Label>
                 <Input
                   id="providerRef"
-                  placeholder="Bank transfer ref, cheque #…"
+                  placeholder={t('refPlaceholder')}
                   value={providerRef}
                   onChange={(e) => setProviderRef(e.target.value)}
                   maxLength={120}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="note">Note (optional)</Label>
+                <Label htmlFor="note">{t('noteLabel')}</Label>
                 <Textarea
                   id="note"
                   value={note}
@@ -260,7 +256,7 @@ export function PaymentsPanel({
               </div>
               <Button type="submit" disabled={busy}>
                 {busy && <Spinner />}
-                Record payment
+                {t('recordButton')}
               </Button>
             </form>
           </CardContent>
@@ -285,6 +281,8 @@ function RefundDialog({
   onCancel: () => void;
   onSubmit: (amount: number, reason: string) => void;
 }) {
+  const t = useTranslations('owner.bills.payments');
+  const tChrome = useTranslations('owner.chrome');
   const [amount, setAmount] = useState<string>(String(refundable));
   const [reason, setReason] = useState('');
 
@@ -295,30 +293,37 @@ function RefundDialog({
     onSubmit(amt, reason);
   }
 
+  const provider = target.provider.toLowerCase();
+  const subtitleArgs = {
+    provider,
+    amount: formatMoney(target.amount, target.currency),
+    remaining: formatMoney(refundable, target.currency),
+  };
+  const subtitle =
+    target.provider === 'STRIPE'
+      ? t('refundDialogSubtitleStripe', subtitleArgs)
+      : target.provider === 'VNPAY'
+        ? t('refundDialogSubtitleVnpay', subtitleArgs)
+        : t('refundDialogSubtitleManual', subtitleArgs);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Refund payment</CardTitle>
-        <CardDescription>
-          Refundable from {target.provider.toLowerCase()} payment of{' '}
-          {formatMoney(target.amount, target.currency)}: {formatMoney(refundable, target.currency)}.{' '}
-          {target.provider === 'STRIPE'
-            ? 'This will issue a refund via the Stripe API.'
-            : target.provider === 'VNPAY'
-              ? 'VNPay refunds are not supported here — process via the VNPay dashboard then record a MANUAL refund.'
-              : 'Local-only record. Make sure you have actually returned the money out-of-band.'}
-        </CardDescription>
+        <CardTitle className="text-lg">{t('refundDialogTitle')}</CardTitle>
+        <CardDescription>{subtitle}</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={handle}>
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Refund failed</AlertTitle>
+              <AlertTitle>{t('refundFailedTitle')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           <div className="grid gap-2">
-            <Label htmlFor="refundAmount">Amount (minor units, {target.currency})</Label>
+            <Label htmlFor="refundAmount">
+              {t('refundAmountLabel', { currency: target.currency })}
+            </Label>
             <Input
               id="refundAmount"
               type="number"
@@ -331,7 +336,7 @@ function RefundDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="refundReason">Reason (optional)</Label>
+            <Label htmlFor="refundReason">{t('refundReasonLabel')}</Label>
             <Textarea
               id="refundReason"
               value={reason}
@@ -343,10 +348,10 @@ function RefundDialog({
           <div className="flex gap-2">
             <Button type="submit" disabled={busy} variant="destructive">
               {busy && <Spinner />}
-              Issue refund
+              {t('issueRefundButton')}
             </Button>
             <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
-              Cancel
+              {tChrome('cancel')}
             </Button>
           </div>
         </form>

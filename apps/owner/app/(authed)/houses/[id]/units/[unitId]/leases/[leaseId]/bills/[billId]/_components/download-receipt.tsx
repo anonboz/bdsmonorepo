@@ -1,3 +1,7 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+
 import { Button } from '@repo/ui';
 
 import { API_URL } from '../../../../../../../../../../../lib/app-config';
@@ -20,11 +24,12 @@ export function DownloadReceipt({
   leaseId: string;
   billId: string;
 }) {
+  const t = useTranslations('owner.bills.detail');
   const href = `${API_URL}/v1/houses/${houseId}/units/${unitId}/leases/${leaseId}/bills/${billId}/receipt.pdf`;
   return (
     <Button asChild variant="outline">
       <a href={href} download={`bill-${billId}.pdf`} rel="noopener">
-        Download receipt (PDF)
+        {t('downloadReceipt')}
       </a>
     </Button>
   );

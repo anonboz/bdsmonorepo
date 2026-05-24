@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 
 import type { House } from '@repo/shared';
 import { Button } from '@repo/ui';
@@ -13,13 +14,16 @@ export default async function EditHousePage({ params }: { params: Promise<{ id: 
   const house = await fetchHouse(id);
   if (!house) notFound();
 
+  const t = await getTranslations('owner.houses');
+  const tForm = await getTranslations('owner.houses.form');
+
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href={`/houses/${house.id}` as const}>← Back to {house.name}</Link>
+          <Link href={`/houses/${house.id}` as const}>{t('backTo', { name: house.name })}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold">Edit house</h1>
+        <h1 className="text-2xl font-semibold">{tForm('editTitle')}</h1>
       </div>
       <HouseForm initial={house} />
     </main>

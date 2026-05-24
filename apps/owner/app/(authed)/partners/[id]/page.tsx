@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { KycStatus, PartnerSummary } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -30,28 +32,19 @@ export default async function PartnerDetailPage({
     : `/partners/${partner.id}/book`;
   const backHref = fromTicket ? `/partners?fromTicket=${fromTicket}` : '/partners';
 
+  const t = await getTranslations('owner.partners');
+  const tDetail = await getTranslations('owner.partners.detail');
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href={backHref}>← Back to partners</Link>
+          <Link href={backHref}>{t('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{partner.businessName}</h1>
-            <p className="text-sm text-muted-foreground">
-              <span
-                className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium ${KYC_PALETTE[partner.kycStatus]}`}
-              >
-                KYC {partner.kycStatus.toLowerCase()}
-              </span>
-              {partner.serviceArea ?? ''}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {partner.ratingAverage !== null
-                ? `★ ${partner.ratingAverage.toFixed(1)} · ${partner.ratingCount} rating${partner.ratingCount === 1 ? '' : 's'}`
-                : 'No ratings yet'}
-            </p>
+            <SubtitleLine partner={partner} />
           </div>
         </div>
       </div>
@@ -59,7 +52,7 @@ export default async function PartnerDetailPage({
       {partner.bio && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">About</CardTitle>
+            <CardTitle className="text-lg">{tDetail('aboutTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{partner.bio}</p>
@@ -69,11 +62,11 @@ export default async function PartnerDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Services</CardTitle>
+          <CardTitle className="text-lg">{tDetail('servicesTitle')}</CardTitle>
           <CardDescription>
             {partner.activeServices.length === 0
-              ? 'No active services.'
-              : `${partner.activeServices.length} bookable service${partner.activeServices.length === 1 ? '' : 's'}.`}
+              ? tDetail('servicesEmpty')
+              : tDetail('servicesCount', { count: partner.activeServices.length })}
           </CardDescription>
         </CardHeader>
         {partner.activeServices.length > 0 && (
@@ -101,20 +94,43 @@ export default async function PartnerDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Book</CardTitle>
+          <CardTitle className="text-lg">{tDetail('bookTitle')}</CardTitle>
           <CardDescription>
-            {fromTicket
-              ? 'Booking on behalf of a ticket — the new job will be linked automatically.'
-              : 'Send a request — the partner will come back with a quote.'}
+            {fromTicket ? tDetail('bookDescriptionFromTicket') : tDetail('bookDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href={bookHref}>Book this partner</Link>
+            <Link href={bookHref}>{tDetail('bookButton')}</Link>
           </Button>
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function SubtitleLine({ partner }: { partner: PartnerSummary }) {
+  const t = useTranslations('owner.partners');
+  const tKyc = useTranslations('owner.statuses.kycLower');
+  return (
+    <>
+      <p className="text-sm text-muted-foreground">
+        <span
+          className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium ${KYC_PALETTE[partner.kycStatus]}`}
+        >
+          {t('kycLabel', { status: tKyc(partner.kycStatus) })}
+        </span>
+        {partner.serviceArea ?? ''}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {partner.ratingAverage !== null
+          ? t('ratingSummary', {
+              avg: partner.ratingAverage.toFixed(1),
+              count: partner.ratingCount,
+            })
+          : t('noRatings')}
+      </p>
+    </>
   );
 }
 

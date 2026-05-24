@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Lease, LeaseRatingState, LeaseStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -21,23 +23,26 @@ export default async function LeaseDetailPage({
   if (!lease) notFound();
   const ratingState = await fetchRatingState(houseId, unitId, leaseId);
 
+  const t = await getTranslations('owner.leases.detail');
+  const tChrome = await getTranslations('owner.chrome');
+  const tCycle = await getTranslations('owner.statuses.rentCyclesLower');
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href={`/houses/${houseId}/units/${unitId}`}>← Back to unit</Link>
+          <Link href={`/houses/${houseId}/units/${unitId}`}>{tChrome('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Lease</h1>
-            <p className="text-sm text-muted-foreground">
-              <StatusBadge status={lease.status} /> · started {formatDate(lease.startDate)}
-              {lease.endDate && ` · ends ${formatDate(lease.endDate)}`}
-            </p>
+            <h1 className="text-2xl font-semibold">{t('title')}</h1>
+            <SubtitleLine lease={lease} />
           </div>
           {lease.status === 'DRAFT' && (
             <Button asChild variant="outline">
-              <Link href={`/houses/${houseId}/units/${unitId}/leases/${lease.id}/edit`}>Edit</Link>
+              <Link href={`/houses/${houseId}/units/${unitId}/leases/${lease.id}/edit`}>
+                {tChrome('edit')}
+              </Link>
             </Button>
           )}
         </div>
@@ -45,17 +50,20 @@ export default async function LeaseDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Money</CardTitle>
+          <CardTitle className="text-lg">{t('moneyTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <Stat
-              label="Rent"
-              value={`${formatMoney(lease.rentAmount, lease.currency)} / ${lease.rentCycle.toLowerCase()}`}
+              label={t('rentLabel')}
+              value={`${formatMoney(lease.rentAmount, lease.currency)} / ${tCycle(lease.rentCycle)}`}
             />
-            <Stat label="Deposit" value={formatMoney(lease.depositAmount, lease.currency)} />
-            <Stat label="Currency" value={lease.currency} />
-            <Stat label="Cycle" value={lease.rentCycle.toLowerCase()} />
+            <Stat
+              label={t('depositLabel')}
+              value={formatMoney(lease.depositAmount, lease.currency)}
+            />
+            <Stat label={t('currencyLabel')} value={lease.currency} />
+            <Stat label={t('cycleLabel')} value={tCycle(lease.rentCycle)} />
           </dl>
         </CardContent>
       </Card>
@@ -63,7 +71,7 @@ export default async function LeaseDetailPage({
       {lease.terminationReason && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Termination reason</CardTitle>
+            <CardTitle className="text-lg">{t('terminationTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{lease.terminationReason}</p>
@@ -73,14 +81,11 @@ export default async function LeaseDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Actions</CardTitle>
+          <CardTitle className="text-lg">{t('actionsTitle')}</CardTitle>
           <CardDescription>
-            {lease.status === 'DRAFT' &&
-              'Activate to bind the tenant and flip the unit to occupied.'}
-            {lease.status === 'ACTIVE' &&
-              'End to release the unit cleanly, or terminate with a reason.'}
-            {(lease.status === 'ENDED' || lease.status === 'TERMINATED') &&
-              'This lease is closed. No further transitions are possible.'}
+            {lease.status === 'DRAFT' && t('actionsDraft')}
+            {lease.status === 'ACTIVE' && t('actionsActive')}
+            {(lease.status === 'ENDED' || lease.status === 'TERMINATED') && t('actionsClosed')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -93,10 +98,8 @@ export default async function LeaseDetailPage({
       {ratingState && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Rate your tenant</CardTitle>
-            <CardDescription>
-              Quick 1–5 star rating at each lease milestone. Comments are optional.
-            </CardDescription>
+            <CardTitle className="text-lg">{t('rateTitle')}</CardTitle>
+            <CardDescription>{t('rateDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <RatingsCard
@@ -107,6 +110,17 @@ export default async function LeaseDetailPage({
         </Card>
       )}
     </main>
+  );
+}
+
+function SubtitleLine({ lease }: { lease: Lease }) {
+  const t = useTranslations('owner.leases.detail');
+  return (
+    <p className="text-sm text-muted-foreground">
+      <StatusBadge status={lease.status} /> ·{' '}
+      {t('subtitleStarted', { start: formatDate(lease.startDate) })}
+      {lease.endDate && t('subtitleEnds', { end: formatDate(lease.endDate) })}
+    </p>
   );
 }
 
@@ -135,6 +149,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function StatusBadge({ status }: { status: LeaseStatus }) {
+  const t = useTranslations('owner.statuses.leases');
   const palette: Record<LeaseStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     ACTIVE: 'bg-emerald-100 text-emerald-900',
@@ -143,7 +158,7 @@ function StatusBadge({ status }: { status: LeaseStatus }) {
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase()}
+      {t(status)}
     </span>
   );
 }

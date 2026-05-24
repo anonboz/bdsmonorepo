@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 
 import type { Campaign } from '@repo/shared';
 import { Button } from '@repo/ui';
@@ -8,7 +9,10 @@ import { ApiError } from '../../../../../../../../../lib/api';
 import { serverApi } from '../../../../../../../../../lib/session';
 import { CampaignForm } from '../../_components/campaign-form';
 
-export const metadata = { title: 'Edit campaign' };
+export async function generateMetadata() {
+  const t = await getTranslations('owner.campaigns.form');
+  return { title: t('editMetadata') };
+}
 
 export default async function EditCampaignPage({
   params,
@@ -19,15 +23,18 @@ export default async function EditCampaignPage({
   const campaign = await fetchCampaign(houseId, unitId, campaignId);
   if (!campaign || (campaign.status !== 'DRAFT' && campaign.status !== 'REJECTED')) notFound();
 
+  const t = await getTranslations('owner.campaigns');
+  const tForm = await getTranslations('owner.campaigns.form');
+
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
           <Link href={`/houses/${houseId}/units/${unitId}/campaigns/${campaign.id}`}>
-            ← Back to campaign
+            {t('back')}
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold">Edit campaign</h1>
+        <h1 className="text-2xl font-semibold">{tForm('editTitle')}</h1>
       </div>
 
       <CampaignForm houseId={houseId} unitId={unitId} mode="edit" initial={campaign} />

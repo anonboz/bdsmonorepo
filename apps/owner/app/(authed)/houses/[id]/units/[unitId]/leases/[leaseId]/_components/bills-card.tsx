@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Bill, BillStatus, Page } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -22,18 +24,19 @@ export async function BillsCard({
     `/v1/houses/${houseId}/units/${unitId}/leases/${leaseId}/bills?limit=20`,
   );
   const isActive = leaseStatus === 'ACTIVE';
+  const t = await getTranslations('owner.bills');
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between">
         <div>
-          <CardTitle className="text-lg">Bills</CardTitle>
+          <CardTitle className="text-lg">{t('listTitle')}</CardTitle>
           <CardDescription>
             {page.items.length === 0
               ? isActive
-                ? 'No bills yet. Generate one to issue rent.'
-                : 'No bills yet. Activate the lease to enable billing.'
-              : `${page.items.length} ${page.items.length === 1 ? 'bill' : 'bills'} on record.`}
+                ? t('listEmptyActive')
+                : t('listEmptyInactive')
+              : t('listSummary', { count: page.items.length })}
           </CardDescription>
         </div>
         {isActive && <GenerateNowButton houseId={houseId} unitId={unitId} leaseId={leaseId} />}
@@ -68,6 +71,7 @@ function BillRow({
   leaseId: string;
   bill: Bill;
 }) {
+  const t = useTranslations('owner.bills');
   return (
     <li>
       <Link
@@ -77,8 +81,8 @@ function BillRow({
         <div className="space-y-0.5">
           <p className="font-medium">{formatMoney(bill.total, bill.currency)}</p>
           <p className="text-xs text-muted-foreground">
-            {formatDate(bill.periodStart)} – {formatDate(bill.periodEnd)} · due{' '}
-            {formatDate(bill.dueDate)}
+            {formatDate(bill.periodStart)} – {formatDate(bill.periodEnd)} ·{' '}
+            {t('billDuePrefix', { date: formatDate(bill.dueDate) })}
           </p>
         </div>
         <StatusBadge status={bill.status} />
@@ -88,6 +92,7 @@ function BillRow({
 }
 
 function StatusBadge({ status }: { status: BillStatus }) {
+  const t = useTranslations('owner.statuses.bills');
   const palette: Record<BillStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     ISSUED: 'bg-blue-100 text-blue-900',
@@ -98,7 +103,7 @@ function StatusBadge({ status }: { status: BillStatus }) {
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase().replace('_', ' ')}
+      {t(status)}
     </span>
   );
 }

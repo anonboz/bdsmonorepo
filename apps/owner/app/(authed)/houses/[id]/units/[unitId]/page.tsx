@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
-import type { House, Unit, UnitStatus } from '@repo/shared';
+import type { House, Unit } from '@repo/shared';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApiError } from '../../../../../../lib/api';
@@ -19,22 +21,26 @@ export default async function UnitDetailPage({
   const [house, unit] = await Promise.all([fetchHouse(houseId), fetchUnit(houseId, unitId)]);
   if (!house || !unit) notFound();
 
+  const t = await getTranslations('owner.units');
+  const tChrome = await getTranslations('owner.chrome');
+  const tStatus = await getTranslations('owner.statuses.units');
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href={`/houses/${houseId}/units`}>← Back to units</Link>
+          <Link href={`/houses/${houseId}/units`}>{t('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{unit.label}</h1>
             <p className="text-sm text-muted-foreground">
-              {house.name} · <StatusLabel status={unit.status} />
+              {house.name} · {tStatus(unit.status)}
             </p>
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline">
-              <Link href={`/houses/${houseId}/units/${unit.id}/edit`}>Edit</Link>
+              <Link href={`/houses/${houseId}/units/${unit.id}/edit`}>{tChrome('edit')}</Link>
             </Button>
             <DeleteUnitButton houseId={houseId} unitId={unit.id} unitLabel={unit.label} />
           </div>
@@ -43,15 +49,10 @@ export default async function UnitDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Stats</CardTitle>
+          <CardTitle className="text-lg">{t('detail.statsTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-            <Stat label="Bedrooms" value={unit.bedrooms} />
-            <Stat label="Bathrooms" value={unit.bathrooms} />
-            <Stat label="Size" value={unit.sqm != null ? `${unit.sqm} m²` : null} />
-            <Stat label="Floor" value={unit.floor} />
-          </dl>
+          <Stats unit={unit} />
         </CardContent>
       </Card>
 
@@ -62,6 +63,18 @@ export default async function UnitDetailPage({
   );
 }
 
+function Stats({ unit }: { unit: Unit }) {
+  const t = useTranslations('owner.units.detail');
+  return (
+    <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+      <Stat label={t('bedrooms')} value={unit.bedrooms} />
+      <Stat label={t('bathrooms')} value={unit.bathrooms} />
+      <Stat label={t('size')} value={unit.sqm != null ? `${unit.sqm} m²` : null} />
+      <Stat label={t('floor')} value={unit.floor} />
+    </dl>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: number | string | null | undefined }) {
   return (
     <div>
@@ -69,10 +82,6 @@ function Stat({ label, value }: { label: string; value: number | string | null |
       <dd className="font-medium">{value ?? '—'}</dd>
     </div>
   );
-}
-
-function StatusLabel({ status }: { status: UnitStatus }) {
-  return <span>{status[0] + status.slice(1).toLowerCase()}</span>;
 }
 
 async function fetchHouse(id: string): Promise<House | null> {

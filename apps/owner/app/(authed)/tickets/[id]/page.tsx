@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Page, Ticket, TicketMessage, TicketStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -31,32 +33,32 @@ export default async function OwnerTicketDetailPage({
     ticket.status !== 'CLOSED' ||
     (reference != null && Date.now() - new Date(reference).getTime() <= POST_WINDOW_MS);
 
+  const t = await getTranslations('owner.tickets');
+  const tDetail = await getTranslations('owner.tickets.detail');
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/tickets">← Back to tickets</Link>
+          <Link href="/tickets">{t('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{ticket.title}</h1>
-            <p className="text-sm text-muted-foreground">
-              <StatusBadge status={ticket.status} /> · {ticket.category.toLowerCase()} · from{' '}
-              {ticket.reporterName} · {formatDate(ticket.createdAt)}
-            </p>
+            <SubtitleLine ticket={ticket} />
           </div>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Details</CardTitle>
+          <CardTitle className="text-lg">{tDetail('detailsTitle')}</CardTitle>
           <CardDescription>
             <Link
               href={`/houses/${ticket.houseId}/units/${ticket.unitId}/leases/${ticket.leaseId}`}
               className="underline"
             >
-              View lease
+              {tDetail('viewLease')}
             </Link>
           </CardDescription>
         </CardHeader>
@@ -67,16 +69,9 @@ export default async function OwnerTicketDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Actions</CardTitle>
+          <CardTitle className="text-lg">{tDetail('actionsTitle')}</CardTitle>
           <CardDescription>
-            {ticket.status === 'OPEN' && 'Acknowledge to let the tenant know it’s on your list.'}
-            {ticket.status === 'ACKNOWLEDGED' &&
-              'Move to In Progress when you start working on it.'}
-            {ticket.status === 'IN_PROGRESS' && 'Resolve when the fix is in place.'}
-            {ticket.status === 'RESOLVED' &&
-              'Close once the tenant has had time to confirm (within 7 days they can reopen).'}
-            {ticket.status === 'CLOSED' && 'Closed. The tenant has 7 days from closure to reopen.'}
-            {ticket.status === 'REOPENED' && 'Tenant reopened — start a fresh cycle.'}
+            <ActionsCopy status={ticket.status} />
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -91,9 +86,9 @@ export default async function OwnerTicketDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Conversation</CardTitle>
+          <CardTitle className="text-lg">{tDetail('conversationTitle')}</CardTitle>
           <CardDescription>
-            Messages with {ticket.reporterName}. Stays open for 7 days after closure.
+            {tDetail('conversationDescription', { reporter: ticket.reporterName })}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -103,7 +98,7 @@ export default async function OwnerTicketDetailPage({
             viewerRole="OWNER"
             viewerId={session.user.id}
             canPost={threadOpen}
-            lockedReason="This ticket is closed and past the 7-day reopen window."
+            lockedReason={tDetail('lockedDefault')}
             initialItems={messages}
           />
         </CardContent>
@@ -112,7 +107,41 @@ export default async function OwnerTicketDetailPage({
   );
 }
 
+function SubtitleLine({ ticket }: { ticket: Ticket }) {
+  const t = useTranslations('owner.tickets.detail');
+  const tCat = useTranslations('owner.statuses.ticketCategoriesLower');
+  return (
+    <p className="text-sm text-muted-foreground">
+      <StatusBadge status={ticket.status} /> ·{' '}
+      {t('subtitle', {
+        category: tCat(ticket.category),
+        reporter: ticket.reporterName,
+        date: formatDate(ticket.createdAt),
+      })}
+    </p>
+  );
+}
+
+function ActionsCopy({ status }: { status: TicketStatus }) {
+  const t = useTranslations('owner.tickets.detail');
+  switch (status) {
+    case 'OPEN':
+      return <>{t('actionsCopyOpen')}</>;
+    case 'ACKNOWLEDGED':
+      return <>{t('actionsCopyAcknowledged')}</>;
+    case 'IN_PROGRESS':
+      return <>{t('actionsCopyInProgress')}</>;
+    case 'RESOLVED':
+      return <>{t('actionsCopyResolved')}</>;
+    case 'CLOSED':
+      return <>{t('actionsCopyClosed')}</>;
+    case 'REOPENED':
+      return <>{t('actionsCopyReopened')}</>;
+  }
+}
+
 function StatusBadge({ status }: { status: TicketStatus }) {
+  const t = useTranslations('owner.statuses.tickets');
   const palette: Record<TicketStatus, string> = {
     OPEN: 'bg-blue-100 text-blue-900',
     ACKNOWLEDGED: 'bg-sky-100 text-sky-900',
@@ -123,7 +152,7 @@ function StatusBadge({ status }: { status: TicketStatus }) {
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase().replace('_', ' ')}
+      {t(status)}
     </span>
   );
 }

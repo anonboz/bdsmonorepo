@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { PartnerSummary, ServiceJob } from '@repo/shared';
@@ -17,6 +18,8 @@ import {
 import { ApiError, api } from '../../../../../lib/api';
 
 export function BookForm({ partner, ticketId }: { partner: PartnerSummary; ticketId?: string }) {
+  const t = useTranslations('owner.partners.book');
+  const tChrome = useTranslations('owner.chrome');
   const router = useRouter();
   const [description, setDescription] = useState('');
   const [serviceId, setServiceId] = useState<string>('');
@@ -37,7 +40,7 @@ export function BookForm({ partner, ticketId }: { partner: PartnerSummary; ticke
       router.push(`/me/service-jobs/${created.id}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Could not book partner.');
+      setError(err instanceof ApiError ? err.problem.title : t('failed'));
       setBusy(false);
     }
   }
@@ -46,20 +49,20 @@ export function BookForm({ partner, ticketId }: { partner: PartnerSummary; ticke
     <form className="space-y-4" onSubmit={submit}>
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Could not book</AlertTitle>
+          <AlertTitle>{t('failedTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {partner.activeServices.length > 0 && (
-        <FormField label="Service (optional)" htmlFor="serviceId">
+        <FormField label={t('serviceLabel')} htmlFor="serviceId">
           <select
             id="serviceId"
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
-            <option value="">(none)</option>
+            <option value="">{t('serviceNone')}</option>
             {partner.activeServices.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -70,9 +73,9 @@ export function BookForm({ partner, ticketId }: { partner: PartnerSummary; ticke
       )}
 
       <FormField
-        label="What do you need?"
+        label={t('descriptionLabel')}
         htmlFor="description"
-        description="Short note for the partner so they can quote."
+        description={t('descriptionHelp')}
       >
         <Textarea
           id="description"
@@ -86,10 +89,10 @@ export function BookForm({ partner, ticketId }: { partner: PartnerSummary; ticke
       <div className="flex gap-3">
         <Button type="submit" disabled={busy}>
           {busy && <Spinner />}
-          Send request
+          {t('sendButton')}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={busy}>
-          Cancel
+          {tChrome('cancel')}
         </Button>
       </div>
     </form>

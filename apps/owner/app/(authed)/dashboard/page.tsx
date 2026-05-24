@@ -1,21 +1,27 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
-import type { BillDashboardItem, BillStatus, OwnerDashboard } from '@repo/shared';
+import type { BillDashboardItem, OwnerDashboard } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { formatDate, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
-export const metadata = { title: 'Dashboard' };
+export async function generateMetadata() {
+  const t = await getTranslations('owner.dashboard');
+  return { title: t('metadataTitle') };
+}
 
 export default async function DashboardPage() {
   const data = await serverApi<OwnerDashboard>('/v1/me/owner-dashboard');
+  const t = await getTranslations('owner.dashboard');
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Your portfolio at a glance.</p>
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </header>
 
       {data.counts.houses === 0 ? (
@@ -34,15 +40,16 @@ export default async function DashboardPage() {
 }
 
 function StatsGrid({ data }: { data: OwnerDashboard }) {
+  const t = useTranslations('owner.dashboard.stats');
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        title="Occupancy"
+        title={t('occupancyTitle')}
         value={formatPercent(data.occupancy.rate)}
-        sub={`${data.occupancy.occupied} of ${data.occupancy.total} units`}
+        sub={t('occupancySub', { occupied: data.occupancy.occupied, total: data.occupancy.total })}
       />
       <StatCard
-        title="MRR"
+        title={t('mrrTitle')}
         value={data.mrr[0] ? formatMoney(data.mrr[0].amount, data.mrr[0].currency) : '—'}
         sub={
           data.mrr.length > 1
@@ -50,21 +57,21 @@ function StatsGrid({ data }: { data: OwnerDashboard }) {
                 .slice(1)
                 .map((m) => formatMoney(m.amount, m.currency))
                 .join(' · ')
-            : 'monthly recurring'
+            : t('mrrSubMonthly')
         }
       />
       <StatCard
-        title="Active leases"
+        title={t('activeLeasesTitle')}
         value={String(data.counts.activeLeases)}
-        sub={`${data.counts.tenants} ${data.counts.tenants === 1 ? 'tenant' : 'tenants'}`}
+        sub={t('activeLeasesSub', { count: data.counts.tenants })}
       />
       <StatCard
-        title="Overdue"
+        title={t('overdueTitle')}
         value={String(data.counts.overdueBills)}
         sub={
           data.counts.overdueBills === 0
-            ? 'all clear'
-            : `${data.counts.houses} ${data.counts.houses === 1 ? 'house' : 'houses'} · ${data.counts.units} units`
+            ? t('overdueClear')
+            : t('overdueSub', { houses: data.counts.houses, units: data.counts.units })
         }
         tone={data.counts.overdueBills > 0 ? 'warn' : undefined}
       />
@@ -101,14 +108,15 @@ function StatCard({
 }
 
 function OverdueCard({ items, totalCount }: { items: BillDashboardItem[]; totalCount: number }) {
+  const t = useTranslations('owner.dashboard');
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Overdue bills</CardTitle>
+        <CardTitle className="text-lg">{t('overdueTitle')}</CardTitle>
         <CardDescription>
           {totalCount === 0
-            ? 'No overdue bills. Nice.'
-            : `${totalCount} overdue · showing latest ${Math.min(items.length, 10)}`}
+            ? t('overdueEmpty')
+            : t('overdueSummary', { count: totalCount, latest: Math.min(items.length, 10) })}
         </CardDescription>
       </CardHeader>
       {items.length > 0 && (
@@ -121,14 +129,13 @@ function OverdueCard({ items, totalCount }: { items: BillDashboardItem[]; totalC
 }
 
 function RecentCard({ items }: { items: BillDashboardItem[] }) {
+  const t = useTranslations('owner.dashboard');
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Recent bills</CardTitle>
+        <CardTitle className="text-lg">{t('recentTitle')}</CardTitle>
         <CardDescription>
-          {items.length === 0
-            ? 'No bills generated yet.'
-            : `Last ${items.length} ${items.length === 1 ? 'bill' : 'bills'} across all leases.`}
+          {items.length === 0 ? t('recentEmpty') : t('recentSummary', { count: items.length })}
         </CardDescription>
       </CardHeader>
       {items.length > 0 && (
@@ -147,6 +154,8 @@ function BillsTable({
   items: BillDashboardItem[];
   highlightDue?: boolean;
 }) {
+  const t = useTranslations('owner.dashboard.billsTable');
+  const tStatus = useTranslations('owner.statuses.bills');
   return (
     <ul className="divide-y text-sm">
       {items.map((b) => (
@@ -157,10 +166,14 @@ function BillsTable({
           >
             <div className="min-w-0">
               <p className="truncate font-medium">
-                {b.unitLabel} · {b.houseName}
+                {t('headLeft', { unitLabel: b.unitLabel, houseName: b.houseName })}
               </p>
               <p className="truncate text-xs text-muted-foreground">
-                {b.tenantName} · period {formatDate(b.periodStart)} – {formatDate(b.periodEnd)}
+                {t('headRight', {
+                  tenantName: b.tenantName,
+                  periodStart: formatDate(b.periodStart),
+                  periodEnd: formatDate(b.periodEnd),
+                })}
               </p>
             </div>
             <div className="text-right">
@@ -168,8 +181,8 @@ function BillsTable({
               <p
                 className={`text-xs ${highlightDue ? 'text-destructive' : 'text-muted-foreground'}`}
               >
-                {highlightDue ? 'due ' : ''}
-                {formatDate(b.dueDate)} · <BillStatusLabel status={b.status} />
+                {highlightDue ? t('duePrefix') : ''}
+                {t('dueAndStatus', { date: formatDate(b.dueDate), status: tStatus(b.status) })}
               </p>
             </div>
           </Link>
@@ -179,22 +192,17 @@ function BillsTable({
   );
 }
 
-function BillStatusLabel({ status }: { status: BillStatus }) {
-  return <span>{status.toLowerCase().replace('_', ' ')}</span>;
-}
-
 function EmptyState() {
+  const t = useTranslations('owner.dashboard');
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Nothing here yet</CardTitle>
-        <CardDescription>
-          Add a house, then a unit, then a lease — bills and the dashboard fill in from there.
-        </CardDescription>
+        <CardTitle>{t('emptyTitle')}</CardTitle>
+        <CardDescription>{t('emptyDescription')}</CardDescription>
       </CardHeader>
       <CardContent>
         <Link href="/houses/new" className="text-sm font-medium underline">
-          Create your first house →
+          {t('emptyCta')}
         </Link>
       </CardContent>
     </Card>

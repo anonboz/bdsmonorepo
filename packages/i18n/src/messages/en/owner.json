@@ -1,0 +1,694 @@
+{
+  "appDescription": "BDS Owner — manage houses, leases, bills, and campaigns.",
+  "chrome": {
+    "signedInAs": "Signed in as <strong>{name}</strong>.",
+    "notificationsAria": "Notifications",
+    "notificationsAriaUnread": "Notifications, {count} unread",
+    "back": "← Back",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "saveFailed": "Save failed.",
+    "saveFailedTitle": "Save failed",
+    "deleteFailed": "Delete failed.",
+    "actionFailedTitle": "Action failed"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Sign in to continue.",
+    "failedTitle": "Sign-in failed",
+    "form": {
+      "emailLabel": "Email",
+      "emailDescription": "We'll email you a 6-digit code.",
+      "sendCode": "Send code",
+      "couldNotSend": "Could not send code.",
+      "codeSentTo": "Code sent to <strong>{email}</strong>.",
+      "change": "Change",
+      "codeLabel": "6-digit code",
+      "verify": "Verify & sign in",
+      "invalidCode": "Invalid code."
+    }
+  },
+  "home": {
+    "tiles": {
+      "dashboardTitle": "Dashboard",
+      "dashboardDescription": "Occupancy, MRR, overdue.",
+      "housesTitle": "Houses",
+      "housesDescription": "Properties, units, leases.",
+      "ticketsTitle": "Tickets",
+      "ticketsDescription": "Repair + report queue.",
+      "ratingsTitle": "My ratings",
+      "ratingsDescription": "See what tenants have said about you.",
+      "partnersTitle": "Partners",
+      "partnersDescription": "Browse service providers in your area.",
+      "myBookingsTitle": "My partner bookings",
+      "myBookingsDescription": "Track requests, quotes, and completed jobs.",
+      "chargesTitle": "Service charges",
+      "chargesDescription": "What completed partner jobs cost you.",
+      "comingSoonTitle": "Coming soon",
+      "comingSoonDescription": "Partner ratings land next."
+    },
+    "open": "Open",
+    "browse": "Browse"
+  },
+  "forbidden": {
+    "title": "Access denied",
+    "description": "You are signed in, but this account does not have the {role} role required to use {appName}.",
+    "signInDifferent": "Sign in with a different account"
+  },
+  "offline": {
+    "title": "You are offline",
+    "description": "We could not reach the network. Some cached pages may still be available; otherwise check your connection and try again.",
+    "retry": "Retry"
+  },
+  "me": {
+    "metadataTitle": "Account",
+    "title": "Account",
+    "subtitle": "Manage your account settings.",
+    "language": {
+      "title": "Language"
+    }
+  },
+  "statuses": {
+    "bills": {
+      "DRAFT": "draft",
+      "ISSUED": "issued",
+      "PARTIALLY_PAID": "partially paid",
+      "PAID": "paid",
+      "OVERDUE": "overdue",
+      "VOID": "void"
+    },
+    "leases": {
+      "DRAFT": "draft",
+      "ACTIVE": "active",
+      "ENDED": "ended",
+      "TERMINATED": "terminated"
+    },
+    "units": {
+      "VACANT": "Vacant",
+      "OCCUPIED": "Occupied",
+      "MAINTENANCE": "Maintenance"
+    },
+    "unitsLower": {
+      "VACANT": "vacant",
+      "OCCUPIED": "occupied",
+      "MAINTENANCE": "maintenance"
+    },
+    "tickets": {
+      "OPEN": "open",
+      "ACKNOWLEDGED": "acknowledged",
+      "IN_PROGRESS": "in progress",
+      "RESOLVED": "resolved",
+      "CLOSED": "closed",
+      "REOPENED": "reopened"
+    },
+    "ticketCategoriesLower": {
+      "REPAIR": "repair",
+      "REPORT": "report",
+      "COMPLAINT": "complaint",
+      "REQUEST": "request",
+      "OTHER": "other"
+    },
+    "campaigns": {
+      "DRAFT": "draft",
+      "PENDING": "pending",
+      "LIVE": "live",
+      "CLOSED": "closed",
+      "REJECTED": "rejected",
+      "EXPIRED": "expired"
+    },
+    "applications": {
+      "SUBMITTED": "submitted",
+      "REVIEWING": "reviewing",
+      "ACCEPTED": "accepted",
+      "REJECTED": "rejected",
+      "WITHDRAWN": "withdrawn"
+    },
+    "jobs": {
+      "REQUESTED": "requested",
+      "QUOTED": "quoted",
+      "ACCEPTED": "accepted",
+      "IN_PROGRESS": "in progress",
+      "COMPLETED": "completed",
+      "RATED": "rated",
+      "CANCELLED": "cancelled"
+    },
+    "rentCyclesLower": {
+      "WEEKLY": "weekly",
+      "MONTHLY": "monthly",
+      "QUARTERLY": "quarterly",
+      "YEARLY": "yearly"
+    },
+    "billLineKindsLower": {
+      "RENT": "rent",
+      "DEPOSIT": "deposit",
+      "UTILITY_ELECTRICITY": "utility electricity",
+      "UTILITY_WATER": "utility water",
+      "UTILITY_INTERNET": "utility internet",
+      "UTILITY_OTHER": "utility other",
+      "SERVICE_FEE": "service fee",
+      "LATE_FEE": "late fee",
+      "ADJUSTMENT": "adjustment",
+      "OTHER": "other"
+    },
+    "kycLower": {
+      "NONE": "none",
+      "PENDING": "pending",
+      "APPROVED": "approved",
+      "REJECTED": "rejected"
+    },
+    "rolesLower": {
+      "TENANT": "tenant",
+      "OWNER": "owner",
+      "PARTNER": "partner",
+      "ADMIN": "admin"
+    }
+  },
+  "dashboard": {
+    "metadataTitle": "Dashboard",
+    "title": "Dashboard",
+    "subtitle": "Your portfolio at a glance.",
+    "stats": {
+      "occupancyTitle": "Occupancy",
+      "occupancySub": "{occupied} of {total} units",
+      "mrrTitle": "MRR",
+      "mrrSubMonthly": "monthly recurring",
+      "activeLeasesTitle": "Active leases",
+      "activeLeasesSub": "{count, plural, one {1 tenant} other {{count} tenants}}",
+      "overdueTitle": "Overdue",
+      "overdueClear": "all clear",
+      "overdueSub": "{houses, plural, one {1 house} other {{houses} houses}} · {units} units"
+    },
+    "overdueTitle": "Overdue bills",
+    "overdueEmpty": "No overdue bills. Nice.",
+    "overdueSummary": "{count} overdue · showing latest {latest}",
+    "recentTitle": "Recent bills",
+    "recentEmpty": "No bills generated yet.",
+    "recentSummary": "{count, plural, one {Last 1 bill across all leases.} other {Last {count} bills across all leases.}}",
+    "billsTable": {
+      "headLeft": "{unitLabel} · {houseName}",
+      "headRight": "{tenantName} · period {periodStart} – {periodEnd}",
+      "duePrefix": "due ",
+      "dueAndStatus": "{date} · {status}"
+    },
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "Add a house, then a unit, then a lease — bills and the dashboard fill in from there.",
+    "emptyCta": "Create your first house →"
+  },
+  "houses": {
+    "metadataTitle": "Houses",
+    "title": "Houses",
+    "summaryCount": "{count, plural, one {1 house} other {{count} houses}}",
+    "newButton": "New house",
+    "emptyTitle": "No houses yet",
+    "emptyDescription": "Add your first house to start managing units, leases, and bills.",
+    "emptyCta": "Create one",
+    "publishedBadge": "Published",
+    "unitCount": "{count, plural, one {1 unit} other {{count} units}}",
+    "back": "← Back to houses",
+    "backTo": "← Back to {name}",
+    "detail": {
+      "subtitlePublished": "{units} · Published",
+      "subtitleDraft": "{units} · Draft",
+      "addressTitle": "Address",
+      "descriptionTitle": "Description",
+      "unitsTitle": "Units",
+      "unitsEmpty": "No units yet.",
+      "unitsAttached": "{count, plural, one {1 unit attached.} other {{count} units attached.}}",
+      "addUnits": "Add units",
+      "manageUnits": "Manage units"
+    },
+    "moderation": {
+      "rejectedTitle": "Listing rejected by an admin",
+      "flaggedTitle": "Listing flagged for review",
+      "reasonPrefix": "Reason: {reason}",
+      "rejectedFollowup": "Your listing has been removed from publication. Address the reason below and contact support to re-list.",
+      "flaggedFollowup": "You can still manage the house, but it will be hidden from public listings until the issue is resolved.",
+      "decidedSuffix": " · Decided {date}."
+    },
+    "form": {
+      "newTitle": "New house",
+      "newMetadata": "New house",
+      "editTitle": "Edit house",
+      "nameLabel": "Name",
+      "descriptionLabel": "Description",
+      "descriptionHelp": "Shown on owner dashboards. Optional.",
+      "addressLegend": "Address",
+      "streetLabel": "Street address",
+      "aptLabel": "Apt / suite / unit (optional)",
+      "cityLabel": "City",
+      "stateLabel": "State / region",
+      "postalCodeLabel": "Postal code",
+      "countryLabel": "Country",
+      "countryHelp": "ISO 3166-1 alpha-2 (e.g. VN, US, GB).",
+      "publishedLabel": "Published",
+      "publishedHelp": "Visible to applicants and shown on the public marketing surface.",
+      "createButton": "Create house"
+    },
+    "delete": {
+      "confirm": "Delete \"{name}\"? This cannot be undone."
+    }
+  },
+  "units": {
+    "metadataTitle": "Units",
+    "title": "Units",
+    "summaryIn": "{count, plural, one {1 unit} other {{count} units}} in {house}",
+    "newButton": "New unit",
+    "emptyTitle": "No units yet",
+    "emptyDescription": "Add the first rentable unit to this house.",
+    "emptyCta": "Create one",
+    "back": "← Back to units",
+    "backToUnit": "← Back to {label}",
+    "newTitleInHouse": "New unit in {house}",
+    "noStats": "No stats yet",
+    "statsFloor": "floor {n}",
+    "detail": {
+      "statsTitle": "Stats",
+      "bedrooms": "Bedrooms",
+      "bathrooms": "Bathrooms",
+      "size": "Size",
+      "floor": "Floor"
+    },
+    "form": {
+      "editTitle": "Edit unit",
+      "labelLabel": "Label",
+      "statusLabel": "Status",
+      "bedroomsLabel": "Bedrooms",
+      "bathroomsLabel": "Bathrooms",
+      "sqmLabel": "Size (m²)",
+      "floorLabel": "Floor",
+      "createButton": "Create unit"
+    },
+    "delete": {
+      "confirm": "Delete unit \"{label}\"? This cannot be undone."
+    }
+  },
+  "leases": {
+    "listTitle": "Leases",
+    "listEmpty": "No leases yet on this unit.",
+    "listSummary": "{count, plural, one {1 lease, including history.} other {{count} leases, including history.}}",
+    "newButton": "New lease",
+    "rentPerCycle": "{amount} / {cycle}",
+    "back": "← Back to lease",
+    "detail": {
+      "title": "Lease",
+      "subtitleStarted": "started {start}",
+      "subtitleEnds": " · ends {end}",
+      "moneyTitle": "Money",
+      "rentLabel": "Rent",
+      "depositLabel": "Deposit",
+      "currencyLabel": "Currency",
+      "cycleLabel": "Cycle",
+      "terminationTitle": "Termination reason",
+      "actionsTitle": "Actions",
+      "actionsDraft": "Activate to bind the tenant and flip the unit to occupied.",
+      "actionsActive": "End to release the unit cleanly, or terminate with a reason.",
+      "actionsClosed": "This lease is closed. No further transitions are possible.",
+      "rateTitle": "Rate your tenant",
+      "rateDescription": "Quick 1–5 star rating at each lease milestone. Comments are optional."
+    },
+    "transitions": {
+      "failedTitle": "Transition failed",
+      "failed": "Transition failed.",
+      "activate": "Activate",
+      "endLease": "End lease",
+      "terminate": "Terminate",
+      "terminatePrompt": "Why are you terminating this lease?",
+      "activateConfirm": "Are you sure you want to activate this lease?",
+      "endConfirm": "Are you sure you want to end this lease?"
+    },
+    "form": {
+      "newMetadata": "New lease",
+      "newTitle": "New lease on {unit}",
+      "newSubtitle": "Creates a DRAFT lease. Activate it from the lease detail page once you have reviewed the terms with the tenant.",
+      "editTitle": "Edit lease",
+      "editSubtitle": "DRAFT leases can be edited freely. Once activated the lease is locked.",
+      "tenantEmailLabel": "Tenant email",
+      "tenantNotFound": "Could not find a tenant with that email. Check the address and try again.",
+      "tenantHint": "The tenant must already have an account.",
+      "tenantFound": "Found: {name}",
+      "rentLabel": "Rent (minor units)",
+      "depositLabel": "Deposit (minor units)",
+      "currencyLabel": "Currency",
+      "currencyHelp": "ISO-4217 code (e.g. VND, USD).",
+      "cycleLabel": "Cycle",
+      "cycleWeekly": "Weekly",
+      "cycleMonthly": "Monthly",
+      "cycleQuarterly": "Quarterly",
+      "cycleYearly": "Yearly",
+      "startDateLabel": "Start date",
+      "endDateLabel": "End date (optional)",
+      "createButton": "Create draft lease"
+    },
+    "ratings": {
+      "lead": "Tell future owners what to expect from this tenant. One rating per milestone.",
+      "milestones": {
+        "MOVE_IN": "Move-in",
+        "MID_LEASE": "Mid-lease check-in",
+        "MOVE_OUT": "Move-out"
+      },
+      "blurbs": {
+        "MOVE_IN": "How was the handover — paperwork, deposit, condition?",
+        "MID_LEASE": "How is the tenant doing — payments, care of the place?",
+        "MOVE_OUT": "How was the exit — condition, deposit settlement?"
+      },
+      "alreadyRated": "Thanks — you've already rated this.",
+      "notAvailableDraft": "Available once the lease is activated.",
+      "notAvailableNotEnded": "Available when the lease ends or the move-out date passes.",
+      "opensAt": "Opens {date}.",
+      "notAvailableGeneric": "Not yet available.",
+      "pillRated": "rated",
+      "pillOpen": "open",
+      "pillNotYet": "not yet",
+      "commentPlaceholder": "Optional comment (≤ 2000 characters)",
+      "commentAria": "Comment",
+      "scoreAria": "Score",
+      "starsAria": "{n, plural, one {1 star} other {{n} stars}}",
+      "pickScoreError": "Pick a score from 1 to 5.",
+      "submitFailed": "Could not submit rating.",
+      "submit": "Submit"
+    }
+  },
+  "bills": {
+    "listTitle": "Bills",
+    "listEmptyActive": "No bills yet. Generate one to issue rent.",
+    "listEmptyInactive": "No bills yet. Activate the lease to enable billing.",
+    "listSummary": "{count, plural, one {1 bill on record.} other {{count} bills on record.}}",
+    "generateNow": "Generate now",
+    "generateCreated": "Bill generated",
+    "generateIdempotent": "Already generated this period",
+    "generateFailed": "Generation failed",
+    "billDuePrefix": "due {date}",
+    "back": "← Back to lease",
+    "detail": {
+      "subtitle": "{start} – {end} · due {due}",
+      "linesTitle": "Lines",
+      "tableItem": "Item",
+      "tableQty": "Qty",
+      "tableAmount": "Amount",
+      "tableTotal": "Total",
+      "downloadReceipt": "Download receipt (PDF)"
+    },
+    "payments": {
+      "title": "Payments",
+      "empty": "No payments recorded yet.",
+      "count": "{count, plural, one {1 payment on file.} other {{count} payments on file.}}",
+      "tableReceived": "Received",
+      "tableAmount": "Amount",
+      "tableProvider": "Provider",
+      "tableRef": "Ref",
+      "tableNote": "Note",
+      "tableAction": "Action",
+      "refundBadge": "refund",
+      "refundButton": "Refund",
+      "noneDash": "—",
+      "recordTitle": "Record payment",
+      "recordSubtitle": "Outstanding balance: {amount}",
+      "amountLabel": "Amount (minor units, {currency})",
+      "amountInvalid": "Amount must be a positive integer (minor units).",
+      "refLabel": "Reference (optional)",
+      "refPlaceholder": "Bank transfer ref, cheque #…",
+      "noteLabel": "Note (optional)",
+      "recordButton": "Record payment",
+      "recordFailedTitle": "Could not record payment",
+      "recordFailed": "Failed to record payment",
+      "refundDialogTitle": "Refund payment",
+      "refundDialogSubtitleStripe": "Refundable from {provider} payment of {amount}: {remaining}. This will issue a refund via the Stripe API.",
+      "refundDialogSubtitleVnpay": "Refundable from {provider} payment of {amount}: {remaining}. VNPay refunds are not supported here — process via the VNPay dashboard then record a MANUAL refund.",
+      "refundDialogSubtitleManual": "Refundable from {provider} payment of {amount}: {remaining}. Local-only record. Make sure you have actually returned the money out-of-band.",
+      "refundAmountLabel": "Amount (minor units, {currency})",
+      "refundReasonLabel": "Reason (optional)",
+      "issueRefundButton": "Issue refund",
+      "refundFailedTitle": "Refund failed",
+      "refundFailed": "Failed to refund"
+    }
+  },
+  "campaigns": {
+    "listTitle": "Campaigns",
+    "listEmpty": "No campaigns yet on this unit.",
+    "listSummary": "{count, plural, one {1 campaign, including history.} other {{count} campaigns, including history.}}",
+    "newButton": "New campaign",
+    "campaignMeta": "{price} · created {date}",
+    "back": "← Back to campaign",
+    "detail": {
+      "title": "Campaign",
+      "subtitle": "{price} · created {date}",
+      "rejectedTitle": "Rejected by an admin",
+      "rejectedReason": "Reason: {reason}",
+      "decidedSuffix": "Decided {date}.",
+      "listingTitle": "Listing",
+      "listingSubtitle": "How prospects will see it once approved.",
+      "actionsTitle": "Actions",
+      "actionsCopyDraft": "Submit when you are happy with the listing. Unit must be vacant.",
+      "actionsCopyPending": "Waiting on admin review. Withdraw to keep editing.",
+      "actionsCopyLive": "Listing is public. Close when you have found a tenant.",
+      "actionsCopyClosed": "Closed listing — keep for the record or delete.",
+      "actionsCopyRejected": "Rejected. Address the reason above and create a new draft.",
+      "actionsCopyExpired": "Auto-expired. Create a new draft to re-list."
+    },
+    "actions": {
+      "submit": "Submit for review",
+      "submitConfirm": "Submit this campaign for admin review?",
+      "withdraw": "Withdraw",
+      "close": "Close",
+      "closeConfirm": "Close this campaign? It will stop accepting applications.",
+      "resubmit": "Re-submit for review",
+      "resubmitConfirm": "Re-submit this campaign for admin review?",
+      "noFurther": "No further owner actions on this campaign.",
+      "failed": "Action failed."
+    },
+    "form": {
+      "newMetadata": "New campaign",
+      "newTitle": "New campaign",
+      "newSubtitle": "List this unit publicly. Starts as a DRAFT — submit it for admin review when ready.",
+      "editMetadata": "Edit campaign",
+      "editTitle": "Edit campaign",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Cozy studio near metro",
+      "descriptionLabel": "Description",
+      "descriptionHelp": "Visible publicly once admin approves.",
+      "priceLabel": "Price (minor units)",
+      "priceHelp": "e.g. 5000000 = ₫5,000,000.",
+      "currencyLabel": "Currency",
+      "photosLabel": "Photos",
+      "photosHelp": "Up to 20 images. Uploaded directly to our storage.",
+      "createButton": "Create draft",
+      "failedTitle": "Could not save campaign",
+      "failed": "Could not save campaign."
+    },
+    "delete": {
+      "confirm": "Delete campaign \"{title}\"? This cannot be undone."
+    },
+    "applications": {
+      "title": "Applications",
+      "empty": "No applications yet.",
+      "count": "{count, plural, one {1 application on this listing.} other {{count} applications on this listing.}}",
+      "appliedAt": "Applied {date}",
+      "rejectionReasonPrefix": "Rejection reason: {reason}"
+    },
+    "applicationActions": {
+      "accept": "Accept",
+      "accepted": "Accept failed",
+      "acceptConfirm": "Accept this application? This will create a DRAFT lease and close the listing.",
+      "reject": "Reject",
+      "rejectPrompt": "Reason for rejection? (visible to the applicant)",
+      "rejectFailed": "Reject failed"
+    }
+  },
+  "tickets": {
+    "metadataTitle": "Tickets",
+    "listTitle": "Tickets",
+    "listEmpty": "No tickets across your properties yet.",
+    "listSummary": "{open} need attention · {closed} closed.",
+    "sectionAttention": "Needs attention",
+    "sectionClosed": "Resolved / closed",
+    "emptyTitle": "No tickets yet",
+    "emptyDescription": "When a tenant raises a repair or report, it appears here.",
+    "emptyHint": "Nothing to do right now.",
+    "rowMeta": "{category} · {reporter} · raised {date}",
+    "back": "← Back to tickets",
+    "detail": {
+      "subtitle": "{category} · from {reporter} · {date}",
+      "detailsTitle": "Details",
+      "viewLease": "View lease",
+      "actionsTitle": "Actions",
+      "actionsCopyOpen": "Acknowledge to let the tenant know it's on your list.",
+      "actionsCopyAcknowledged": "Move to In Progress when you start working on it.",
+      "actionsCopyInProgress": "Resolve when the fix is in place.",
+      "actionsCopyResolved": "Close once the tenant has had time to confirm (within 7 days they can reopen).",
+      "actionsCopyClosed": "Closed. The tenant has 7 days from closure to reopen.",
+      "actionsCopyReopened": "Tenant reopened — start a fresh cycle.",
+      "conversationTitle": "Conversation",
+      "conversationDescription": "Messages with {reporter}. Stays open for 7 days after closure.",
+      "lockedDefault": "This ticket is closed and past the 7-day reopen window."
+    },
+    "transitions": {
+      "noFurther": "No further actions.",
+      "labels": {
+        "ACKNOWLEDGED": "Acknowledge",
+        "IN_PROGRESS": "In progress",
+        "RESOLVED": "Resolve",
+        "CLOSED": "Close",
+        "OPEN": "Open",
+        "REOPENED": "Reopen"
+      },
+      "closeConfirm": "Close this ticket?",
+      "failed": "Transition failed.",
+      "failedTitle": "Transition failed"
+    },
+    "thread": {
+      "convoAria": "Conversation",
+      "empty": "No messages yet. Start the conversation below.",
+      "messageAria": "Message",
+      "placeholder": "Write a message…",
+      "send": "Send",
+      "sendFailed": "Could not send",
+      "lockedDefault": "This thread is locked."
+    },
+    "partnerJobs": {
+      "title": "Partner jobs",
+      "empty": "No partner has been booked for this ticket yet.",
+      "count": "{count, plural, one {1 job linked to this ticket.} other {{count} jobs linked to this ticket.}}",
+      "requestButton": "Request a partner",
+      "reopenHint": "Re-open the ticket to book.",
+      "bookedAt": "Booked {date}"
+    }
+  },
+  "partners": {
+    "metadataTitle": "Partners",
+    "listTitle": "Partners",
+    "fromTicketSubtitle": "Booking on behalf of a ticket — pick a partner to send the request to.",
+    "summaryEmpty": "No partners match.",
+    "summaryCount": "{count} matching · filter via ?q=",
+    "searchPlaceholder": "Search business name or service area",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "Loosen the filter or check back as more partners onboard.",
+    "kycLabel": "KYC {status}",
+    "noRatings": "No ratings yet",
+    "ratingSummary": "★ {avg} · {count, plural, one {1 rating} other {{count} ratings}}",
+    "servicesSummary": "{count, plural, one {1 service · from {price}} other {{count} services · from {price}}}",
+    "back": "← Back to partners",
+    "detail": {
+      "aboutTitle": "About",
+      "servicesTitle": "Services",
+      "servicesEmpty": "No active services.",
+      "servicesCount": "{count, plural, one {1 bookable service.} other {{count} bookable services.}}",
+      "bookTitle": "Book",
+      "bookDescriptionFromTicket": "Booking on behalf of a ticket — the new job will be linked automatically.",
+      "bookDescription": "Send a request — the partner will come back with a quote.",
+      "bookButton": "Book this partner"
+    },
+    "book": {
+      "metadataTitle": "Book partner",
+      "title": "Book {name}",
+      "subtitleFromTicket": "Linked to a ticket — the new job will be visible from both places.",
+      "subtitle": "Send a request. They'll come back with a quote.",
+      "back": "← Back",
+      "serviceLabel": "Service (optional)",
+      "serviceNone": "(none)",
+      "descriptionLabel": "What do you need?",
+      "descriptionHelp": "Short note for the partner so they can quote.",
+      "sendButton": "Send request",
+      "failedTitle": "Could not book",
+      "failed": "Could not book partner."
+    }
+  },
+  "serviceJobs": {
+    "metadataTitle": "Service jobs",
+    "listTitle": "My partner bookings",
+    "summaryEmpty": "No bookings yet.",
+    "summaryCount": "{count, plural, one {1 on record.} other {{count} on record.}}",
+    "emptyTitle": "Nothing here yet",
+    "emptyPrefix": "",
+    "emptyLink": "Browse partners",
+    "emptySuffix": " and book one.",
+    "directBooking": "Direct booking",
+    "back": "← Back to bookings",
+    "detail": {
+      "subtitleRequested": "requested {date}",
+      "subtitleQuoted": " · quoted {amount}",
+      "subtitleFinal": " · final {amount}",
+      "cancelledTitle": "Cancelled",
+      "cancelledReason": "Reason: {reason}",
+      "requestTitle": "Your request",
+      "requestSubtitle": "What you sent the partner.",
+      "noDescription": "No description.",
+      "actionsTitle": "Actions",
+      "proofTitle": "Proof of work",
+      "proofSubtitle": "Submitted by the partner on completion.",
+      "ratingTitle": "Rating",
+      "ratingSubtitle": "How was working with this partner?"
+    },
+    "actions": {
+      "accept": "Accept quote",
+      "acceptConfirm": "Accept this quote? The partner can then start work.",
+      "acceptFailed": "Accept failed",
+      "cancel": "Cancel",
+      "cancelPrompt": "Reason for cancelling? (visible to the partner)",
+      "cancelFailed": "Cancel failed",
+      "noFurther": "No further owner actions."
+    },
+    "rating": {
+      "ownPrefix": "You rated {score}★",
+      "submitTitle": "Your rating",
+      "scoreAria": "Score 1-5",
+      "commentPlaceholder": "Comment (optional)",
+      "submitButton": "Submit rating",
+      "failedTitle": "Rating failed",
+      "submitFailed": "Submit failed",
+      "pickScoreError": "Pick a score from 1 to 5.",
+      "otherRatedYou": "{name} rated you {score}★"
+    }
+  },
+  "charges": {
+    "metadataTitle": "Service charges",
+    "title": "Service charges",
+    "subtitle": "What each completed partner job adds to your bill. Real payment provider lands in Phase 6 — these are informational accruals for now.",
+    "emptyTitle": "No charges yet",
+    "emptyDescription": "Charges appear here when a partner completes a job for you.",
+    "tableJob": "Job",
+    "tableAmount": "Amount",
+    "tableRecorded": "Recorded"
+  },
+  "ratings": {
+    "metadataTitle": "My ratings",
+    "title": "My ratings",
+    "subtitle": "What your tenants have said about you.",
+    "reputationTitle": "Reputation",
+    "noRatings": "No ratings yet — your reputation will appear here as tenants rate you.",
+    "ratingsCount": "{count, plural, one {1 rating on record.} other {{count} ratings on record.}}",
+    "perFive": "/ 5",
+    "scoreAria": "{score} of 5",
+    "fromLabel": "{milestone} · from {name}",
+    "milestones": {
+      "MOVE_IN": "Move-in",
+      "MID_LEASE": "Mid-lease",
+      "MOVE_OUT": "Move-out"
+    }
+  },
+  "notifications": {
+    "metadataTitle": "Notifications",
+    "title": "Notifications",
+    "subtitle": "Updates about your tickets, jobs, and account.",
+    "unreadCount": "{count, plural, =0 {All caught up} other {{count} unread}}",
+    "markAll": "Mark all as read",
+    "prefs": {
+      "title": "Notification preferences",
+      "muted": "Muted",
+      "on": "On",
+      "updateFailed": "Could not update \"{topic}\". Try again.",
+      "topics": {
+        "ticket.opened": {
+          "label": "New ticket from a tenant",
+          "help": "Email when a tenant raises a repair / report."
+        },
+        "job.completed": {
+          "label": "Partner job completed",
+          "help": "Email when a booked partner marks a job done."
+        }
+      }
+    }
+  }
+}

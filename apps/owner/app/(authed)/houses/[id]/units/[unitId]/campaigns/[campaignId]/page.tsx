@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { type useTranslations as useTranslationsType, useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
-import type { Campaign } from '@repo/shared';
+import type { Campaign, CampaignStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApplicationsPanel } from './_components/applications-panel';
@@ -12,6 +14,8 @@ import { formatDate, formatDateTime, formatMoney } from '../../../../../../../..
 import { serverApi } from '../../../../../../../../lib/session';
 import { StatusBadge } from '../_components/campaign-list-card';
 
+type Translator = ReturnType<typeof useTranslationsType>;
+
 export default async function CampaignDetailPage({
   params,
 }: {
@@ -21,25 +25,22 @@ export default async function CampaignDetailPage({
   const campaign = await fetchCampaign(houseId, unitId, campaignId);
   if (!campaign) notFound();
 
-  // 4.2: REJECTED is also editable so the owner can fix + re-submit
-  // without recreating the listing.
   const canEdit = campaign.status === 'DRAFT' || campaign.status === 'REJECTED';
   const canDelete = campaign.status === 'DRAFT' || campaign.status === 'CLOSED';
+
+  const t = await getTranslations('owner.campaigns.detail');
+  const tChrome = await getTranslations('owner.chrome');
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href={`/houses/${houseId}/units/${unitId}`}>← Back to unit</Link>
+          <Link href={`/houses/${houseId}/units/${unitId}`}>{tChrome('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{campaign.title}</h1>
-            <p className="text-sm text-muted-foreground">
-              <StatusBadge status={campaign.status} /> ·{' '}
-              {formatMoney(campaign.price, campaign.currency)} · created{' '}
-              {formatDate(campaign.createdAt)}
-            </p>
+            <SubtitleLine campaign={campaign} />
           </div>
           <div className="flex flex-wrap gap-2">
             {canEdit && (
@@ -47,7 +48,7 @@ export default async function CampaignDetailPage({
                 <Link
                   href={`/houses/${houseId}/units/${unitId}/campaigns/${campaign.id}/edit` as const}
                 >
-                  Edit
+                  {tChrome('edit')}
                 </Link>
               </Button>
             )}
@@ -68,13 +69,13 @@ export default async function CampaignDetailPage({
           className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-rose-900"
           role="status"
         >
-          <p className="text-sm font-semibold">Rejected by an admin</p>
+          <p className="text-sm font-semibold">{t('rejectedTitle')}</p>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
-            Reason: {campaign.moderationReason}
+            {t('rejectedReason', { reason: campaign.moderationReason })}
           </p>
           {campaign.moderationDecidedAt && (
             <p className="mt-1 text-xs opacity-80">
-              Decided {formatDateTime(campaign.moderationDecidedAt)}.
+              {t('decidedSuffix', { date: formatDateTime(campaign.moderationDecidedAt) })}
             </p>
           )}
         </div>
@@ -82,8 +83,8 @@ export default async function CampaignDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Listing</CardTitle>
-          <CardDescription>How prospects will see it once approved.</CardDescription>
+          <CardTitle className="text-lg">{t('listingTitle')}</CardTitle>
+          <CardDescription>{t('listingSubtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p className="whitespace-pre-wrap leading-relaxed">{campaign.body}</p>
@@ -100,8 +101,8 @@ export default async function CampaignDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Actions</CardTitle>
-          <CardDescription>{actionsCopy(campaign)}</CardDescription>
+          <CardTitle className="text-lg">{t('actionsTitle')}</CardTitle>
+          <CardDescription>{actionsCopyKey(campaign.status, t)}</CardDescription>
         </CardHeader>
         <CardContent>
           <CampaignActions houseId={houseId} unitId={unitId} campaign={campaign} />
@@ -113,20 +114,33 @@ export default async function CampaignDetailPage({
   );
 }
 
-function actionsCopy(c: Campaign): string {
-  switch (c.status) {
+function SubtitleLine({ campaign }: { campaign: Campaign }) {
+  const t = useTranslations('owner.campaigns.detail');
+  return (
+    <p className="text-sm text-muted-foreground">
+      <StatusBadge status={campaign.status} /> ·{' '}
+      {t('subtitle', {
+        price: formatMoney(campaign.price, campaign.currency),
+        date: formatDate(campaign.createdAt),
+      })}
+    </p>
+  );
+}
+
+function actionsCopyKey(status: CampaignStatus, t: Translator): string {
+  switch (status) {
     case 'DRAFT':
-      return 'Submit when you are happy with the listing. Unit must be vacant.';
+      return t('actionsCopyDraft');
     case 'PENDING':
-      return 'Waiting on admin review. Withdraw to keep editing.';
+      return t('actionsCopyPending');
     case 'LIVE':
-      return 'Listing is public. Close when you have found a tenant.';
+      return t('actionsCopyLive');
     case 'CLOSED':
-      return 'Closed listing — keep for the record or delete.';
+      return t('actionsCopyClosed');
     case 'REJECTED':
-      return 'Rejected. Address the reason above and create a new draft.';
+      return t('actionsCopyRejected');
     case 'EXPIRED':
-      return 'Auto-expired. Create a new draft to re-list.';
+      return t('actionsCopyExpired');
   }
 }
 

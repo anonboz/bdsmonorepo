@@ -1,0 +1,694 @@
+{
+  "appDescription": "BDS Chủ nhà — quản lý nhà, hợp đồng, hóa đơn và tin đăng.",
+  "chrome": {
+    "signedInAs": "Đã đăng nhập với tên <strong>{name}</strong>.",
+    "notificationsAria": "Thông báo",
+    "notificationsAriaUnread": "Thông báo, {count} chưa đọc",
+    "back": "← Quay lại",
+    "cancel": "Hủy",
+    "edit": "Sửa",
+    "delete": "Xóa",
+    "save": "Lưu",
+    "saveChanges": "Lưu thay đổi",
+    "saveFailed": "Lưu thất bại.",
+    "saveFailedTitle": "Lưu thất bại",
+    "deleteFailed": "Xóa thất bại.",
+    "actionFailedTitle": "Hành động thất bại"
+  },
+  "login": {
+    "title": "Đăng nhập",
+    "subtitle": "Đăng nhập để tiếp tục.",
+    "failedTitle": "Đăng nhập thất bại",
+    "form": {
+      "emailLabel": "Email",
+      "emailDescription": "Chúng tôi sẽ gửi mã 6 chữ số tới email của bạn.",
+      "sendCode": "Gửi mã",
+      "couldNotSend": "Không thể gửi mã.",
+      "codeSentTo": "Đã gửi mã tới <strong>{email}</strong>.",
+      "change": "Đổi",
+      "codeLabel": "Mã 6 chữ số",
+      "verify": "Xác minh & đăng nhập",
+      "invalidCode": "Mã không hợp lệ."
+    }
+  },
+  "home": {
+    "tiles": {
+      "dashboardTitle": "Bảng điều khiển",
+      "dashboardDescription": "Tỷ lệ lấp đầy, MRR, quá hạn.",
+      "housesTitle": "Nhà",
+      "housesDescription": "Bất động sản, căn hộ, hợp đồng.",
+      "ticketsTitle": "Yêu cầu",
+      "ticketsDescription": "Hàng đợi sửa chữa + báo cáo.",
+      "ratingsTitle": "Đánh giá của tôi",
+      "ratingsDescription": "Xem người thuê đã đánh giá bạn ra sao.",
+      "partnersTitle": "Đối tác",
+      "partnersDescription": "Tìm nhà cung cấp dịch vụ trong khu vực.",
+      "myBookingsTitle": "Đặt đối tác của tôi",
+      "myBookingsDescription": "Theo dõi yêu cầu, báo giá và việc đã hoàn thành.",
+      "chargesTitle": "Phí dịch vụ",
+      "chargesDescription": "Chi phí cho các việc đối tác đã hoàn thành.",
+      "comingSoonTitle": "Sắp ra mắt",
+      "comingSoonDescription": "Đánh giá đối tác sẽ có ở phần tới."
+    },
+    "open": "Mở",
+    "browse": "Tìm"
+  },
+  "forbidden": {
+    "title": "Truy cập bị từ chối",
+    "description": "Bạn đã đăng nhập, nhưng tài khoản này không có quyền {role} cần thiết để dùng {appName}.",
+    "signInDifferent": "Đăng nhập bằng tài khoản khác"
+  },
+  "offline": {
+    "title": "Bạn đang ngoại tuyến",
+    "description": "Chúng tôi không thể kết nối mạng. Một số trang đã lưu có thể vẫn xem được; nếu không, hãy kiểm tra kết nối và thử lại.",
+    "retry": "Thử lại"
+  },
+  "me": {
+    "metadataTitle": "Tài khoản",
+    "title": "Tài khoản",
+    "subtitle": "Quản lý cài đặt tài khoản của bạn.",
+    "language": {
+      "title": "Ngôn ngữ"
+    }
+  },
+  "statuses": {
+    "bills": {
+      "DRAFT": "nháp",
+      "ISSUED": "đã phát hành",
+      "PARTIALLY_PAID": "thanh toán một phần",
+      "PAID": "đã thanh toán",
+      "OVERDUE": "quá hạn",
+      "VOID": "đã hủy"
+    },
+    "leases": {
+      "DRAFT": "nháp",
+      "ACTIVE": "đang hiệu lực",
+      "ENDED": "đã kết thúc",
+      "TERMINATED": "đã chấm dứt"
+    },
+    "units": {
+      "VACANT": "Còn trống",
+      "OCCUPIED": "Đã thuê",
+      "MAINTENANCE": "Bảo trì"
+    },
+    "unitsLower": {
+      "VACANT": "còn trống",
+      "OCCUPIED": "đã thuê",
+      "MAINTENANCE": "bảo trì"
+    },
+    "tickets": {
+      "OPEN": "đang mở",
+      "ACKNOWLEDGED": "đã tiếp nhận",
+      "IN_PROGRESS": "đang xử lý",
+      "RESOLVED": "đã giải quyết",
+      "CLOSED": "đã đóng",
+      "REOPENED": "mở lại"
+    },
+    "ticketCategoriesLower": {
+      "REPAIR": "sửa chữa",
+      "REPORT": "báo cáo",
+      "COMPLAINT": "khiếu nại",
+      "REQUEST": "yêu cầu",
+      "OTHER": "khác"
+    },
+    "campaigns": {
+      "DRAFT": "nháp",
+      "PENDING": "chờ duyệt",
+      "LIVE": "đang đăng",
+      "CLOSED": "đã đóng",
+      "REJECTED": "bị từ chối",
+      "EXPIRED": "hết hạn"
+    },
+    "applications": {
+      "SUBMITTED": "đã gửi",
+      "REVIEWING": "đang xem xét",
+      "ACCEPTED": "đã chấp nhận",
+      "REJECTED": "bị từ chối",
+      "WITHDRAWN": "đã rút"
+    },
+    "jobs": {
+      "REQUESTED": "đã yêu cầu",
+      "QUOTED": "đã báo giá",
+      "ACCEPTED": "đã chấp nhận",
+      "IN_PROGRESS": "đang thực hiện",
+      "COMPLETED": "đã hoàn thành",
+      "RATED": "đã đánh giá",
+      "CANCELLED": "đã hủy"
+    },
+    "rentCyclesLower": {
+      "WEEKLY": "tuần",
+      "MONTHLY": "tháng",
+      "QUARTERLY": "quý",
+      "YEARLY": "năm"
+    },
+    "billLineKindsLower": {
+      "RENT": "tiền thuê",
+      "DEPOSIT": "tiền cọc",
+      "UTILITY_ELECTRICITY": "tiện ích điện",
+      "UTILITY_WATER": "tiện ích nước",
+      "UTILITY_INTERNET": "tiện ích internet",
+      "UTILITY_OTHER": "tiện ích khác",
+      "SERVICE_FEE": "phí dịch vụ",
+      "LATE_FEE": "phí trễ hạn",
+      "ADJUSTMENT": "điều chỉnh",
+      "OTHER": "khác"
+    },
+    "kycLower": {
+      "NONE": "chưa có",
+      "PENDING": "đang chờ",
+      "APPROVED": "đã duyệt",
+      "REJECTED": "từ chối"
+    },
+    "rolesLower": {
+      "TENANT": "người thuê",
+      "OWNER": "chủ nhà",
+      "PARTNER": "đối tác",
+      "ADMIN": "quản trị"
+    }
+  },
+  "dashboard": {
+    "metadataTitle": "Bảng điều khiển",
+    "title": "Bảng điều khiển",
+    "subtitle": "Tổng quan danh mục của bạn.",
+    "stats": {
+      "occupancyTitle": "Tỷ lệ lấp đầy",
+      "occupancySub": "{occupied} trên {total} căn",
+      "mrrTitle": "MRR",
+      "mrrSubMonthly": "doanh thu định kỳ hàng tháng",
+      "activeLeasesTitle": "Hợp đồng đang hiệu lực",
+      "activeLeasesSub": "{count, plural, other {{count} người thuê}}",
+      "overdueTitle": "Quá hạn",
+      "overdueClear": "ổn cả",
+      "overdueSub": "{houses, plural, other {{houses} nhà}} · {units} căn"
+    },
+    "overdueTitle": "Hóa đơn quá hạn",
+    "overdueEmpty": "Không có hóa đơn quá hạn. Tốt.",
+    "overdueSummary": "{count} quá hạn · hiển thị {latest} mới nhất",
+    "recentTitle": "Hóa đơn gần đây",
+    "recentEmpty": "Chưa có hóa đơn nào.",
+    "recentSummary": "{count, plural, other {{count} hóa đơn gần nhất trên tất cả hợp đồng.}}",
+    "billsTable": {
+      "headLeft": "{unitLabel} · {houseName}",
+      "headRight": "{tenantName} · kỳ {periodStart} – {periodEnd}",
+      "duePrefix": "hạn ",
+      "dueAndStatus": "{date} · {status}"
+    },
+    "emptyTitle": "Chưa có gì ở đây",
+    "emptyDescription": "Thêm một nhà, rồi căn, rồi hợp đồng — hóa đơn và bảng điều khiển sẽ hiện ra.",
+    "emptyCta": "Tạo nhà đầu tiên của bạn →"
+  },
+  "houses": {
+    "metadataTitle": "Nhà",
+    "title": "Nhà",
+    "summaryCount": "{count, plural, other {{count} nhà}}",
+    "newButton": "Nhà mới",
+    "emptyTitle": "Chưa có nhà nào",
+    "emptyDescription": "Thêm nhà đầu tiên để bắt đầu quản lý căn, hợp đồng và hóa đơn.",
+    "emptyCta": "Tạo một cái",
+    "publishedBadge": "Đã đăng",
+    "unitCount": "{count, plural, other {{count} căn}}",
+    "back": "← Quay lại danh sách nhà",
+    "backTo": "← Quay lại {name}",
+    "detail": {
+      "subtitlePublished": "{units} · Đã đăng",
+      "subtitleDraft": "{units} · Nháp",
+      "addressTitle": "Địa chỉ",
+      "descriptionTitle": "Mô tả",
+      "unitsTitle": "Căn hộ",
+      "unitsEmpty": "Chưa có căn nào.",
+      "unitsAttached": "{count, plural, other {{count} căn thuộc nhà này.}}",
+      "addUnits": "Thêm căn",
+      "manageUnits": "Quản lý căn"
+    },
+    "moderation": {
+      "rejectedTitle": "Tin bị quản trị từ chối",
+      "flaggedTitle": "Tin bị gắn cờ xem xét",
+      "reasonPrefix": "Lý do: {reason}",
+      "rejectedFollowup": "Tin của bạn đã bị gỡ khỏi đăng công khai. Hãy xử lý lý do bên dưới và liên hệ hỗ trợ để đăng lại.",
+      "flaggedFollowup": "Bạn vẫn quản lý được nhà, nhưng nó sẽ bị ẩn khỏi danh sách công khai cho đến khi vấn đề được giải quyết.",
+      "decidedSuffix": " · Quyết định {date}."
+    },
+    "form": {
+      "newTitle": "Nhà mới",
+      "newMetadata": "Nhà mới",
+      "editTitle": "Sửa nhà",
+      "nameLabel": "Tên",
+      "descriptionLabel": "Mô tả",
+      "descriptionHelp": "Hiển thị trong bảng điều khiển của chủ nhà. Tùy chọn.",
+      "addressLegend": "Địa chỉ",
+      "streetLabel": "Địa chỉ đường",
+      "aptLabel": "Phòng / căn hộ / khu (tùy chọn)",
+      "cityLabel": "Thành phố",
+      "stateLabel": "Tỉnh / vùng",
+      "postalCodeLabel": "Mã bưu chính",
+      "countryLabel": "Quốc gia",
+      "countryHelp": "ISO 3166-1 alpha-2 (vd. VN, US, GB).",
+      "publishedLabel": "Đã đăng",
+      "publishedHelp": "Hiển thị cho người đăng ký và trên trang công khai.",
+      "createButton": "Tạo nhà"
+    },
+    "delete": {
+      "confirm": "Xóa \"{name}\"? Hành động này không thể hoàn tác."
+    }
+  },
+  "units": {
+    "metadataTitle": "Căn hộ",
+    "title": "Căn hộ",
+    "summaryIn": "{count, plural, other {{count} căn}} trong {house}",
+    "newButton": "Căn mới",
+    "emptyTitle": "Chưa có căn nào",
+    "emptyDescription": "Thêm căn cho thuê đầu tiên cho nhà này.",
+    "emptyCta": "Tạo một căn",
+    "back": "← Quay lại căn hộ",
+    "backToUnit": "← Quay lại {label}",
+    "newTitleInHouse": "Căn mới trong {house}",
+    "noStats": "Chưa có thông số",
+    "statsFloor": "tầng {n}",
+    "detail": {
+      "statsTitle": "Thông số",
+      "bedrooms": "Phòng ngủ",
+      "bathrooms": "Phòng tắm",
+      "size": "Diện tích",
+      "floor": "Tầng"
+    },
+    "form": {
+      "editTitle": "Sửa căn",
+      "labelLabel": "Tên căn",
+      "statusLabel": "Trạng thái",
+      "bedroomsLabel": "Phòng ngủ",
+      "bathroomsLabel": "Phòng tắm",
+      "sqmLabel": "Diện tích (m²)",
+      "floorLabel": "Tầng",
+      "createButton": "Tạo căn"
+    },
+    "delete": {
+      "confirm": "Xóa căn \"{label}\"? Hành động này không thể hoàn tác."
+    }
+  },
+  "leases": {
+    "listTitle": "Hợp đồng",
+    "listEmpty": "Chưa có hợp đồng nào trên căn này.",
+    "listSummary": "{count, plural, other {{count} hợp đồng, bao gồm lịch sử.}}",
+    "newButton": "Hợp đồng mới",
+    "rentPerCycle": "{amount} / {cycle}",
+    "back": "← Quay lại hợp đồng",
+    "detail": {
+      "title": "Hợp đồng",
+      "subtitleStarted": "bắt đầu {start}",
+      "subtitleEnds": " · kết thúc {end}",
+      "moneyTitle": "Tiền bạc",
+      "rentLabel": "Tiền thuê",
+      "depositLabel": "Tiền cọc",
+      "currencyLabel": "Tiền tệ",
+      "cycleLabel": "Chu kỳ",
+      "terminationTitle": "Lý do chấm dứt",
+      "actionsTitle": "Hành động",
+      "actionsDraft": "Kích hoạt để ràng buộc người thuê và chuyển căn sang trạng thái đã thuê.",
+      "actionsActive": "Kết thúc để giải phóng căn, hoặc chấm dứt kèm lý do.",
+      "actionsClosed": "Hợp đồng này đã đóng. Không còn chuyển trạng thái được.",
+      "rateTitle": "Đánh giá người thuê",
+      "rateDescription": "Đánh giá nhanh 1–5 sao tại mỗi mốc. Bình luận là tùy chọn."
+    },
+    "transitions": {
+      "failedTitle": "Chuyển trạng thái thất bại",
+      "failed": "Chuyển trạng thái thất bại.",
+      "activate": "Kích hoạt",
+      "endLease": "Kết thúc",
+      "terminate": "Chấm dứt",
+      "terminatePrompt": "Vì sao bạn chấm dứt hợp đồng này?",
+      "activateConfirm": "Bạn có chắc muốn kích hoạt hợp đồng này?",
+      "endConfirm": "Bạn có chắc muốn kết thúc hợp đồng này?"
+    },
+    "form": {
+      "newMetadata": "Hợp đồng mới",
+      "newTitle": "Hợp đồng mới trên {unit}",
+      "newSubtitle": "Tạo hợp đồng dạng NHÁP. Kích hoạt từ trang chi tiết hợp đồng sau khi đã trao đổi điều khoản với người thuê.",
+      "editTitle": "Sửa hợp đồng",
+      "editSubtitle": "Hợp đồng NHÁP có thể sửa tự do. Sau khi kích hoạt, hợp đồng bị khóa.",
+      "tenantEmailLabel": "Email người thuê",
+      "tenantNotFound": "Không tìm thấy người thuê với email đó. Kiểm tra địa chỉ và thử lại.",
+      "tenantHint": "Người thuê phải có tài khoản sẵn.",
+      "tenantFound": "Đã tìm thấy: {name}",
+      "rentLabel": "Tiền thuê (đơn vị nhỏ)",
+      "depositLabel": "Tiền cọc (đơn vị nhỏ)",
+      "currencyLabel": "Tiền tệ",
+      "currencyHelp": "Mã ISO-4217 (vd. VND, USD).",
+      "cycleLabel": "Chu kỳ",
+      "cycleWeekly": "Hàng tuần",
+      "cycleMonthly": "Hàng tháng",
+      "cycleQuarterly": "Hàng quý",
+      "cycleYearly": "Hàng năm",
+      "startDateLabel": "Ngày bắt đầu",
+      "endDateLabel": "Ngày kết thúc (tùy chọn)",
+      "createButton": "Tạo bản nháp hợp đồng"
+    },
+    "ratings": {
+      "lead": "Cho các chủ nhà tương lai biết nên kỳ vọng gì ở người thuê này. Mỗi mốc một đánh giá.",
+      "milestones": {
+        "MOVE_IN": "Nhận nhà",
+        "MID_LEASE": "Giữa kỳ hợp đồng",
+        "MOVE_OUT": "Trả nhà"
+      },
+      "blurbs": {
+        "MOVE_IN": "Bàn giao thế nào — giấy tờ, cọc, tình trạng?",
+        "MID_LEASE": "Người thuê thế nào — thanh toán, giữ gìn nơi ở?",
+        "MOVE_OUT": "Việc trả nhà thế nào — tình trạng, hoàn cọc?"
+      },
+      "alreadyRated": "Cảm ơn — bạn đã đánh giá rồi.",
+      "notAvailableDraft": "Có sẵn khi hợp đồng được kích hoạt.",
+      "notAvailableNotEnded": "Có sẵn khi hợp đồng kết thúc hoặc qua ngày trả nhà.",
+      "opensAt": "Mở từ {date}.",
+      "notAvailableGeneric": "Chưa sẵn sàng.",
+      "pillRated": "đã đánh giá",
+      "pillOpen": "đang mở",
+      "pillNotYet": "chưa",
+      "commentPlaceholder": "Bình luận tùy chọn (≤ 2000 ký tự)",
+      "commentAria": "Bình luận",
+      "scoreAria": "Điểm",
+      "starsAria": "{n, plural, other {{n} sao}}",
+      "pickScoreError": "Hãy chọn điểm từ 1 đến 5.",
+      "submitFailed": "Không thể gửi đánh giá.",
+      "submit": "Gửi"
+    }
+  },
+  "bills": {
+    "listTitle": "Hóa đơn",
+    "listEmptyActive": "Chưa có hóa đơn. Tạo một cái để phát hành tiền thuê.",
+    "listEmptyInactive": "Chưa có hóa đơn. Kích hoạt hợp đồng để bật xuất hóa đơn.",
+    "listSummary": "{count, plural, other {{count} hóa đơn.}}",
+    "generateNow": "Tạo ngay",
+    "generateCreated": "Đã tạo hóa đơn",
+    "generateIdempotent": "Kỳ này đã được tạo rồi",
+    "generateFailed": "Tạo thất bại",
+    "billDuePrefix": "hạn {date}",
+    "back": "← Quay lại hợp đồng",
+    "detail": {
+      "subtitle": "{start} – {end} · hạn {due}",
+      "linesTitle": "Mục",
+      "tableItem": "Mục",
+      "tableQty": "SL",
+      "tableAmount": "Số tiền",
+      "tableTotal": "Tổng",
+      "downloadReceipt": "Tải biên nhận (PDF)"
+    },
+    "payments": {
+      "title": "Thanh toán",
+      "empty": "Chưa có khoản thanh toán nào.",
+      "count": "{count, plural, other {{count} khoản thanh toán đã ghi nhận.}}",
+      "tableReceived": "Nhận lúc",
+      "tableAmount": "Số tiền",
+      "tableProvider": "Nhà cung cấp",
+      "tableRef": "Mã",
+      "tableNote": "Ghi chú",
+      "tableAction": "Thao tác",
+      "refundBadge": "hoàn tiền",
+      "refundButton": "Hoàn tiền",
+      "noneDash": "—",
+      "recordTitle": "Ghi nhận thanh toán",
+      "recordSubtitle": "Số dư còn lại: {amount}",
+      "amountLabel": "Số tiền (đơn vị nhỏ, {currency})",
+      "amountInvalid": "Số tiền phải là số nguyên dương (đơn vị nhỏ).",
+      "refLabel": "Mã tham chiếu (tùy chọn)",
+      "refPlaceholder": "Mã chuyển khoản, số séc…",
+      "noteLabel": "Ghi chú (tùy chọn)",
+      "recordButton": "Ghi nhận thanh toán",
+      "recordFailedTitle": "Không thể ghi nhận thanh toán",
+      "recordFailed": "Ghi nhận thanh toán thất bại",
+      "refundDialogTitle": "Hoàn tiền",
+      "refundDialogSubtitleStripe": "Có thể hoàn từ {provider} ({amount}): còn {remaining}. Sẽ phát hành hoàn tiền qua Stripe API.",
+      "refundDialogSubtitleVnpay": "Có thể hoàn từ {provider} ({amount}): còn {remaining}. VNPay không hỗ trợ hoàn tiền ở đây — xử lý qua bảng điều khiển VNPay rồi ghi nhận hoàn THỦ CÔNG.",
+      "refundDialogSubtitleManual": "Có thể hoàn từ {provider} ({amount}): còn {remaining}. Chỉ ghi nhận nội bộ. Đảm bảo bạn đã hoàn tiền ngoài hệ thống.",
+      "refundAmountLabel": "Số tiền (đơn vị nhỏ, {currency})",
+      "refundReasonLabel": "Lý do (tùy chọn)",
+      "issueRefundButton": "Phát hành hoàn tiền",
+      "refundFailedTitle": "Hoàn tiền thất bại",
+      "refundFailed": "Hoàn tiền thất bại"
+    }
+  },
+  "campaigns": {
+    "listTitle": "Tin đăng",
+    "listEmpty": "Chưa có tin đăng nào trên căn này.",
+    "listSummary": "{count, plural, other {{count} tin đăng, bao gồm lịch sử.}}",
+    "newButton": "Tin đăng mới",
+    "campaignMeta": "{price} · tạo {date}",
+    "back": "← Quay lại tin đăng",
+    "detail": {
+      "title": "Tin đăng",
+      "subtitle": "{price} · tạo {date}",
+      "rejectedTitle": "Bị quản trị từ chối",
+      "rejectedReason": "Lý do: {reason}",
+      "decidedSuffix": "Quyết định {date}.",
+      "listingTitle": "Tin đăng",
+      "listingSubtitle": "Cách người đăng ký sẽ thấy sau khi được duyệt.",
+      "actionsTitle": "Hành động",
+      "actionsCopyDraft": "Gửi khi bạn hài lòng với tin đăng. Căn phải đang trống.",
+      "actionsCopyPending": "Đang chờ quản trị duyệt. Rút lại để tiếp tục sửa.",
+      "actionsCopyLive": "Tin đang công khai. Đóng khi bạn đã tìm được người thuê.",
+      "actionsCopyClosed": "Tin đã đóng — giữ làm lưu trữ hoặc xóa.",
+      "actionsCopyRejected": "Bị từ chối. Xử lý lý do ở trên và tạo bản nháp mới.",
+      "actionsCopyExpired": "Tự động hết hạn. Tạo bản nháp mới để đăng lại."
+    },
+    "actions": {
+      "submit": "Gửi duyệt",
+      "submitConfirm": "Gửi tin này cho quản trị duyệt?",
+      "withdraw": "Rút lại",
+      "close": "Đóng",
+      "closeConfirm": "Đóng tin này? Sẽ ngừng nhận đơn đăng ký.",
+      "resubmit": "Gửi duyệt lại",
+      "resubmitConfirm": "Gửi tin này cho quản trị duyệt lại?",
+      "noFurther": "Không còn hành động nào cho chủ nhà.",
+      "failed": "Hành động thất bại."
+    },
+    "form": {
+      "newMetadata": "Tin đăng mới",
+      "newTitle": "Tin đăng mới",
+      "newSubtitle": "Đăng công khai căn này. Bắt đầu ở trạng thái NHÁP — gửi quản trị duyệt khi sẵn sàng.",
+      "editMetadata": "Sửa tin đăng",
+      "editTitle": "Sửa tin đăng",
+      "titleLabel": "Tiêu đề",
+      "titlePlaceholder": "Studio ấm cúng gần metro",
+      "descriptionLabel": "Mô tả",
+      "descriptionHelp": "Hiển thị công khai khi quản trị duyệt.",
+      "priceLabel": "Giá (đơn vị nhỏ)",
+      "priceHelp": "vd. 5000000 = ₫5.000.000.",
+      "currencyLabel": "Tiền tệ",
+      "photosLabel": "Ảnh",
+      "photosHelp": "Tối đa 20 ảnh. Tải trực tiếp lên kho lưu trữ.",
+      "createButton": "Tạo bản nháp",
+      "failedTitle": "Không thể lưu tin đăng",
+      "failed": "Không thể lưu tin đăng."
+    },
+    "delete": {
+      "confirm": "Xóa tin đăng \"{title}\"? Hành động này không thể hoàn tác."
+    },
+    "applications": {
+      "title": "Đơn đăng ký",
+      "empty": "Chưa có đơn đăng ký nào.",
+      "count": "{count, plural, other {{count} đơn đăng ký trên tin này.}}",
+      "appliedAt": "Đăng ký {date}",
+      "rejectionReasonPrefix": "Lý do từ chối: {reason}"
+    },
+    "applicationActions": {
+      "accept": "Chấp nhận",
+      "accepted": "Chấp nhận thất bại",
+      "acceptConfirm": "Chấp nhận đơn này? Sẽ tạo bản nháp hợp đồng và đóng tin.",
+      "reject": "Từ chối",
+      "rejectPrompt": "Lý do từ chối? (hiển thị cho người đăng ký)",
+      "rejectFailed": "Từ chối thất bại"
+    }
+  },
+  "tickets": {
+    "metadataTitle": "Yêu cầu",
+    "listTitle": "Yêu cầu",
+    "listEmpty": "Chưa có yêu cầu nào trên các bất động sản của bạn.",
+    "listSummary": "{open} cần xử lý · {closed} đã đóng.",
+    "sectionAttention": "Cần xử lý",
+    "sectionClosed": "Đã giải quyết / đã đóng",
+    "emptyTitle": "Chưa có yêu cầu nào",
+    "emptyDescription": "Khi người thuê gửi yêu cầu sửa chữa hoặc báo cáo, nó sẽ hiện ở đây.",
+    "emptyHint": "Không có gì cần làm bây giờ.",
+    "rowMeta": "{category} · {reporter} · gửi {date}",
+    "back": "← Quay lại yêu cầu",
+    "detail": {
+      "subtitle": "{category} · từ {reporter} · {date}",
+      "detailsTitle": "Chi tiết",
+      "viewLease": "Xem hợp đồng",
+      "actionsTitle": "Hành động",
+      "actionsCopyOpen": "Tiếp nhận để báo cho người thuê biết bạn đã ghi nhận.",
+      "actionsCopyAcknowledged": "Chuyển sang Đang xử lý khi bắt đầu làm.",
+      "actionsCopyInProgress": "Đánh dấu Đã giải quyết khi đã sửa xong.",
+      "actionsCopyResolved": "Đóng sau khi người thuê đã có thời gian xác nhận (trong 7 ngày họ có thể mở lại).",
+      "actionsCopyClosed": "Đã đóng. Người thuê có 7 ngày từ khi đóng để mở lại.",
+      "actionsCopyReopened": "Người thuê đã mở lại — bắt đầu một chu trình mới.",
+      "conversationTitle": "Trò chuyện",
+      "conversationDescription": "Tin nhắn với {reporter}. Vẫn mở trong 7 ngày sau khi đóng.",
+      "lockedDefault": "Yêu cầu này đã đóng và quá thời hạn 7 ngày để mở lại."
+    },
+    "transitions": {
+      "noFurther": "Không còn hành động nào.",
+      "labels": {
+        "ACKNOWLEDGED": "Tiếp nhận",
+        "IN_PROGRESS": "Đang xử lý",
+        "RESOLVED": "Giải quyết",
+        "CLOSED": "Đóng",
+        "OPEN": "Mở",
+        "REOPENED": "Mở lại"
+      },
+      "closeConfirm": "Đóng yêu cầu này?",
+      "failed": "Chuyển trạng thái thất bại.",
+      "failedTitle": "Chuyển trạng thái thất bại"
+    },
+    "thread": {
+      "convoAria": "Trò chuyện",
+      "empty": "Chưa có tin nhắn. Bắt đầu trò chuyện bên dưới.",
+      "messageAria": "Tin nhắn",
+      "placeholder": "Viết tin nhắn…",
+      "send": "Gửi",
+      "sendFailed": "Không thể gửi",
+      "lockedDefault": "Cuộc trò chuyện này đã khóa."
+    },
+    "partnerJobs": {
+      "title": "Công việc đối tác",
+      "empty": "Chưa có đối tác nào được đặt cho yêu cầu này.",
+      "count": "{count, plural, other {{count} việc liên kết với yêu cầu này.}}",
+      "requestButton": "Yêu cầu đối tác",
+      "reopenHint": "Mở lại yêu cầu để đặt.",
+      "bookedAt": "Đặt lúc {date}"
+    }
+  },
+  "partners": {
+    "metadataTitle": "Đối tác",
+    "listTitle": "Đối tác",
+    "fromTicketSubtitle": "Đặt thay cho một yêu cầu — chọn đối tác để gửi yêu cầu.",
+    "summaryEmpty": "Không có đối tác phù hợp.",
+    "summaryCount": "{count} phù hợp · lọc qua ?q=",
+    "searchPlaceholder": "Tìm theo tên doanh nghiệp hoặc khu vực phục vụ",
+    "emptyTitle": "Chưa có gì ở đây",
+    "emptyDescription": "Mở rộng bộ lọc hoặc quay lại khi có thêm đối tác.",
+    "kycLabel": "KYC {status}",
+    "noRatings": "Chưa có đánh giá",
+    "ratingSummary": "★ {avg} · {count, plural, other {{count} đánh giá}}",
+    "servicesSummary": "{count, plural, other {{count} dịch vụ · từ {price}}}",
+    "back": "← Quay lại đối tác",
+    "detail": {
+      "aboutTitle": "Giới thiệu",
+      "servicesTitle": "Dịch vụ",
+      "servicesEmpty": "Chưa có dịch vụ nào đang hoạt động.",
+      "servicesCount": "{count, plural, other {{count} dịch vụ có thể đặt.}}",
+      "bookTitle": "Đặt",
+      "bookDescriptionFromTicket": "Đặt thay cho một yêu cầu — việc mới sẽ được liên kết tự động.",
+      "bookDescription": "Gửi yêu cầu — đối tác sẽ phản hồi bằng báo giá.",
+      "bookButton": "Đặt đối tác này"
+    },
+    "book": {
+      "metadataTitle": "Đặt đối tác",
+      "title": "Đặt {name}",
+      "subtitleFromTicket": "Liên kết với một yêu cầu — việc mới sẽ hiển thị ở cả hai nơi.",
+      "subtitle": "Gửi yêu cầu. Họ sẽ phản hồi bằng báo giá.",
+      "back": "← Quay lại",
+      "serviceLabel": "Dịch vụ (tùy chọn)",
+      "serviceNone": "(không)",
+      "descriptionLabel": "Bạn cần gì?",
+      "descriptionHelp": "Ghi chú ngắn cho đối tác để báo giá.",
+      "sendButton": "Gửi yêu cầu",
+      "failedTitle": "Không thể đặt",
+      "failed": "Không thể đặt đối tác."
+    }
+  },
+  "serviceJobs": {
+    "metadataTitle": "Công việc dịch vụ",
+    "listTitle": "Đặt đối tác của tôi",
+    "summaryEmpty": "Chưa có lần đặt nào.",
+    "summaryCount": "{count, plural, other {{count} bản ghi.}}",
+    "emptyTitle": "Chưa có gì ở đây",
+    "emptyPrefix": "",
+    "emptyLink": "Tìm đối tác",
+    "emptySuffix": " và đặt một người.",
+    "directBooking": "Đặt trực tiếp",
+    "back": "← Quay lại danh sách đặt",
+    "detail": {
+      "subtitleRequested": "yêu cầu {date}",
+      "subtitleQuoted": " · báo giá {amount}",
+      "subtitleFinal": " · cuối cùng {amount}",
+      "cancelledTitle": "Đã hủy",
+      "cancelledReason": "Lý do: {reason}",
+      "requestTitle": "Yêu cầu của bạn",
+      "requestSubtitle": "Nội dung bạn đã gửi đối tác.",
+      "noDescription": "Không có mô tả.",
+      "actionsTitle": "Hành động",
+      "proofTitle": "Bằng chứng công việc",
+      "proofSubtitle": "Đối tác gửi khi hoàn thành.",
+      "ratingTitle": "Đánh giá",
+      "ratingSubtitle": "Làm việc với đối tác này thế nào?"
+    },
+    "actions": {
+      "accept": "Chấp nhận báo giá",
+      "acceptConfirm": "Chấp nhận báo giá này? Đối tác sẽ có thể bắt đầu làm.",
+      "acceptFailed": "Chấp nhận thất bại",
+      "cancel": "Hủy",
+      "cancelPrompt": "Lý do hủy? (đối tác sẽ nhìn thấy)",
+      "cancelFailed": "Hủy thất bại",
+      "noFurther": "Không còn hành động nào cho chủ nhà."
+    },
+    "rating": {
+      "ownPrefix": "Bạn đã đánh giá {score}★",
+      "submitTitle": "Đánh giá của bạn",
+      "scoreAria": "Điểm 1-5",
+      "commentPlaceholder": "Bình luận (tùy chọn)",
+      "submitButton": "Gửi đánh giá",
+      "failedTitle": "Đánh giá thất bại",
+      "submitFailed": "Gửi thất bại",
+      "pickScoreError": "Hãy chọn điểm từ 1 đến 5.",
+      "otherRatedYou": "{name} đã đánh giá bạn {score}★"
+    }
+  },
+  "charges": {
+    "metadataTitle": "Phí dịch vụ",
+    "title": "Phí dịch vụ",
+    "subtitle": "Chi phí mà mỗi việc đối tác hoàn thành cộng vào hóa đơn của bạn. Nhà cung cấp thanh toán thật sẽ có ở Phase 6 — hiện tại đây là khoản tích lũy thông tin.",
+    "emptyTitle": "Chưa có phí nào",
+    "emptyDescription": "Phí sẽ xuất hiện ở đây khi đối tác hoàn thành một việc cho bạn.",
+    "tableJob": "Công việc",
+    "tableAmount": "Số tiền",
+    "tableRecorded": "Ghi nhận"
+  },
+  "ratings": {
+    "metadataTitle": "Đánh giá của tôi",
+    "title": "Đánh giá của tôi",
+    "subtitle": "Người thuê đã nói gì về bạn.",
+    "reputationTitle": "Uy tín",
+    "noRatings": "Chưa có đánh giá — uy tín của bạn sẽ xuất hiện khi người thuê đánh giá.",
+    "ratingsCount": "{count, plural, other {{count} đánh giá đã ghi nhận.}}",
+    "perFive": "/ 5",
+    "scoreAria": "{score} trên 5",
+    "fromLabel": "{milestone} · từ {name}",
+    "milestones": {
+      "MOVE_IN": "Nhận nhà",
+      "MID_LEASE": "Giữa kỳ",
+      "MOVE_OUT": "Trả nhà"
+    }
+  },
+  "notifications": {
+    "metadataTitle": "Thông báo",
+    "title": "Thông báo",
+    "subtitle": "Cập nhật về yêu cầu, công việc và tài khoản của bạn.",
+    "unreadCount": "{count, plural, =0 {Đã đọc hết} other {{count} chưa đọc}}",
+    "markAll": "Đánh dấu tất cả đã đọc",
+    "prefs": {
+      "title": "Tùy chọn thông báo",
+      "muted": "Tắt",
+      "on": "Bật",
+      "updateFailed": "Không thể cập nhật \"{topic}\". Vui lòng thử lại.",
+      "topics": {
+        "ticket.opened": {
+          "label": "Yêu cầu mới từ người thuê",
+          "help": "Email khi người thuê gửi yêu cầu sửa chữa / báo cáo."
+        },
+        "job.completed": {
+          "label": "Đối tác đã hoàn thành công việc",
+          "help": "Email khi đối tác đã đặt đánh dấu hoàn thành."
+        }
+      }
+    }
+  }
+}

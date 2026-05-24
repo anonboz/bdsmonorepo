@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -39,11 +40,6 @@ interface FormValues {
   currency: string;
 }
 
-/**
- * Single form used for both create and DRAFT edit. The `photos` field is
- * a comma-separated URL list — Phase 4.3+ will swap in an upload widget
- * once S3 is wired.
- */
 export function CampaignForm({
   houseId,
   unitId,
@@ -55,6 +51,8 @@ export function CampaignForm({
   mode: 'create' | 'edit';
   initial?: Campaign;
 }) {
+  const t = useTranslations('owner.campaigns.form');
+  const tChrome = useTranslations('owner.chrome');
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<string[]>(initial?.photos ?? []);
@@ -99,7 +97,7 @@ export function CampaignForm({
         router.refresh();
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Could not save campaign.');
+      setError(err instanceof ApiError ? err.problem.title : t('failed'));
     }
   });
 
@@ -107,19 +105,19 @@ export function CampaignForm({
     <form className="space-y-6" onSubmit={onSubmit}>
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Could not save campaign</AlertTitle>
+          <AlertTitle>{t('failedTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <FormField label="Title" htmlFor="title" error={form.formState.errors.title}>
-        <Input id="title" {...form.register('title')} placeholder="Cozy studio near metro" />
+      <FormField label={t('titleLabel')} htmlFor="title" error={form.formState.errors.title}>
+        <Input id="title" {...form.register('title')} placeholder={t('titlePlaceholder')} />
       </FormField>
 
       <FormField
-        label="Description"
+        label={t('descriptionLabel')}
         htmlFor="body"
-        description="Visible publicly once admin approves."
+        description={t('descriptionHelp')}
         error={form.formState.errors.body}
       >
         <Textarea id="body" rows={6} {...form.register('body')} />
@@ -127,9 +125,9 @@ export function CampaignForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
-          label="Price (minor units)"
+          label={t('priceLabel')}
           htmlFor="price"
-          description="e.g. 5000000 = ₫5,000,000."
+          description={t('priceHelp')}
           error={form.formState.errors.price}
         >
           <Input
@@ -140,16 +138,16 @@ export function CampaignForm({
           />
         </FormField>
 
-        <FormField label="Currency" htmlFor="currency" error={form.formState.errors.currency}>
+        <FormField
+          label={t('currencyLabel')}
+          htmlFor="currency"
+          error={form.formState.errors.currency}
+        >
           <Input id="currency" maxLength={3} {...form.register('currency')} />
         </FormField>
       </div>
 
-      <FormField
-        label="Photos"
-        htmlFor="campaign-photos"
-        description="Up to 20 images. Uploaded directly to our storage."
-      >
+      <FormField label={t('photosLabel')} htmlFor="campaign-photos" description={t('photosHelp')}>
         <div id="campaign-photos">
           <MediaUploader
             purpose="CAMPAIGN_PHOTO"
@@ -165,7 +163,7 @@ export function CampaignForm({
       <div className="flex gap-3">
         <Button type="submit" disabled={form.formState.isSubmitting || uploaderBusy}>
           {form.formState.isSubmitting && <Spinner />}
-          {mode === 'create' ? 'Create draft' : 'Save changes'}
+          {mode === 'create' ? t('createButton') : tChrome('saveChanges')}
         </Button>
         <Button
           type="button"
@@ -173,7 +171,7 @@ export function CampaignForm({
           onClick={() => router.back()}
           disabled={form.formState.isSubmitting}
         >
-          Cancel
+          {tChrome('cancel')}
         </Button>
       </div>
     </form>

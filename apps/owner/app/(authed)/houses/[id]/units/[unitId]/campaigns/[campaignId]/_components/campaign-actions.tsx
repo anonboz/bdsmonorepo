@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { Campaign } from '@repo/shared';
@@ -19,6 +20,8 @@ export function CampaignActions({
   unitId: string;
   campaign: Campaign;
 }) {
+  const t = useTranslations('owner.campaigns.actions');
+  const tChrome = useTranslations('owner.chrome');
   const router = useRouter();
   const [busy, setBusy] = useState<OwnerTransition | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +37,7 @@ export function CampaignActions({
       );
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Action failed.');
+      setError(err instanceof ApiError ? err.problem.title : t('failed'));
     } finally {
       setBusy(null);
     }
@@ -44,51 +47,41 @@ export function CampaignActions({
     <div className="space-y-3">
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Action failed</AlertTitle>
+          <AlertTitle>{tChrome('actionFailedTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       <div className="flex flex-wrap gap-2">
         {campaign.status === 'DRAFT' && (
-          <Button
-            disabled={busy != null}
-            onClick={() => handle('PENDING', 'Submit this campaign for admin review?')}
-          >
+          <Button disabled={busy != null} onClick={() => handle('PENDING', t('submitConfirm'))}>
             {busy === 'PENDING' && <Spinner />}
-            Submit for review
+            {t('submit')}
           </Button>
         )}
         {campaign.status === 'PENDING' && (
           <Button variant="outline" disabled={busy != null} onClick={() => handle('DRAFT')}>
             {busy === 'DRAFT' && <Spinner />}
-            Withdraw
+            {t('withdraw')}
           </Button>
         )}
         {campaign.status === 'LIVE' && (
           <Button
             variant="destructive"
             disabled={busy != null}
-            onClick={() =>
-              handle('CLOSED', 'Close this campaign? It will stop accepting applications.')
-            }
+            onClick={() => handle('CLOSED', t('closeConfirm'))}
           >
             {busy === 'CLOSED' && <Spinner />}
-            Close
+            {t('close')}
           </Button>
         )}
         {campaign.status === 'REJECTED' && (
-          <Button
-            disabled={busy != null}
-            onClick={() => handle('PENDING', 'Re-submit this campaign for admin review?')}
-          >
+          <Button disabled={busy != null} onClick={() => handle('PENDING', t('resubmitConfirm'))}>
             {busy === 'PENDING' && <Spinner />}
-            Re-submit for review
+            {t('resubmit')}
           </Button>
         )}
         {(campaign.status === 'CLOSED' || campaign.status === 'EXPIRED') && (
-          <p className="text-sm text-muted-foreground">
-            No further owner actions on this campaign.
-          </p>
+          <p className="text-sm text-muted-foreground">{t('noFurther')}</p>
         )}
       </div>
     </div>

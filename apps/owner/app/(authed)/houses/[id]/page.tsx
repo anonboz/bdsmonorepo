@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { House } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -14,23 +16,29 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
   const house = await fetchHouse(id);
   if (!house) notFound();
 
+  const t = await getTranslations('owner.houses');
+  const tDetail = await getTranslations('owner.houses.detail');
+  const tChrome = await getTranslations('owner.chrome');
+  const unitsLabel = t('unitCount', { count: house.unitCount });
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/houses">← Back to houses</Link>
+          <Link href="/houses">{t('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{house.name}</h1>
             <p className="text-sm text-muted-foreground">
-              {house.unitCount} {house.unitCount === 1 ? 'unit' : 'units'}
-              {house.isPublished ? ' · Published' : ' · Draft'}
+              {house.isPublished
+                ? tDetail('subtitlePublished', { units: unitsLabel })
+                : tDetail('subtitleDraft', { units: unitsLabel })}
             </p>
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline">
-              <Link href={`/houses/${house.id}/edit` as const}>Edit</Link>
+              <Link href={`/houses/${house.id}/edit` as const}>{tChrome('edit')}</Link>
             </Button>
             <DeleteHouseButton houseId={house.id} houseName={house.name} />
           </div>
@@ -41,7 +49,7 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Address</CardTitle>
+          <CardTitle className="text-lg">{tDetail('addressTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-1 text-sm">
           <p>{house.address.line1}</p>
@@ -58,7 +66,7 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
       {house.description && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Description</CardTitle>
+            <CardTitle className="text-lg">{tDetail('descriptionTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{house.description}</p>
@@ -68,17 +76,17 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Units</CardTitle>
+          <CardTitle className="text-lg">{tDetail('unitsTitle')}</CardTitle>
           <CardDescription>
             {house.unitCount === 0
-              ? 'No units yet.'
-              : `${house.unitCount} ${house.unitCount === 1 ? 'unit' : 'units'} attached.`}
+              ? tDetail('unitsEmpty')
+              : tDetail('unitsAttached', { count: house.unitCount })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
             <Link href={`/houses/${house.id}/units`}>
-              {house.unitCount === 0 ? 'Add units' : 'Manage units'}
+              {house.unitCount === 0 ? tDetail('addUnits') : tDetail('manageUnits')}
             </Link>
           </Button>
         </CardContent>
@@ -88,31 +96,27 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
 }
 
 function ModerationBanner({ house }: { house: House }) {
+  const t = useTranslations('owner.houses.moderation');
   if (house.moderationStatus === 'OK') return null;
   const palette =
     house.moderationStatus === 'REJECTED'
       ? 'border-rose-300 bg-rose-50 text-rose-900'
       : 'border-amber-300 bg-amber-50 text-amber-900';
-  const heading =
-    house.moderationStatus === 'REJECTED'
-      ? 'Listing rejected by an admin'
-      : 'Listing flagged for review';
+  const heading = house.moderationStatus === 'REJECTED' ? t('rejectedTitle') : t('flaggedTitle');
   const followup =
-    house.moderationStatus === 'REJECTED'
-      ? 'Your listing has been removed from publication. Address the reason below and contact support to re-list.'
-      : 'You can still manage the house, but it will be hidden from public listings until the issue is resolved.';
+    house.moderationStatus === 'REJECTED' ? t('rejectedFollowup') : t('flaggedFollowup');
   return (
     <div className={`rounded-lg border px-4 py-3 ${palette}`} role="status">
       <p className="text-sm font-semibold">{heading}</p>
       {house.moderationReason && (
         <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
-          Reason: {house.moderationReason}
+          {t('reasonPrefix', { reason: house.moderationReason })}
         </p>
       )}
       <p className="mt-1 text-xs opacity-80">
         {followup}
         {house.moderationDecidedAt
-          ? ` · Decided ${formatDateTime(house.moderationDecidedAt)}.`
+          ? t('decidedSuffix', { date: formatDateTime(house.moderationDecidedAt) })
           : ''}
       </p>
     </div>

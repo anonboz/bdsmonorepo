@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 
 import type { Notification, Page } from '@repo/shared';
@@ -9,6 +10,7 @@ import { Button, NotificationInboxList, NotificationInboxRow } from '@repo/ui';
 import { api } from '../../../../lib/api';
 
 export function InboxClient({ initial }: { initial: Page<Notification> }) {
+  const t = useTranslations('owner.notifications');
   const [items, setItems] = useState(initial.items);
   const [busy, startBusy] = useTransition();
   const router = useRouter();
@@ -40,16 +42,14 @@ export function InboxClient({ initial }: { initial: Page<Notification> }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-        </p>
+        <p className="text-sm text-muted-foreground">{t('unreadCount', { count: unreadCount })}</p>
         <Button
           variant="outline"
           size="sm"
           onClick={handleMarkAll}
           disabled={busy || unreadCount === 0}
         >
-          Mark all as read
+          {t('markAll')}
         </Button>
       </div>
       <NotificationInboxList
@@ -86,7 +86,6 @@ function resolveHref(notification: Notification): string | null {
     case 'ticket.opened':
       return typeof data.ticketId === 'string' ? `/tickets/${data.ticketId}` : null;
     case 'job.completed':
-      // Owner has no service-job detail screen in v1; stay on /notifications.
       return null;
     default:
       return null;

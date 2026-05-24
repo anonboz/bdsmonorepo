@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { JobRating, JobRatingsForJob } from '@repo/shared';
@@ -11,6 +12,7 @@ import { ApiError, api } from '../../../../../lib/api';
 const STAR_VALUES = [1, 2, 3, 4, 5] as const;
 
 export function OwnerRatingPanel({ jobId, initial }: { jobId: string; initial: JobRatingsForJob }) {
+  const t = useTranslations('owner.serviceJobs.rating');
   const router = useRouter();
   const [own, setOwn] = useState<JobRating | null>(initial.ownerToPartner);
   const [score, setScore] = useState<number>(0);
@@ -21,7 +23,7 @@ export function OwnerRatingPanel({ jobId, initial }: { jobId: string; initial: J
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (score < 1) {
-      setError('Pick a score from 1 to 5.');
+      setError(t('pickScoreError'));
       return;
     }
     setBusy(true);
@@ -35,7 +37,7 @@ export function OwnerRatingPanel({ jobId, initial }: { jobId: string; initial: J
       setOwn(created);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Submit failed');
+      setError(err instanceof ApiError ? err.problem.title : t('submitFailed'));
     } finally {
       setBusy(false);
     }
@@ -45,7 +47,9 @@ export function OwnerRatingPanel({ jobId, initial }: { jobId: string; initial: J
     <div className="space-y-4">
       {own ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-sm font-medium text-emerald-900">You rated {own.score}★</p>
+          <p className="text-sm font-medium text-emerald-900">
+            {t('ownPrefix', { score: own.score })}
+          </p>
           {own.comment && (
             <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-emerald-900">
               {own.comment}
@@ -56,13 +60,13 @@ export function OwnerRatingPanel({ jobId, initial }: { jobId: string; initial: J
         <form className="space-y-3" onSubmit={submit}>
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Rating failed</AlertTitle>
+              <AlertTitle>{t('failedTitle')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Your rating</legend>
-            <div className="flex gap-1" role="radiogroup" aria-label="Score 1-5">
+            <legend className="text-sm font-medium">{t('submitTitle')}</legend>
+            <div className="flex gap-1" role="radiogroup" aria-label={t('scoreAria')}>
               {STAR_VALUES.map((n) => (
                 <button
                   key={n}
@@ -84,13 +88,13 @@ export function OwnerRatingPanel({ jobId, initial }: { jobId: string; initial: J
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Comment (optional)"
+            placeholder={t('commentPlaceholder')}
             maxLength={2000}
             rows={3}
           />
           <Button type="submit" disabled={busy}>
             {busy && <Spinner />}
-            Submit rating
+            {t('submitButton')}
           </Button>
         </form>
       )}
@@ -98,7 +102,10 @@ export function OwnerRatingPanel({ jobId, initial }: { jobId: string; initial: J
       {initial.partnerToOwner && (
         <div className="rounded-md border bg-muted/30 p-3">
           <p className="text-sm font-medium">
-            {initial.partnerToOwner.raterName} rated you {initial.partnerToOwner.score}★
+            {t('otherRatedYou', {
+              name: initial.partnerToOwner.raterName,
+              score: initial.partnerToOwner.score,
+            })}
           </p>
           {initial.partnerToOwner.comment && (
             <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">

@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
@@ -11,11 +12,6 @@ import { Alert, AlertDescription, AlertTitle, Button, FormField, Input, Spinner 
 
 import { ApiError, api } from '../../../../../../../../lib/api';
 
-/**
- * Form schema layered on top of @repo/shared's createLeaseSchema: the form
- * collects the tenant by EMAIL (humans don't type cuid2s), then resolves to
- * tenantId before posting to the API. Other fields pass through verbatim.
- */
 const leaseFormSchema = createLeaseSchema.omit({ tenantId: true }).extend({
   tenantEmail: emailSchema,
 });
@@ -31,6 +27,8 @@ export interface LeaseFormProps {
 }
 
 export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: LeaseFormProps) {
+  const t = useTranslations('owner.leases.form');
+  const tChrome = useTranslations('owner.chrome');
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [resolvedTenant, setResolvedTenant] = useState<UserLookup | null>(null);
@@ -57,7 +55,6 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
         },
   });
 
-  // Debounced tenant lookup — runs whenever the email field stabilizes.
   const tenantEmail = form.watch('tenantEmail');
   useEffect(() => {
     const trimmed = tenantEmail?.trim().toLowerCase();
@@ -77,7 +74,7 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
   const onSubmit = form.handleSubmit(async (raw) => {
     setError(null);
     if (!resolvedTenant) {
-      setError('Could not find a tenant with that email. Check the address and try again.');
+      setError(t('tenantNotFound'));
       return;
     }
     const payload = {
@@ -100,7 +97,7 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
       router.push(`/houses/${houseId}/units/${unitId}/leases/${saved.id}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Save failed.');
+      setError(err instanceof ApiError ? err.problem.title : tChrome('saveFailed'));
     }
   });
 
@@ -108,19 +105,17 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
     <form className="space-y-6" onSubmit={onSubmit}>
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Save failed</AlertTitle>
+          <AlertTitle>{tChrome('saveFailedTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       <FormField
-        label="Tenant email"
+        label={t('tenantEmailLabel')}
         htmlFor="tenantEmail"
         error={form.formState.errors.tenantEmail}
         description={
-          resolvedTenant
-            ? `Found: ${resolvedTenant.displayName}`
-            : 'The tenant must already have an account.'
+          resolvedTenant ? t('tenantFound', { name: resolvedTenant.displayName }) : t('tenantHint')
         }
       >
         <Input id="tenantEmail" type="email" autoComplete="off" {...form.register('tenantEmail')} />
@@ -128,7 +123,7 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField
-          label="Rent (minor units)"
+          label={t('rentLabel')}
           htmlFor="rentAmount"
           error={form.formState.errors.rentAmount}
         >
@@ -140,7 +135,7 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
           />
         </FormField>
         <FormField
-          label="Deposit (minor units)"
+          label={t('depositLabel')}
           htmlFor="depositAmount"
           error={form.formState.errors.depositAmount}
         >
@@ -152,30 +147,38 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
           />
         </FormField>
         <FormField
-          label="Currency"
+          label={t('currencyLabel')}
           htmlFor="currency"
           error={form.formState.errors.currency}
-          description="ISO-4217 code (e.g. VND, USD)."
+          description={t('currencyHelp')}
         >
           <Input id="currency" maxLength={3} {...form.register('currency')} />
         </FormField>
-        <FormField label="Cycle" htmlFor="rentCycle" error={form.formState.errors.rentCycle}>
+        <FormField
+          label={t('cycleLabel')}
+          htmlFor="rentCycle"
+          error={form.formState.errors.rentCycle}
+        >
           <select
             id="rentCycle"
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             {...form.register('rentCycle')}
           >
-            <option value="WEEKLY">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-            <option value="QUARTERLY">Quarterly</option>
-            <option value="YEARLY">Yearly</option>
+            <option value="WEEKLY">{t('cycleWeekly')}</option>
+            <option value="MONTHLY">{t('cycleMonthly')}</option>
+            <option value="QUARTERLY">{t('cycleQuarterly')}</option>
+            <option value="YEARLY">{t('cycleYearly')}</option>
           </select>
         </FormField>
-        <FormField label="Start date" htmlFor="startDate" error={form.formState.errors.startDate}>
+        <FormField
+          label={t('startDateLabel')}
+          htmlFor="startDate"
+          error={form.formState.errors.startDate}
+        >
           <Input id="startDate" type="date" {...form.register('startDate')} />
         </FormField>
         <FormField
-          label="End date (optional)"
+          label={t('endDateLabel')}
           htmlFor="endDate"
           error={form.formState.errors.endDate}
         >
@@ -186,7 +189,7 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
       <div className="flex gap-3">
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting && <Spinner />}
-          {initial ? 'Save changes' : 'Create draft lease'}
+          {initial ? tChrome('saveChanges') : t('createButton')}
         </Button>
         <Button
           type="button"
@@ -194,7 +197,7 @@ export function LeaseForm({ houseId, unitId, initial, initialTenantEmail }: Leas
           onClick={() => router.back()}
           disabled={form.formState.isSubmitting}
         >
-          Cancel
+          {tChrome('cancel')}
         </Button>
       </div>
     </form>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { Bill } from '@repo/shared';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function GenerateNowButton({ houseId, unitId, leaseId }: Props) {
+  const t = useTranslations('owner.bills');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -27,10 +29,10 @@ export function GenerateNowButton({ houseId, unitId, leaseId }: Props) {
         `/v1/houses/${houseId}/units/${unitId}/leases/${leaseId}/bills/generate-now`,
         {},
       );
-      setMsg(result.status === 'created' ? 'Bill generated' : 'Already generated this period');
+      setMsg(result.status === 'created' ? t('generateCreated') : t('generateIdempotent'));
       router.refresh();
     } catch (err) {
-      setMsg(err instanceof ApiError ? err.problem.title : 'Generation failed');
+      setMsg(err instanceof ApiError ? err.problem.title : t('generateFailed'));
     } finally {
       setBusy(false);
     }
@@ -40,7 +42,7 @@ export function GenerateNowButton({ houseId, unitId, leaseId }: Props) {
     <div className="flex flex-col items-end gap-1">
       <Button size="sm" disabled={busy} onClick={handle}>
         {busy && <Spinner />}
-        Generate now
+        {t('generateNow')}
       </Button>
       {msg && <p className="text-xs text-muted-foreground">{msg}</p>}
     </div>

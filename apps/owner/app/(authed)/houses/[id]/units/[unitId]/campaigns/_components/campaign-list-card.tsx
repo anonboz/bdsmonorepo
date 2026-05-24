@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Campaign, CampaignStatus, Page } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -10,20 +12,21 @@ export async function CampaignListCard({ houseId, unitId }: { houseId: string; u
   const page = await serverApi<Page<Campaign>>(
     `/v1/houses/${houseId}/units/${unitId}/campaigns?limit=20`,
   );
+  const t = await getTranslations('owner.campaigns');
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between">
         <div>
-          <CardTitle className="text-lg">Campaigns</CardTitle>
+          <CardTitle className="text-lg">{t('listTitle')}</CardTitle>
           <CardDescription>
             {page.items.length === 0
-              ? 'No campaigns yet on this unit.'
-              : `${page.items.length} ${page.items.length === 1 ? 'campaign' : 'campaigns'}, including history.`}
+              ? t('listEmpty')
+              : t('listSummary', { count: page.items.length })}
           </CardDescription>
         </div>
         <Button asChild size="sm">
-          <Link href={`/houses/${houseId}/units/${unitId}/campaigns/new`}>New campaign</Link>
+          <Link href={`/houses/${houseId}/units/${unitId}/campaigns/new`}>{t('newButton')}</Link>
         </Button>
       </CardHeader>
       {page.items.length > 0 && (
@@ -48,6 +51,7 @@ function CampaignRow({
   unitId: string;
   campaign: Campaign;
 }) {
+  const t = useTranslations('owner.campaigns');
   return (
     <li>
       <Link
@@ -57,8 +61,10 @@ function CampaignRow({
         <div className="space-y-0.5">
           <p className="font-medium">{campaign.title}</p>
           <p className="text-xs text-muted-foreground">
-            {formatMoney(campaign.price, campaign.currency)} · created{' '}
-            {formatDate(campaign.createdAt)}
+            {t('campaignMeta', {
+              price: formatMoney(campaign.price, campaign.currency),
+              date: formatDate(campaign.createdAt),
+            })}
           </p>
         </div>
         <StatusBadge status={campaign.status} />
@@ -68,6 +74,7 @@ function CampaignRow({
 }
 
 export function StatusBadge({ status }: { status: CampaignStatus }) {
+  const t = useTranslations('owner.statuses.campaigns');
   const palette: Record<CampaignStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     PENDING: 'bg-amber-100 text-amber-900',
@@ -78,7 +85,7 @@ export function StatusBadge({ status }: { status: CampaignStatus }) {
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase()}
+      {t(status)}
     </span>
   );
 }

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Lease, LeaseStatus, Page } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -10,20 +12,21 @@ export async function LeaseListCard({ houseId, unitId }: { houseId: string; unit
   const page = await serverApi<Page<Lease>>(
     `/v1/houses/${houseId}/units/${unitId}/leases?limit=20`,
   );
+  const t = await getTranslations('owner.leases');
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between">
         <div>
-          <CardTitle className="text-lg">Leases</CardTitle>
+          <CardTitle className="text-lg">{t('listTitle')}</CardTitle>
           <CardDescription>
             {page.items.length === 0
-              ? 'No leases yet on this unit.'
-              : `${page.items.length} ${page.items.length === 1 ? 'lease' : 'leases'}, including history.`}
+              ? t('listEmpty')
+              : t('listSummary', { count: page.items.length })}
           </CardDescription>
         </div>
         <Button asChild size="sm">
-          <Link href={`/houses/${houseId}/units/${unitId}/leases/new`}>New lease</Link>
+          <Link href={`/houses/${houseId}/units/${unitId}/leases/new`}>{t('newButton')}</Link>
         </Button>
       </CardHeader>
       {page.items.length > 0 && (
@@ -40,6 +43,8 @@ export async function LeaseListCard({ houseId, unitId }: { houseId: string; unit
 }
 
 function LeaseRow({ houseId, unitId, lease }: { houseId: string; unitId: string; lease: Lease }) {
+  const t = useTranslations('owner.leases');
+  const tCycle = useTranslations('owner.statuses.rentCyclesLower');
   return (
     <li>
       <Link
@@ -48,7 +53,10 @@ function LeaseRow({ houseId, unitId, lease }: { houseId: string; unitId: string;
       >
         <div className="space-y-0.5">
           <p className="font-medium">
-            {formatMoney(lease.rentAmount, lease.currency)} / {lease.rentCycle.toLowerCase()}
+            {t('rentPerCycle', {
+              amount: formatMoney(lease.rentAmount, lease.currency),
+              cycle: tCycle(lease.rentCycle),
+            })}
           </p>
           <p className="text-xs text-muted-foreground">
             {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
@@ -61,6 +69,7 @@ function LeaseRow({ houseId, unitId, lease }: { houseId: string; unitId: string;
 }
 
 function StatusBadge({ status }: { status: LeaseStatus }) {
+  const t = useTranslations('owner.statuses.leases');
   const palette: Record<LeaseStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     ACTIVE: 'bg-emerald-100 text-emerald-900',
@@ -69,7 +78,7 @@ function StatusBadge({ status }: { status: LeaseStatus }) {
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase()}
+      {t(status)}
     </span>
   );
 }

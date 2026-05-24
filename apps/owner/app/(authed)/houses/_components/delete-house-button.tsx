@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button, Spinner } from '@repo/ui';
@@ -13,12 +14,13 @@ export interface DeleteHouseButtonProps {
 }
 
 export function DeleteHouseButton({ houseId, houseName }: DeleteHouseButtonProps) {
+  const t = useTranslations('owner');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleDelete() {
-    if (!window.confirm(`Delete "${houseName}"? This cannot be undone.`)) return;
+    if (!window.confirm(t('houses.delete.confirm', { name: houseName }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -26,8 +28,7 @@ export function DeleteHouseButton({ houseId, houseName }: DeleteHouseButtonProps
       router.push('/houses');
       router.refresh();
     } catch (err) {
-      // Surface the ProblemDetails title (e.g., "House has active units").
-      setError(err instanceof ApiError ? err.problem.title : 'Delete failed.');
+      setError(err instanceof ApiError ? err.problem.title : t('chrome.deleteFailed'));
       setBusy(false);
     }
   }
@@ -36,7 +37,7 @@ export function DeleteHouseButton({ houseId, houseName }: DeleteHouseButtonProps
     <div className="flex flex-col items-end gap-1">
       <Button variant="destructive" disabled={busy} onClick={handleDelete}>
         {busy && <Spinner />}
-        Delete
+        {t('chrome.delete')}
       </Button>
       {error && (
         <p className="text-xs text-destructive" role="alert">

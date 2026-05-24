@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { Application } from '@repo/shared';
@@ -10,11 +11,6 @@ import { ApiError, api } from '../../../../../../../../../lib/api';
 
 type Action = 'accept' | 'reject';
 
-/**
- * Accept mints a DRAFT lease server-side and closes the campaign. On
- * success we route the owner to the newly-created lease so they can
- * finalize the terms before activating.
- */
 export function ApplicationActions({
   houseId,
   unitId,
@@ -26,16 +22,14 @@ export function ApplicationActions({
   campaignId: string;
   applicationId: string;
 }) {
+  const t = useTranslations('owner.campaigns.applicationActions');
+  const tChrome = useTranslations('owner.chrome');
   const router = useRouter();
   const [busy, setBusy] = useState<Action | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function accept() {
-    if (
-      !window.confirm(
-        'Accept this application? This will create a DRAFT lease and close the listing.',
-      )
-    ) {
+    if (!window.confirm(t('acceptConfirm'))) {
       return;
     }
     setBusy('accept');
@@ -50,14 +44,14 @@ export function ApplicationActions({
       }
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Accept failed');
+      setError(err instanceof ApiError ? err.problem.title : t('accepted'));
     } finally {
       setBusy(null);
     }
   }
 
   async function reject() {
-    const reason = window.prompt('Reason for rejection? (visible to the applicant)');
+    const reason = window.prompt(t('rejectPrompt'));
     if (!reason?.trim()) return;
     setBusy('reject');
     setError(null);
@@ -68,7 +62,7 @@ export function ApplicationActions({
       );
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Reject failed');
+      setError(err instanceof ApiError ? err.problem.title : t('rejectFailed'));
     } finally {
       setBusy(null);
     }
@@ -78,18 +72,18 @@ export function ApplicationActions({
     <div className="space-y-2">
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Action failed</AlertTitle>
+          <AlertTitle>{tChrome('actionFailedTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       <div className="flex flex-wrap gap-2">
         <Button disabled={busy != null} onClick={accept}>
           {busy === 'accept' && <Spinner />}
-          Accept
+          {t('accept')}
         </Button>
         <Button variant="destructive" disabled={busy != null} onClick={reject}>
           {busy === 'reject' && <Spinner />}
-          Reject
+          {t('reject')}
         </Button>
       </div>
     </div>

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { KycStatus, Page, PartnerSummary } from '@repo/shared';
 import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -6,7 +8,10 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 import { formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
-export const metadata = { title: 'Partners' };
+export async function generateMetadata() {
+  const t = await getTranslations('owner.partners');
+  return { title: t('metadataTitle') };
+}
 
 type SearchParams = Promise<{ q?: string; fromTicket?: string }>;
 
@@ -27,16 +32,18 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
   const detailHref = (id: string): string =>
     fromTicket ? `/partners/${id}?fromTicket=${fromTicket}` : `/partners/${id}`;
 
+  const t = await getTranslations('owner.partners');
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Partners</h1>
+        <h1 className="text-2xl font-semibold">{t('listTitle')}</h1>
         <p className="text-sm text-muted-foreground">
           {fromTicket
-            ? 'Booking on behalf of a ticket — pick a partner to send the request to.'
+            ? t('fromTicketSubtitle')
             : page.items.length === 0
-              ? 'No partners match.'
-              : `${page.items.length} matching · filter via ?q=`}
+              ? t('summaryEmpty')
+              : t('summaryCount', { count: page.items.length })}
         </p>
       </header>
 
@@ -44,63 +51,72 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
         <input
           name="q"
           defaultValue={sp.q ?? ''}
-          placeholder="Search business name or service area"
+          placeholder={t('searchPlaceholder')}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         />
-        {/* Preserve the ticket context across filter form submits. */}
         {fromTicket && <input type="hidden" name="fromTicket" value={fromTicket} />}
       </form>
 
       {page.items.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Nothing here yet</CardTitle>
-            <CardDescription>
-              Loosen the filter or check back as more partners onboard.
-            </CardDescription>
+            <CardTitle>{t('emptyTitle')}</CardTitle>
+            <CardDescription>{t('emptyDescription')}</CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <ul className="space-y-3">
           {page.items.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={detailHref(p.id)}
-                className="block rounded-lg border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:border-foreground/20"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <p className="font-semibold">{p.businessName}</p>
-                    {p.serviceArea && (
-                      <p className="text-xs text-muted-foreground">{p.serviceArea}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {p.ratingAverage !== null
-                        ? `★ ${p.ratingAverage.toFixed(1)} · ${p.ratingCount} rating${p.ratingCount === 1 ? '' : 's'}`
-                        : 'No ratings yet'}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${KYC_PALETTE[p.kycStatus]}`}
-                  >
-                    KYC {p.kycStatus.toLowerCase()}
-                  </span>
-                </div>
-                {p.activeServices.length > 0 && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {p.activeServices.length} service
-                    {p.activeServices.length === 1 ? '' : 's'} · from{' '}
-                    {formatMoney(
-                      Math.min(...p.activeServices.map((s) => s.basePrice)),
-                      p.activeServices[0]!.currency,
-                    )}
-                  </p>
-                )}
-              </Link>
-            </li>
+            <PartnerRow key={p.id} partner={p} href={detailHref(p.id)} />
           ))}
         </ul>
       )}
     </main>
+  );
+}
+
+function PartnerRow({ partner, href }: { partner: PartnerSummary; href: string }) {
+  const t = useTranslations('owner.partners');
+  const tKyc = useTranslations('owner.statuses.kycLower');
+  return (
+    <li>
+      <Link
+        href={href}
+        className="block rounded-lg border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:border-foreground/20"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-0.5">
+            <p className="font-semibold">{partner.businessName}</p>
+            {partner.serviceArea && (
+              <p className="text-xs text-muted-foreground">{partner.serviceArea}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {partner.ratingAverage !== null
+                ? t('ratingSummary', {
+                    avg: partner.ratingAverage.toFixed(1),
+                    count: partner.ratingCount,
+                  })
+                : t('noRatings')}
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${KYC_PALETTE[partner.kycStatus]}`}
+          >
+            {t('kycLabel', { status: tKyc(partner.kycStatus) })}
+          </span>
+        </div>
+        {partner.activeServices.length > 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t('servicesSummary', {
+              count: partner.activeServices.length,
+              price: formatMoney(
+                Math.min(...partner.activeServices.map((s) => s.basePrice)),
+                partner.activeServices[0]!.currency,
+              ),
+            })}
+          </p>
+        )}
+      </Link>
+    </li>
   );
 }

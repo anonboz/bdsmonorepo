@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { Lease, LeaseStatus } from '@repo/shared';
@@ -22,6 +23,7 @@ const ALLOWED: Record<LeaseStatus, LeaseStatus[]> = {
 };
 
 export function LeaseTransitions({ houseId, unitId, lease }: Props) {
+  const t = useTranslations('owner.leases.transitions');
   const router = useRouter();
   const [busy, setBusy] = useState<LeaseStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +34,11 @@ export function LeaseTransitions({ houseId, unitId, lease }: Props) {
   async function transition(to: LeaseStatus) {
     let reason: string | undefined;
     if (to === 'TERMINATED') {
-      reason = window.prompt('Why are you terminating this lease?') ?? undefined;
+      reason = window.prompt(t('terminatePrompt')) ?? undefined;
       if (!reason?.trim()) return;
     } else {
-      const verb = to === 'ACTIVE' ? 'activate' : 'end';
-      if (!window.confirm(`Are you sure you want to ${verb} this lease?`)) return;
+      const confirmMsg = to === 'ACTIVE' ? t('activateConfirm') : t('endConfirm');
+      if (!window.confirm(confirmMsg)) return;
     }
 
     setBusy(to);
@@ -48,9 +50,22 @@ export function LeaseTransitions({ houseId, unitId, lease }: Props) {
       });
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Transition failed.');
+      setError(err instanceof ApiError ? err.problem.title : t('failed'));
     } finally {
       setBusy(null);
+    }
+  }
+
+  function labelFor(to: LeaseStatus): string {
+    switch (to) {
+      case 'ACTIVE':
+        return t('activate');
+      case 'ENDED':
+        return t('endLease');
+      case 'TERMINATED':
+        return t('terminate');
+      default:
+        return to;
     }
   }
 
@@ -58,7 +73,7 @@ export function LeaseTransitions({ houseId, unitId, lease }: Props) {
     <div className="space-y-3">
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Transition failed</AlertTitle>
+          <AlertTitle>{t('failedTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -77,17 +92,4 @@ export function LeaseTransitions({ houseId, unitId, lease }: Props) {
       </div>
     </div>
   );
-}
-
-function labelFor(to: LeaseStatus): string {
-  switch (to) {
-    case 'ACTIVE':
-      return 'Activate';
-    case 'ENDED':
-      return 'End lease';
-    case 'TERMINATED':
-      return 'Terminate';
-    default:
-      return to;
-  }
 }

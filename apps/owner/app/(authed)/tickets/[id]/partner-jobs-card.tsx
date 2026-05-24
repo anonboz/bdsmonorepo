@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { JobStatus, Page, ServiceJob } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -16,11 +18,6 @@ const PALETTE: Record<JobStatus, string> = {
   CANCELLED: 'bg-zinc-200 text-zinc-700',
 };
 
-/**
- * Lists partner jobs linked to this ticket and offers a CTA to request
- * a new one. Bookable tickets (OPEN/ACKNOWLEDGED/IN_PROGRESS/REOPENED)
- * get the button; RESOLVED/CLOSED tickets see a hint to reopen.
- */
 export async function PartnerJobsCard({
   ticketId,
   bookable,
@@ -31,55 +28,60 @@ export async function PartnerJobsCard({
   const page = await serverApi<Page<ServiceJob>>(
     `/v1/me/service-jobs?ticketId=${ticketId}&limit=20`,
   );
+  const t = await getTranslations('owner.tickets.partnerJobs');
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between">
         <div>
-          <CardTitle className="text-lg">Partner jobs</CardTitle>
+          <CardTitle className="text-lg">{t('title')}</CardTitle>
           <CardDescription>
-            {page.items.length === 0
-              ? 'No partner has been booked for this ticket yet.'
-              : `${page.items.length} job${page.items.length === 1 ? '' : 's'} linked to this ticket.`}
+            {page.items.length === 0 ? t('empty') : t('count', { count: page.items.length })}
           </CardDescription>
         </div>
         {bookable ? (
           <Button asChild size="sm">
-            <Link href={`/partners?fromTicket=${ticketId}`}>Request a partner</Link>
+            <Link href={`/partners?fromTicket=${ticketId}`}>{t('requestButton')}</Link>
           </Button>
         ) : (
-          <p className="text-xs text-muted-foreground">Re-open the ticket to book.</p>
+          <p className="text-xs text-muted-foreground">{t('reopenHint')}</p>
         )}
       </CardHeader>
       {page.items.length > 0 && (
         <CardContent>
           <ul className="space-y-2">
             {page.items.map((j) => (
-              <li key={j.id}>
-                <Link
-                  href={`/me/service-jobs/${j.id}`}
-                  className="flex items-start justify-between gap-3 rounded-md border p-3 text-sm transition-colors hover:border-foreground/20"
-                >
-                  <div className="space-y-0.5">
-                    <p className="font-medium">{j.partnerBusinessName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Booked {formatDateTime(j.createdAt)}
-                      {j.quotedAmount != null && j.currency
-                        ? ` · ${formatMoney(j.quotedAmount, j.currency)}`
-                        : ''}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[j.status]}`}
-                  >
-                    {j.status.toLowerCase().replace('_', ' ')}
-                  </span>
-                </Link>
-              </li>
+              <JobRow key={j.id} job={j} />
             ))}
           </ul>
         </CardContent>
       )}
     </Card>
+  );
+}
+
+function JobRow({ job }: { job: ServiceJob }) {
+  const t = useTranslations('owner.tickets.partnerJobs');
+  const tStatus = useTranslations('owner.statuses.jobs');
+  return (
+    <li>
+      <Link
+        href={`/me/service-jobs/${job.id}`}
+        className="flex items-start justify-between gap-3 rounded-md border p-3 text-sm transition-colors hover:border-foreground/20"
+      >
+        <div className="space-y-0.5">
+          <p className="font-medium">{job.partnerBusinessName}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('bookedAt', { date: formatDateTime(job.createdAt) })}
+            {job.quotedAmount != null && job.currency
+              ? ` · ${formatMoney(job.quotedAmount, job.currency)}`
+              : ''}
+          </p>
+        </div>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[job.status]}`}>
+          {tStatus(job.status)}
+        </span>
+      </Link>
+    </li>
   );
 }

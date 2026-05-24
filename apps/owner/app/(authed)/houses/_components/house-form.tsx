@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
@@ -44,6 +45,8 @@ const DEFAULTS: FormValues = {
 };
 
 export function HouseForm({ initial, redirectTo }: HouseFormProps) {
+  const t = useTranslations('owner.houses.form');
+  const tChrome = useTranslations('owner.chrome');
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -67,8 +70,6 @@ export function HouseForm({ initial, redirectTo }: HouseFormProps) {
   });
 
   const onSubmit = form.handleSubmit(async (raw) => {
-    // Drop empty strings from optional fields so the API receives undefined
-    // instead of "" (Zod's .optional() rejects empty strings on strict types).
     const payload: FormValues = {
       ...raw,
       description: raw.description?.trim() ? raw.description.trim() : undefined,
@@ -87,7 +88,7 @@ export function HouseForm({ initial, redirectTo }: HouseFormProps) {
       router.push(redirectTo ?? `/houses/${saved.id}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Save failed.');
+      setError(err instanceof ApiError ? err.problem.title : tChrome('saveFailed'));
     }
   });
 
@@ -95,29 +96,29 @@ export function HouseForm({ initial, redirectTo }: HouseFormProps) {
     <form className="space-y-6" onSubmit={onSubmit}>
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Save failed</AlertTitle>
+          <AlertTitle>{tChrome('saveFailedTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <FormField label="Name" htmlFor="name" error={form.formState.errors.name}>
+      <FormField label={t('nameLabel')} htmlFor="name" error={form.formState.errors.name}>
         <Input id="name" autoComplete="off" {...form.register('name')} />
       </FormField>
 
       <FormField
-        label="Description"
+        label={t('descriptionLabel')}
         htmlFor="description"
         error={form.formState.errors.description}
-        description="Shown on owner dashboards. Optional."
+        description={t('descriptionHelp')}
       >
         <Textarea id="description" {...form.register('description')} />
       </FormField>
 
       <fieldset className="space-y-4 rounded-lg border p-4">
-        <legend className="px-1 text-sm font-medium">Address</legend>
+        <legend className="px-1 text-sm font-medium">{t('addressLegend')}</legend>
 
         <FormField
-          label="Street address"
+          label={t('streetLabel')}
           htmlFor="line1"
           error={form.formState.errors.address?.line1}
         >
@@ -125,7 +126,7 @@ export function HouseForm({ initial, redirectTo }: HouseFormProps) {
         </FormField>
 
         <FormField
-          label="Apt / suite / unit (optional)"
+          label={t('aptLabel')}
           htmlFor="line2"
           error={form.formState.errors.address?.line2}
         >
@@ -133,18 +134,22 @@ export function HouseForm({ initial, redirectTo }: HouseFormProps) {
         </FormField>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField label="City" htmlFor="city" error={form.formState.errors.address?.city}>
+          <FormField
+            label={t('cityLabel')}
+            htmlFor="city"
+            error={form.formState.errors.address?.city}
+          >
             <Input id="city" autoComplete="address-level2" {...form.register('address.city')} />
           </FormField>
           <FormField
-            label="State / region"
+            label={t('stateLabel')}
             htmlFor="state"
             error={form.formState.errors.address?.state}
           >
             <Input id="state" autoComplete="address-level1" {...form.register('address.state')} />
           </FormField>
           <FormField
-            label="Postal code"
+            label={t('postalCodeLabel')}
             htmlFor="postalCode"
             error={form.formState.errors.address?.postalCode}
           >
@@ -155,10 +160,10 @@ export function HouseForm({ initial, redirectTo }: HouseFormProps) {
             />
           </FormField>
           <FormField
-            label="Country"
+            label={t('countryLabel')}
             htmlFor="country"
             error={form.formState.errors.address?.country}
-            description="ISO 3166-1 alpha-2 (e.g. VN, US, GB)."
+            description={t('countryHelp')}
           >
             <Input
               id="country"
@@ -177,17 +182,15 @@ export function HouseForm({ initial, redirectTo }: HouseFormProps) {
           {...form.register('isPublished')}
         />
         <div className="space-y-0.5">
-          <p className="text-sm font-medium">Published</p>
-          <p className="text-xs text-muted-foreground">
-            Visible to applicants and shown on the public marketing surface.
-          </p>
+          <p className="text-sm font-medium">{t('publishedLabel')}</p>
+          <p className="text-xs text-muted-foreground">{t('publishedHelp')}</p>
         </div>
       </label>
 
       <div className="flex gap-3">
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting && <Spinner />}
-          {initial ? 'Save changes' : 'Create house'}
+          {initial ? tChrome('saveChanges') : t('createButton')}
         </Button>
         <Button
           type="button"
@@ -195,7 +198,7 @@ export function HouseForm({ initial, redirectTo }: HouseFormProps) {
           onClick={() => router.back()}
           disabled={form.formState.isSubmitting}
         >
-          Cancel
+          {tChrome('cancel')}
         </Button>
       </div>
     </form>

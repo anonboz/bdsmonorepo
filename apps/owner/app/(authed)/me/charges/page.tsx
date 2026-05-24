@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import type { JobLedgerEntry, Page } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -6,31 +7,31 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
-export const metadata = { title: 'Service charges' };
+export async function generateMetadata() {
+  const t = await getTranslations('owner.charges');
+  return { title: t('metadataTitle') };
+}
 
 export default async function MyChargesPage() {
   const page = await serverApi<Page<JobLedgerEntry>>('/v1/me/charges?limit=50');
+  const t = await getTranslations('owner.charges');
+  const tChrome = await getTranslations('owner.chrome');
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <header className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/">← Back</Link>
+          <Link href="/">{tChrome('back')}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold">Service charges</h1>
-        <p className="text-sm text-muted-foreground">
-          What each completed partner job adds to your bill. Real payment provider lands in Phase 6
-          — these are informational accruals for now.
-        </p>
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </header>
 
       {page.items.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>No charges yet</CardTitle>
-            <CardDescription>
-              Charges appear here when a partner completes a job for you.
-            </CardDescription>
+            <CardTitle>{t('emptyTitle')}</CardTitle>
+            <CardDescription>{t('emptyDescription')}</CardDescription>
           </CardHeader>
         </Card>
       ) : (
@@ -39,9 +40,9 @@ export default async function MyChargesPage() {
             <table className="w-full text-sm">
               <thead className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2 font-medium">Job</th>
-                  <th className="px-4 py-2 font-medium text-right">Amount</th>
-                  <th className="px-4 py-2 font-medium">Recorded</th>
+                  <th className="px-4 py-2 font-medium">{t('tableJob')}</th>
+                  <th className="px-4 py-2 font-medium text-right">{t('tableAmount')}</th>
+                  <th className="px-4 py-2 font-medium">{t('tableRecorded')}</th>
                 </tr>
               </thead>
               <tbody>

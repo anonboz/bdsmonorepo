@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Bill, BillStatus, Page, Payment } from '@repo/shared';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@repo/ui';
@@ -22,19 +24,20 @@ export default async function BillDetailPage({
   const paid = payments.reduce((acc, p) => (p.status === 'SUCCEEDED' ? acc + p.amount : acc), 0);
   const remaining = Math.max(0, bill.total - paid);
 
+  const t = await getTranslations('owner.bills');
+  const tDetail = await getTranslations('owner.bills.detail');
+  const tKind = await getTranslations('owner.statuses.billLineKindsLower');
+
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href={`/houses/${houseId}/units/${unitId}/leases/${leaseId}`}>← Back to lease</Link>
+          <Link href={`/houses/${houseId}/units/${unitId}/leases/${leaseId}`}>{t('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{formatMoney(bill.total, bill.currency)}</h1>
-            <p className="text-sm text-muted-foreground">
-              <StatusBadge status={bill.status} /> · {formatDate(bill.periodStart)} –{' '}
-              {formatDate(bill.periodEnd)} · due {formatDate(bill.dueDate)}
-            </p>
+            <SubtitleLine bill={bill} />
           </div>
           <DownloadReceipt houseId={houseId} unitId={unitId} leaseId={leaseId} billId={bill.id} />
         </div>
@@ -42,15 +45,15 @@ export default async function BillDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Lines</CardTitle>
+          <CardTitle className="text-lg">{tDetail('linesTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="py-2 font-medium">Item</th>
-                <th className="py-2 font-medium">Qty</th>
-                <th className="py-2 text-right font-medium">Amount</th>
+                <th className="py-2 font-medium">{tDetail('tableItem')}</th>
+                <th className="py-2 font-medium">{tDetail('tableQty')}</th>
+                <th className="py-2 text-right font-medium">{tDetail('tableAmount')}</th>
               </tr>
             </thead>
             <tbody>
@@ -58,9 +61,7 @@ export default async function BillDetailPage({
                 <tr key={line.id} className="border-b last:border-0">
                   <td className="py-3">
                     <p className="font-medium">{line.label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {line.kind.toLowerCase().replace(/_/g, ' ')}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{tKind(line.kind)}</p>
                   </td>
                   <td className="py-3">{line.quantity}</td>
                   <td className="py-3 text-right font-medium">
@@ -71,7 +72,7 @@ export default async function BillDetailPage({
             </tbody>
             <tfoot>
               <tr className="border-t-2">
-                <td className="py-3 font-semibold">Total</td>
+                <td className="py-3 font-semibold">{tDetail('tableTotal')}</td>
                 <td />
                 <td className="py-3 text-right font-semibold">
                   {formatMoney(bill.total, bill.currency)}
@@ -96,6 +97,20 @@ export default async function BillDetailPage({
   );
 }
 
+function SubtitleLine({ bill }: { bill: Bill }) {
+  const t = useTranslations('owner.bills.detail');
+  return (
+    <p className="text-sm text-muted-foreground">
+      <StatusBadge status={bill.status} /> ·{' '}
+      {t('subtitle', {
+        start: formatDate(bill.periodStart),
+        end: formatDate(bill.periodEnd),
+        due: formatDate(bill.dueDate),
+      })}
+    </p>
+  );
+}
+
 async function fetchPayments(
   houseId: string,
   unitId: string,
@@ -114,6 +129,7 @@ async function fetchPayments(
 }
 
 function StatusBadge({ status }: { status: BillStatus }) {
+  const t = useTranslations('owner.statuses.bills');
   const palette: Record<BillStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     ISSUED: 'bg-blue-100 text-blue-900',
@@ -124,7 +140,7 @@ function StatusBadge({ status }: { status: BillStatus }) {
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase().replace('_', ' ')}
+      {t(status)}
     </span>
   );
 }

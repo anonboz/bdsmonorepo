@@ -1,3 +1,6 @@
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
+
 import type { Application, ApplicationStatus, Campaign, Page } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
@@ -13,11 +16,6 @@ const PALETTE: Record<ApplicationStatus, string> = {
   WITHDRAWN: 'bg-zinc-200 text-zinc-700',
 };
 
-/**
- * Renders below the campaign actions card. Lists every application on
- * this campaign; renders Accept/Reject buttons on each one that is
- * still SUBMITTED or REVIEWING.
- */
 export async function ApplicationsPanel({
   houseId,
   unitId,
@@ -30,60 +28,86 @@ export async function ApplicationsPanel({
   const page = await serverApi<Page<Application>>(
     `/v1/houses/${houseId}/units/${unitId}/campaigns/${campaign.id}/applications?limit=50`,
   );
+  const t = await getTranslations('owner.campaigns.applications');
 
   const decidable = (a: Application) => a.status === 'SUBMITTED' || a.status === 'REVIEWING';
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Applications</CardTitle>
+        <CardTitle className="text-lg">{t('title')}</CardTitle>
         <CardDescription>
-          {page.items.length === 0
-            ? 'No applications yet.'
-            : `${page.items.length} application${page.items.length === 1 ? '' : 's'} on this listing.`}
+          {page.items.length === 0 ? t('empty') : t('count', { count: page.items.length })}
         </CardDescription>
       </CardHeader>
       {page.items.length > 0 && (
         <CardContent>
           <ul className="space-y-3">
             {page.items.map((a) => (
-              <li key={a.id} className="rounded-md border p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-semibold">{a.applicantName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Applied {formatDateTime(a.createdAt)}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[a.status]}`}
-                  >
-                    {a.status.toLowerCase()}
-                  </span>
-                </div>
-                {a.message && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{a.message}</p>
-                )}
-                {a.rejectionReason && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Rejection reason: {a.rejectionReason}
-                  </p>
-                )}
-                {decidable(a) && (
-                  <div className="mt-3">
-                    <ApplicationActions
-                      houseId={houseId}
-                      unitId={unitId}
-                      campaignId={campaign.id}
-                      applicationId={a.id}
-                    />
-                  </div>
-                )}
-              </li>
+              <ApplicationRow
+                key={a.id}
+                houseId={houseId}
+                unitId={unitId}
+                campaignId={campaign.id}
+                application={a}
+                decidable={decidable(a)}
+              />
             ))}
           </ul>
         </CardContent>
       )}
     </Card>
+  );
+}
+
+function ApplicationRow({
+  houseId,
+  unitId,
+  campaignId,
+  application,
+  decidable,
+}: {
+  houseId: string;
+  unitId: string;
+  campaignId: string;
+  application: Application;
+  decidable: boolean;
+}) {
+  const t = useTranslations('owner.campaigns.applications');
+  const tStatus = useTranslations('owner.statuses.applications');
+  return (
+    <li className="rounded-md border p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-0.5">
+          <p className="text-sm font-semibold">{application.applicantName}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('appliedAt', { date: formatDateTime(application.createdAt) })}
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[application.status]}`}
+        >
+          {tStatus(application.status)}
+        </span>
+      </div>
+      {application.message && (
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{application.message}</p>
+      )}
+      {application.rejectionReason && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t('rejectionReasonPrefix', { reason: application.rejectionReason })}
+        </p>
+      )}
+      {decidable && (
+        <div className="mt-3">
+          <ApplicationActions
+            houseId={houseId}
+            unitId={unitId}
+            campaignId={campaignId}
+            applicationId={application.id}
+          />
+        </div>
+      )}
+    </li>
   );
 }
