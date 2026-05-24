@@ -2,7 +2,7 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 
-import type { NotificationTopic } from '@repo/shared';
+import { type Locale, type NotificationTopic, defaultLocale, localeSchema } from '@repo/shared';
 
 import { renderNotification, type NotificationData } from './notifications.templates.js';
 import { PushSender } from './push-sender.js';
@@ -45,7 +45,7 @@ export class NotificationsSendWorker extends WorkerHost {
     }
     const row = await this.prisma.notification.findUnique({
       where: { id: job.data.notificationId },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { email: true, locale: true } } },
     });
     if (!row) {
       this.logger.warn(`notification ${job.data.notificationId} not found — dropping`);
@@ -64,18 +64,25 @@ export class NotificationsSendWorker extends WorkerHost {
 
     const topic = row.topic as NotificationTopic;
     const data = (row.data ?? {}) as NotificationData;
-    const { emailHtml, emailText } = renderNotification(topic, data);
+    // Phase 11.5 — re-render with the recipient's CURRENT locale so a
+    // flip between dispatch and send takes effect on the email body
+    // + push payload. Subject + push title are pulled from the
+    // re-render rather than the persisted `row.title` for the same
+    // reason; the in-app inbox still reads the persisted row.
+    const parsedLocale = localeSchema.safeParse(row.user.locale);
+    const locale: Locale = parsedLocale.success ? parsedLocale.data : defaultLocale;
+    const rendered = renderNotification(topic, data, locale);
     await this.mailer.send({
       to: row.user.email,
-      subject: row.title,
-      html: emailHtml,
-      text: emailText,
+      subject: rendered.title,
+      html: rendered.emailHtml,
+      text: rendered.emailText,
     });
     await this.prisma.notification.update({
       where: { id: row.id },
       data: { sentAt: new Date() },
     });
-    const pushOutcome = await this.fanOutPush(row.userId, row.title, row.body, topic);
+    const pushOutcome = await this.fanOutPush(row.userId, rendered.title, rendered.body, topic);
     return { status: 'sent', ...pushOutcome };
   }
 

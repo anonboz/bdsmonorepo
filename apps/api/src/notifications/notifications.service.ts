@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Queue } from 'bullmq';
 
-import type { NotificationTopic } from '@repo/shared';
+import { type Locale, type NotificationTopic, defaultLocale, localeSchema } from '@repo/shared';
 
 import { renderNotification, type NotificationData } from './notifications.templates.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
@@ -97,6 +97,17 @@ export class NotificationsService {
       where: { userId: input.recipientId, topic: input.topic },
       select: { scope: true, muted: true },
     });
+    // Phase 11.5 — render title/body in the recipient's chosen
+    // language so the persisted Notification row, the in-app inbox,
+    // and the push payload all match what the user expects. The send
+    // worker re-reads `User.locale` and re-renders the email body so
+    // a locale flip between dispatch and send takes effect.
+    const userRow = await tx.user.findUnique({
+      where: { id: input.recipientId },
+      select: { locale: true },
+    });
+    const parsedLocale = userRow ? localeSchema.safeParse(userRow.locale) : null;
+    const locale: Locale = parsedLocale?.success ? parsedLocale.data : defaultLocale;
     const fullMute = prefs.some((p) => p.scope === 'ALL' && p.muted);
     if (fullMute) {
       return { id: null, enqueue: () => Promise.resolve(), muted: true };
@@ -116,7 +127,7 @@ export class NotificationsService {
       : 0;
     const inQuietHours = delayMs > 0;
 
-    const { title, body } = renderNotification(input.topic, input.data);
+    const { title, body } = renderNotification(input.topic, input.data, locale);
     const row = await tx.notification.create({
       data: {
         userId: input.recipientId,

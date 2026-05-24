@@ -54,10 +54,14 @@ function makePrismaStub() {
           const row = rows.find((r) => r.id === where.id);
           if (!row) return Promise.resolve(null);
           if (include?.user) {
-            const overlay = row as { _userEmail?: string | null };
+            const overlay = row as { _userEmail?: string | null; _userLocale?: string };
             const email =
               '_userEmail' in overlay ? (overlay._userEmail ?? null) : 'tenant@example.com';
-            return Promise.resolve({ ...row, user: { email } });
+            // Phase 11.5 — worker re-reads locale to localize email + push.
+            // Default 'vi' (the platform default) when the overlay
+            // doesn't pin one; per-test overrides via `_userLocale`.
+            const locale = overlay._userLocale ?? 'vi';
+            return Promise.resolve({ ...row, user: { email, locale } });
           }
           return Promise.resolve(row);
         },
@@ -93,6 +97,13 @@ function makePrismaStub() {
     notificationQuietHours: {
       // Default stub: no quiet hours.
       findUnique: vi.fn(() => Promise.resolve(null)),
+    },
+    user: {
+      // Phase 11.5 — dispatch fetches the recipient's locale to render
+      // the title/body in their language. Default to 'vi' (the
+      // platform default); tests override per-call to assert per-locale
+      // behaviour.
+      findUnique: vi.fn(() => Promise.resolve({ locale: 'vi' })),
     },
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => Promise.resolve(fn(stub))),
   });
@@ -210,6 +221,46 @@ describe('NotificationsService.dispatch', () => {
     });
     expect(id).toBe(prisma.rows[0]?.id);
     expect(queue.adds).toHaveLength(1);
+  });
+
+  it("renders the persisted title in the recipient's locale (Phase 11.5)", async () => {
+    const prisma = makePrismaStub();
+    const userStub = prisma.stub.user as { findUnique: ReturnType<typeof vi.fn> };
+    userStub.findUnique.mockResolvedValueOnce({ locale: 'en' });
+    const queue = makeQueueStub();
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    await service.dispatch(prisma.stub as never, {
+      topic: Topic.BILL_ISSUED,
+      recipientId: 'user_en',
+      data: {
+        amount: 500_000,
+        currency: 'VND',
+        dueDate: '2026-06-08',
+        period: '2026-06-01 – 2026-06-30',
+      },
+    });
+
+    expect(prisma.rows).toHaveLength(1);
+    // EN template carries "Your rent for …"; VI carries "Tiền thuê kỳ …".
+    expect(prisma.rows[0]?.title).toContain('Your rent for');
+  });
+
+  it('falls back to vi when the user row has a stale or missing locale', async () => {
+    const prisma = makePrismaStub();
+    const userStub = prisma.stub.user as { findUnique: ReturnType<typeof vi.fn> };
+    userStub.findUnique.mockResolvedValueOnce(null);
+    const queue = makeQueueStub();
+    const { audit } = makeAuditStub();
+    const service = new NotificationsService(prisma.stub as never, queue.queue as never, audit);
+
+    await service.dispatch(prisma.stub as never, {
+      topic: Topic.BILL_ISSUED,
+      recipientId: 'ghost',
+      data: { amount: 1, currency: 'VND', dueDate: 'd', period: 'p' },
+    });
+    expect(prisma.rows[0]?.title).toContain('Tiền thuê');
   });
 
   it('skips insert + enqueue when the user has muted that topic (Phase 9.4)', async () => {
@@ -430,7 +481,14 @@ describe('NotificationsSendWorker.process', () => {
     );
   });
 
-  function seed(extra: Partial<{ sentAt: Date; _userEmail: string | null; topic: string }> = {}) {
+  function seed(
+    extra: Partial<{
+      sentAt: Date;
+      _userEmail: string | null;
+      _userLocale: string;
+      topic: string;
+    }> = {},
+  ) {
     const row = {
       id: 'notif_seed_1',
       userId: 'user_1',
@@ -450,6 +508,7 @@ describe('NotificationsSendWorker.process', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       ...(extra._userEmail !== undefined && { _userEmail: extra._userEmail }),
+      ...(extra._userLocale !== undefined && { _userLocale: extra._userLocale }),
     };
     prisma.rows.push(row);
     return row;
@@ -507,6 +566,32 @@ describe('NotificationsSendWorker.process', () => {
       data: { notificationId: 'whatever' },
     } as never);
     expect(result).toEqual({ status: 'skipped' });
+  });
+
+  it("re-renders the email in the recipient's current locale (Phase 11.5)", async () => {
+    // VI is the default; this test pins the user to EN and asserts
+    // the worker uses the EN template even though the persisted row
+    // carries an EN-looking title from an earlier render. The
+    // important assertion is that the worker is the one picking the
+    // language, so a locale flip between dispatch and send takes
+    // effect.
+    const row = seed({ _userLocale: 'en' });
+    const result = await worker.process({
+      name: 'send',
+      data: { notificationId: row.id },
+    } as never);
+    expect(result).toMatchObject({ status: 'sent' });
+    expect(mailer.sent[0]?.subject).toContain('Your rent for');
+  });
+
+  it('renders the email in Vietnamese when the user is on vi', async () => {
+    const row = seed({ _userLocale: 'vi' });
+    const result = await worker.process({
+      name: 'send',
+      data: { notificationId: row.id },
+    } as never);
+    expect(result).toMatchObject({ status: 'sent' });
+    expect(mailer.sent[0]?.subject).toContain('Tiền thuê');
   });
 });
 
@@ -729,30 +814,77 @@ describe('renderNotification', () => {
     [Topic.TICKET_RESOLVED, 'resolved'],
     [Topic.JOB_COMPLETED, 'completed'],
     [Topic.PAYOUT_DISBURSED, 'Payout sent'],
-  ])('%s renders a title containing %s', (topic, marker) => {
-    const r = renderNotification(topic, {
-      amount: 100,
-      currency: 'VND',
-      dueDate: '2026-06-08',
-      period: '2026-06',
-      provider: 'STRIPE',
-      ticketTitle: 'Leak',
-      tenantName: 'Alice',
-      partnerName: 'Bob',
-      finalAmount: 200,
-      reference: 'TXN-001',
-    });
+  ])('%s renders an EN title containing %s when locale=en', (topic, marker) => {
+    const r = renderNotification(
+      topic,
+      {
+        amount: 100,
+        currency: 'VND',
+        dueDate: '2026-06-08',
+        period: '2026-06',
+        provider: 'STRIPE',
+        ticketTitle: 'Leak',
+        tenantName: 'Alice',
+        partnerName: 'Bob',
+        finalAmount: 200,
+        reference: 'TXN-001',
+      },
+      'en',
+    );
     expect(r.title.toLowerCase()).toContain(marker.toLowerCase());
     expect(r.emailHtml).toContain('<!doctype html>');
     // HTML must be escaped: no raw `<script>` even if data injected.
     expect(r.emailHtml).not.toContain('<script>');
   });
 
-  it('escapes html-dangerous characters in user-controlled fields', () => {
-    const r = renderNotification(Topic.TICKET_OPENED, {
-      ticketTitle: '<script>alert(1)</script>',
-      tenantName: 'Eve & friends',
+  it.each([
+    [Topic.BILL_ISSUED, 'tiền thuê'],
+    [Topic.BILL_PAID, 'đã nhận thanh toán'],
+    [Topic.BILL_REFUNDED, 'đã hoàn tiền'],
+    [Topic.TICKET_OPENED, 'yêu cầu mới'],
+    [Topic.TICKET_RESOLVED, 'đã được giải quyết'],
+    [Topic.JOB_COMPLETED, 'đã hoàn thành'],
+    [Topic.PAYOUT_DISBURSED, 'đã chuyển khoản'],
+  ])('%s renders a VI title containing %s when locale=vi', (topic, marker) => {
+    const r = renderNotification(
+      topic,
+      {
+        amount: 100,
+        currency: 'VND',
+        dueDate: '2026-06-08',
+        period: '2026-06',
+        provider: 'STRIPE',
+        ticketTitle: 'Leak',
+        tenantName: 'Alice',
+        partnerName: 'Bob',
+        finalAmount: 200,
+        reference: 'TXN-001',
+      },
+      'vi',
+    );
+    expect(r.title.toLowerCase()).toContain(marker.toLowerCase());
+    expect(r.emailHtml).toContain('<!doctype html>');
+  });
+
+  it('defaults to vi when no locale is supplied (Phase 11 default)', () => {
+    const r = renderNotification(Topic.BILL_ISSUED, {
+      amount: 100,
+      currency: 'VND',
+      dueDate: '2026-06-08',
+      period: '2026-06',
     });
+    expect(r.title).toContain('Tiền thuê');
+  });
+
+  it('escapes html-dangerous characters in user-controlled fields', () => {
+    const r = renderNotification(
+      Topic.TICKET_OPENED,
+      {
+        ticketTitle: '<script>alert(1)</script>',
+        tenantName: 'Eve & friends',
+      },
+      'en',
+    );
     expect(r.emailHtml).not.toContain('<script>alert(1)</script>');
     expect(r.emailHtml).toContain('&lt;script&gt;');
     expect(r.emailHtml).toContain('Eve &amp; friends');
