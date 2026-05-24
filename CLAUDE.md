@@ -105,5 +105,6 @@ Useful local URLs:
 
 - Branch: `phase-<n>/<feature-slug>`.
 - Conventional commits enforced by commitlint (see `commitlint.config.cjs` for
-  allowed scopes).
+  allowed scopes — adding a new workspace package usually requires adding a
+  scope in the same commit).
 - One feature = one PR. Reference the spec.

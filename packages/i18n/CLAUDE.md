@@ -19,6 +19,17 @@ Localization config + helpers shared across the four PWAs. Phase 11.
 - **No URL prefix routing.** Locale is cookie + `Accept-Language` only. See
   `docs/specs/phase11-i18n-infrastructure.md` §4 for the rationale.
 
+## Per-PWA wiring checklist
+
+All four PWAs must carry identical plumbing — diverging silently makes
+server-rendered translations fall back to raw keys for that app:
+
+- `withNextIntl()` wraps the export in `next.config.ts`
+- `i18n.ts` at the project root exports `getRequestConfig`
+- The existing `middleware.ts` calls `localeMiddleware`
+- An async root layout wraps children in `<I18nProvider>` with
+  `<html lang={locale}>`
+
 ## When to add a string
 
 A user-facing label / button / error message. Avoid keys for purely structural

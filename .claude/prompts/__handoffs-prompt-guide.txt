@@ -1,0 +1,70 @@
+Before ending session:
+Follow the instructions in @.claude/prompts/end-of-build-handoff.md
+
+Start new fresh session:
+Follow the instructions in @.claude/prompts/apply-handoff.md exactly. Stop at step 2 and wait for my review before applying anything.
+
+# run build plan
+# Follow the instructions in @.claude/prompts/.md exactly.
+
+# Follow the instructions in @claude-context/CONDUCT_AND_GAMIFICATION_BUILD_PLAN.md exactly.
+
+
+  git fetch
+  git checkout
+  docs/apply-handoff-2026-04-17-global-product-restructure
+
+Two places, depending on which side you're configuring:         
+  Surface: Perks (A-point exchange in staff /shop → Perks tab)      Who manages: Manager (store-scoped perks)
+  Where: Manager app → /dashboard/conduct/perks
+  ────────────────────────────────────────
+  Surface: Perks (cross-store templates)
+  Who manages: Admin                                                Where: Admin app → /conduct/perks
+  ────────────────────────────────────────                          Surface: Borrowable items (the catalog of things staff can
+  borrow
+     in /shop → Borrow tab)
+  Who manages: Admin only — items are global
+  Where: Admin app → /borrowable-items
+  ────────────────────────────────────────
+  Surface: Borrow requests (approve / track active / view history)
+  Who manages: Manager
+  Where: Manager app → /dashboard/borrow
+
+  Schema confirms the split: BorrowableItem is a single global
+  table (no store-scoped sibling), while perks have a
+  manager-creatable store layer alongside admin templates.
+
+  So:
+  - To add a borrowable item → Admin app, /borrowable-items.
+  - To set a perk for A-point exchange → Manager app,
+  /dashboard/conduct/perks (or Admin's /conduct/perks for global
+  templates).
+
+
+0 — Novice
+1 — Beginner
+5 — Adventurer
+10 — Explorer
+25 — Challenger
+50 — Veteran
+100 — Elite
+200 — Champion
+300 — Hero
+500 — Epic Hero
+750 — Mythic
+1000 — Legendary
+
+0 — Novice
+5 — Beginner
+20 — Adventurer
+50 — Explorer
+100 — Challenger
+200 — Veteran
+500 — Elite
+1000 — Champion
+2000 — Hero
+5000 — Epic Hero
+10000 — Mythic
+20000 — Legendary
+50000 - Ascended
+100000+ - Transcendent

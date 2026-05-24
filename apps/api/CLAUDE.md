@@ -49,6 +49,31 @@ BullMQ workers live alongside the API process in dev, separate in prod. Queues:
 - `notifications.send` — email + push + in-app
 - `webhooks.payments` — Stripe / VNPay webhook reconciliation
 
+## Notifications
+
+The `NotificationsService.dispatch` return shape is contractual:
+`{ id: string | null; enqueue: () => Promise<void>; muted: boolean }`.
+~7 callers destructure these three keys; widening or narrowing silently
+breaks the audit-log paths.
+
+When dispatch suppresses a channel (e.g. `scope=EMAIL muted=true`), the
+persisted `Notification` row needs `failureReason` set. The stuck-notifications
+sweeper filter is `sentAt IS NULL AND failureReason IS NULL` — without one
+of those, the sweeper retries the row 3× then finalizes. Pure wasted work.
+
+## Audit log
+
+Sweepers acting on a user's own behalf (delayed account erasure, etc.) set
+`actorId = userId`, not `null`. Reserve `actorId: null` for actions no user
+ever initiated (e.g. daily payouts release on elapsed cooldown).
+
+## Testing
+
+Service interfaces stubbable in tests should use property syntax
+(`foo: (x) => Promise<T>`), not method-shorthand (`foo(x): Promise<T>`).
+Method-shorthand declares the method `this`-bound, which trips
+`@typescript-eslint/unbound-method` on `expect(stub.foo).toHaveBeenCalled()`.
+
 ## Don't
 
 - Don't read `process.env` directly — use `@repo/config/env`.

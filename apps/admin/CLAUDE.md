@@ -23,6 +23,8 @@ Admin web app. **Desktop-first.** Role: `ADMIN`.
   reject non-admin roles with 403.
 - **Component re-use:** primitives from `@repo/ui`; admin-specific composites
   stay here.
+- **English-only for v1.** Admin does not import `@repo/i18n` strings; UI
+  labels stay inline English. Flip when a non-English-speaking operator joins.
 
 ## Don't
 

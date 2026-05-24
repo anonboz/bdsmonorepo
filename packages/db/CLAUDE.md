@@ -13,6 +13,9 @@ for the data model.
 - **Money:** integer minor units + `currency` column. No `Decimal`/`Float`
   columns for money.
 - **Enums in `packages/shared`** (Zod) mirror Prisma enums. Keep them in sync.
+  Adding a value also requires updating any runtime branch that maps from the
+  enum (worker fan-outs, dispatch decision trees, audit-action maps) —
+  TypeScript catches switch-statement misses but not nullable filter shapes.
 
 ## Workflow
 
