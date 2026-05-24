@@ -10,7 +10,13 @@ import { ApiError, api } from '../../../../../lib/api';
 
 const PAYABLE_STATES: BillStatus[] = ['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'];
 
-type Provider = 'stripe' | 'vnpay';
+type Provider = 'stripe' | 'vnpay' | 'momo';
+
+const CHECKOUT_PATHS: Record<Provider, (billId: string) => string> = {
+  stripe: (billId) => `/v1/me/bills/${billId}/checkout`,
+  vnpay: (billId) => `/v1/me/bills/${billId}/vnpay/checkout`,
+  momo: (billId) => `/v1/me/bills/${billId}/momo/checkout`,
+};
 
 export function PayOnline({ billId, billStatus }: { billId: string; billStatus: BillStatus }) {
   const t = useTranslations('tenant.bills.payOnline');
@@ -19,6 +25,7 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
   const [disabled, setDisabled] = useState<Record<Provider, boolean>>({
     stripe: false,
     vnpay: false,
+    momo: false,
   });
 
   if (!PAYABLE_STATES.includes(billStatus)) {
@@ -33,11 +40,7 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
     setBusy(provider);
     setError(null);
     try {
-      const path =
-        provider === 'stripe'
-          ? `/v1/me/bills/${billId}/checkout`
-          : `/v1/me/bills/${billId}/vnpay/checkout`;
-      const res = await api.post<CreateCheckoutSessionResponse>(path);
+      const res = await api.post<CreateCheckoutSessionResponse>(CHECKOUT_PATHS[provider](billId));
       window.location.assign(res.url);
     } catch (err) {
       if (err instanceof ApiError && err.problem.type === 'payments.provider_disabled') {
@@ -50,8 +53,8 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
     }
   }
 
-  const bothDisabled = disabled.stripe && disabled.vnpay;
-  if (bothDisabled) {
+  const noneEnabled = disabled.stripe && disabled.vnpay && disabled.momo;
+  if (noneEnabled) {
     return (
       <Alert>
         <AlertTitle>{t('neitherTitle')}</AlertTitle>
@@ -81,11 +84,18 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
             {t('payVnpay')}
           </Button>
         )}
+        {!disabled.momo && (
+          <Button onClick={() => pay('momo')} disabled={busy !== null} variant="outline">
+            {busy === 'momo' && <Spinner />}
+            {t('payMomo')}
+          </Button>
+        )}
       </div>
       <p className="text-xs text-muted-foreground">
         {t('redirectNote')}
-        {disabled.stripe && !disabled.vnpay && t('stripeDisabledNote')}
-        {!disabled.stripe && disabled.vnpay && t('vnpayDisabledNote')}
+        {disabled.stripe && t('stripeDisabledNote')}
+        {disabled.vnpay && t('vnpayDisabledNote')}
+        {disabled.momo && t('momoDisabledNote')}
       </p>
     </div>
   );

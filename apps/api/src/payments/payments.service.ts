@@ -14,6 +14,7 @@ import {
 } from '@repo/shared';
 
 import type { RecordManualPaymentDto } from './dto/payments.dto.js';
+import { MomoService } from './momo.service.js';
 import { StripeService } from './stripe.service.js';
 import { VnpayService } from './vnpay.service.js';
 import { AnalyticsService } from '../common/analytics/analytics.service.js';
@@ -53,6 +54,7 @@ export class PaymentsService {
     private readonly audit: AuditLogger,
     private readonly stripe: StripeService,
     private readonly vnpay: VnpayService,
+    private readonly momo: MomoService,
     private readonly notifications: NotificationsService,
     private readonly analytics: AnalyticsService,
   ) {}
@@ -521,6 +523,175 @@ export class PaymentsService {
     });
 
     return { url, sessionId: txnRef, paymentId: payment.id };
+  }
+
+  /**
+   * Phase 12.1 — MoMo `captureWallet` checkout. Pre-creates a Payment
+   * row (so its cuid becomes MoMo's `orderId` + our `providerRef`),
+   * POSTs a signed create-payment request to MoMo, and returns the
+   * `payUrl` for the tenant browser to redirect to.
+   *
+   * Mirrors {@link createVnpayCheckoutForTenant} except:
+   *   - The signed call goes to MoMo first (we need their `payUrl`),
+   *     so a network failure rolls the Payment back to `CANCELLED`.
+   *   - Amount is sent as the integer VND đồng (no `* 100` like VNPay).
+   *   - IPN delivery is POST/JSON to `/v1/webhooks/momo/ipn`; the URL
+   *     is computed here so MoMo learns it from the request body.
+   */
+  async createMomoCheckoutForTenant(
+    tenantId: string,
+    billId: string,
+    locale: 'vi' | 'en',
+    ctx: RequestContext,
+  ): Promise<CreateCheckoutSessionResponse> {
+    if (!this.momo.isEnabled()) {
+      throw new ProblemError({
+        status: 503,
+        type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+        title: 'MoMo is not configured on this deployment',
+      });
+    }
+
+    const bill = await this.prisma.bill.findUnique({
+      where: { id: billId },
+      select: {
+        id: true,
+        leaseId: true,
+        status: true,
+        currency: true,
+        total: true,
+        periodStart: true,
+        periodEnd: true,
+        lease: { select: { tenantId: true } },
+      },
+    });
+    if (bill?.lease.tenantId !== tenantId) throw this.billNotFound();
+
+    if (bill.status === 'PAID') {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_ALREADY_PAID,
+        title: 'Bill is already paid',
+      });
+    }
+    if (!PAYABLE_STATES.has(bill.status)) {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_NOT_PAYABLE,
+        title: 'Bill is not payable',
+        detail: `Cannot start checkout for a bill in ${bill.status} state.`,
+      });
+    }
+    if (bill.currency !== 'VND') {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_CURRENCY_MISMATCH,
+        title: 'Currency mismatch',
+        detail: 'MoMo only supports VND.',
+      });
+    }
+
+    const agg = await this.prisma.payment.aggregate({
+      where: { billId, status: 'SUCCEEDED' },
+      _sum: { amount: true },
+    });
+    const outstanding = bill.total - (agg._sum.amount ?? 0);
+    if (outstanding <= 0) {
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.PAYMENT_BILL_ALREADY_PAID,
+        title: 'Bill is already paid',
+      });
+    }
+
+    // Pre-create the Payment row so its id becomes MoMo's orderId +
+    // our providerRef. The MoMo create call is the only network
+    // interaction beyond this; on failure we mark CANCELLED so the
+    // row doesn't dangle as PENDING forever.
+    const payment = await this.prisma.payment.create({
+      data: {
+        billId,
+        amount: outstanding,
+        currency: 'VND',
+        status: 'PENDING',
+        provider: 'MOMO',
+        providerRef: null,
+        note: null,
+        receivedAt: null,
+      },
+    });
+    const orderId = payment.id;
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { providerRef: orderId },
+    });
+
+    const orderInfo = `Rent ${bill.periodStart.toISOString().slice(0, 10)} - ${bill.periodEnd
+      .toISOString()
+      .slice(0, 10)}`;
+    const redirectUrl = `${env.TENANT_APP_URL}/my-bills/${bill.id}/momo/return`;
+    const ipnUrl = `${env.API_PUBLIC_URL}/v1/webhooks/momo/ipn`;
+
+    let response;
+    try {
+      response = await this.momo.createCheckout({
+        orderId,
+        amount: outstanding,
+        orderInfo,
+        redirectUrl,
+        ipnUrl,
+        lang: locale,
+      });
+    } catch (err) {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'CANCELLED',
+          failureReason: `momo.create.error=${(err as Error).message}`.slice(0, 500),
+        },
+      });
+      throw new ProblemError({
+        status: 502,
+        type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+        title: 'MoMo create-payment request failed',
+      });
+    }
+
+    if (response.resultCode !== 0 || !response.payUrl) {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'CANCELLED',
+          failureReason: `momo.resultCode=${response.resultCode}: ${response.message}`.slice(
+            0,
+            500,
+          ),
+        },
+      });
+      throw new ProblemError({
+        status: 502,
+        type: ErrorCodes.PAYMENT_PROVIDER_DISABLED,
+        title: 'MoMo rejected the checkout request',
+        detail: `resultCode=${response.resultCode}`,
+      });
+    }
+
+    await this.audit.writeOnce({
+      actorId: ctx.actorId,
+      action: 'bill.checkout.start',
+      target: `Payment:${payment.id}`,
+      meta: {
+        billId,
+        amount: outstanding,
+        currency: 'VND',
+        provider: 'MOMO',
+        orderId,
+      },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return { url: response.payUrl, sessionId: orderId, paymentId: payment.id };
   }
 
   // ---- Refunds (owner) --------------------------------------------

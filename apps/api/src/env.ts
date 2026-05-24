@@ -133,6 +133,22 @@ const envSchema = z.object({
   VNPAY_LOCALE: z.string().default('vn'),
 
   /**
+   * MoMo partner code from the MoMo Business dashboard. When unset
+   * (together with ACCESS_KEY / SECRET_KEY), the MoMo checkout endpoint
+   * returns 503 `payments.provider_disabled`.
+   */
+  MOMO_PARTNER_CODE: z.string().optional(),
+  /** MoMo accessKey — public-ish, but part of the signed canonical string. */
+  MOMO_ACCESS_KEY: z.string().optional(),
+  /** MoMo HMAC-SHA256 secret. Same secret signs requests + verifies IPN. */
+  MOMO_SECRET_KEY: z.string().optional(),
+  /**
+   * MoMo's create-payment endpoint. Sandbox by default; production
+   * swaps to `https://payment.momo.vn/v2/gateway/api/create`.
+   */
+  MOMO_CREATE_URL: url().default('https://test-payment.momo.vn/v2/gateway/api/create'),
+
+  /**
    * S3-compatible storage config — points at the local MinIO by
    * default (see docker-compose.yml). All four are required for
    * StorageService to be considered "enabled"; when any is missing

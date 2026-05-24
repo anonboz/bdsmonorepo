@@ -6,6 +6,7 @@ import { stubAnalytics } from '../common/analytics/analytics.test-helper.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { stubNotifications } from '../notifications/notifications.test-helper.js';
+import type { MomoService } from '../payments/momo.service.js';
 import type { StripeService } from '../payments/stripe.service.js';
 import type { VnpayService } from '../payments/vnpay.service.js';
 
@@ -18,6 +19,14 @@ function makeVnpayStub(opts: { enabled?: boolean; verify?: boolean } = {}): Vnpa
     // refund flow lives in PaymentsService specs.
     createRefund: vi.fn(() => Promise.reject(new Error('not stubbed'))),
     formatTransactionDate: vi.fn(() => ''),
+  };
+}
+
+function makeMomoStub(opts: { enabled?: boolean; verify?: boolean } = {}): MomoService {
+  return {
+    isEnabled: vi.fn(() => opts.enabled ?? true),
+    createCheckout: vi.fn(() => Promise.reject(new Error('not stubbed'))),
+    verifyIpn: vi.fn(() => opts.verify ?? true),
   };
 }
 
@@ -253,6 +262,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -271,6 +281,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -285,6 +296,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -319,6 +331,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -334,6 +347,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -354,6 +368,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(store.stub as never),
       stripe,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -376,6 +391,7 @@ describe('WebhooksService.handleStripe', () => {
       new AuditLogger(sab.stub as never),
       stripe,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -418,6 +434,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub({ verify: false }),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -432,6 +449,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -450,6 +468,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -465,6 +484,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -479,6 +499,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -497,6 +518,7 @@ describe('WebhooksService.handleVnpayIpn', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({}),
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );

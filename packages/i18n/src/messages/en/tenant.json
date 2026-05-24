@@ -177,12 +177,14 @@
       "notAvailable": "Online payment is not available for this bill yet.",
       "couldNotStart": "Could not start checkout",
       "neitherTitle": "Online payment not enabled",
-      "neitherBody": "Neither Stripe nor VNPay is configured on this deployment. Settle directly with your landlord — they can record the payment for you.",
+      "neitherBody": "No online payment provider is configured on this deployment. Settle directly with your landlord — they can record the payment for you.",
       "payStripe": "Pay with Stripe",
       "payVnpay": "Pay with VNPay",
+      "payMomo": "Pay with MoMo",
       "redirectNote": "You will be redirected to the provider's secure checkout page. We never see your card details.",
       "stripeDisabledNote": " Stripe is not configured on this deployment.",
-      "vnpayDisabledNote": " VNPay is not configured on this deployment."
+      "vnpayDisabledNote": " VNPay is not configured on this deployment.",
+      "momoDisabledNote": " MoMo is not configured on this deployment."
     },
     "paymentSuccess": {
       "metadataTitle": "Payment received",
@@ -208,6 +210,19 @@
       "failDescription": "VNPay returned code {code}. No money was taken; try again whenever you're ready.",
       "unknownCode": "unknown",
       "vnpayReferenceLabel": "VNPay reference:",
+      "ourReferenceLabel": "Our reference:",
+      "stillOutstanding": "If the bill is still shown as outstanding more than a minute from now, refresh the page or contact your landlord.",
+      "backToBill": "Back to bill",
+      "allBills": "All bills"
+    },
+    "momoReturn": {
+      "metadataTitle": "MoMo return",
+      "okTitle": "Thanks for your payment",
+      "failTitle": "Payment did not complete",
+      "okDescription": "MoMo confirmed the charge. Your bill flips to PAID once our server receives MoMo's IPN — usually within seconds.",
+      "failDescription": "MoMo returned code {code}. No money was taken; try again whenever you're ready.",
+      "unknownCode": "unknown",
+      "momoReferenceLabel": "MoMo reference:",
       "ourReferenceLabel": "Our reference:",
       "stillOutstanding": "If the bill is still shown as outstanding more than a minute from now, refresh the page or contact your landlord.",
       "backToBill": "Back to bill",

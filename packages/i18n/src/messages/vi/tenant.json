@@ -177,12 +177,14 @@
       "notAvailable": "Hóa đơn này chưa hỗ trợ thanh toán trực tuyến.",
       "couldNotStart": "Không thể bắt đầu thanh toán",
       "neitherTitle": "Chưa bật thanh toán trực tuyến",
-      "neitherBody": "Bản triển khai này chưa cấu hình Stripe lẫn VNPay. Hãy thanh toán trực tiếp với chủ nhà — họ có thể ghi nhận giúp bạn.",
+      "neitherBody": "Bản triển khai này chưa cấu hình cổng thanh toán trực tuyến nào. Hãy thanh toán trực tiếp với chủ nhà — họ có thể ghi nhận giúp bạn.",
       "payStripe": "Thanh toán với Stripe",
       "payVnpay": "Thanh toán với VNPay",
+      "payMomo": "Thanh toán với MoMo",
       "redirectNote": "Bạn sẽ được chuyển đến trang thanh toán an toàn của nhà cung cấp. Chúng tôi không thấy thông tin thẻ của bạn.",
       "stripeDisabledNote": " Stripe chưa được cấu hình trên bản triển khai này.",
-      "vnpayDisabledNote": " VNPay chưa được cấu hình trên bản triển khai này."
+      "vnpayDisabledNote": " VNPay chưa được cấu hình trên bản triển khai này.",
+      "momoDisabledNote": " MoMo chưa được cấu hình trên bản triển khai này."
     },
     "paymentSuccess": {
       "metadataTitle": "Đã nhận thanh toán",
@@ -208,6 +210,19 @@
       "failDescription": "VNPay trả về mã {code}. Không có khoản tiền nào bị trừ; bạn có thể thử lại bất cứ lúc nào.",
       "unknownCode": "không xác định",
       "vnpayReferenceLabel": "Mã tham chiếu VNPay:",
+      "ourReferenceLabel": "Mã tham chiếu của chúng tôi:",
+      "stillOutstanding": "Nếu sau một phút mà hóa đơn vẫn hiển thị là chưa thanh toán, hãy tải lại trang hoặc liên hệ chủ nhà.",
+      "backToBill": "Quay lại hóa đơn",
+      "allBills": "Tất cả hóa đơn"
+    },
+    "momoReturn": {
+      "metadataTitle": "Phản hồi MoMo",
+      "okTitle": "Cảm ơn bạn đã thanh toán",
+      "failTitle": "Thanh toán chưa hoàn tất",
+      "okDescription": "MoMo đã xác nhận giao dịch. Hóa đơn chuyển sang PAID khi máy chủ nhận IPN của MoMo — thường trong vài giây.",
+      "failDescription": "MoMo trả về mã {code}. Không có khoản tiền nào bị trừ; bạn có thể thử lại bất cứ lúc nào.",
+      "unknownCode": "không xác định",
+      "momoReferenceLabel": "Mã tham chiếu MoMo:",
       "ourReferenceLabel": "Mã tham chiếu của chúng tôi:",
       "stillOutstanding": "Nếu sau một phút mà hóa đơn vẫn hiển thị là chưa thanh toán, hãy tải lại trang hoặc liên hệ chủ nhà.",
       "backToBill": "Quay lại hóa đơn",

@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 
-import { AuditModule } from '../common/audit/audit.module.js';
 import { PlatformConfigService } from './platform-config.service.js';
+import { AuditModule } from '../common/audit/audit.module.js';
 
 /**
  * `@Global` so ServiceJobsService can inject the platform-config

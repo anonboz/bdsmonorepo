@@ -8,6 +8,8 @@ import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { type MomoIpnBody } from '../payments/momo.client.js';
+import { MomoService } from '../payments/momo.service.js';
 import { StripeService } from '../payments/stripe.service.js';
 import { parseVnpayDate, type VnpayIpnResponse } from '../payments/vnpay.client.js';
 import { VnpayService } from '../payments/vnpay.service.js';
@@ -33,6 +35,7 @@ export class WebhooksService {
     private readonly audit: AuditLogger,
     private readonly stripe: StripeService,
     private readonly vnpay: VnpayService,
+    private readonly momo: MomoService,
     private readonly notifications: NotificationsService,
     private readonly analytics: AnalyticsService,
   ) {}
@@ -43,6 +46,10 @@ export class WebhooksService {
 
   isVnpayEnabled(): boolean {
     return this.vnpay.isEnabled();
+  }
+
+  isMomoEnabled(): boolean {
+    return this.momo.isEnabled();
   }
 
   /**
@@ -554,6 +561,191 @@ export class WebhooksService {
       });
       return {
         response,
+        enqueue: dispatch.enqueue,
+        analyticsPayload: {
+          tenantId: bill.lease.tenantId,
+          billId: bill.id,
+          amount: payment.amount,
+          currency: payment.currency,
+        },
+      };
+    });
+  }
+
+  // ---- MoMo IPN (Phase 12.1) --------------------------------------
+
+  /**
+   * MoMo's Instant Payment Notification. Called server-to-server with
+   * a POST/JSON body. We ack with `204 No Content` whether or not the
+   * payment landed — the controller already swallows the response
+   * shape so MoMo stops retrying once the delivery is recorded.
+   *
+   * Source of truth for bill state transitions on the MoMo rail.
+   * The browser redirect (`/momo/return` on the tenant app) never
+   * mutates DB state; see §6 of the spec.
+   */
+  async handleMomoIpn(body: MomoIpnBody): Promise<void> {
+    if (!this.momo.verifyIpn(body)) {
+      this.logger.warn(`momo IPN signature verification failed (orderId=${body.orderId})`);
+      // Don't write a WebhookEvent for sig failures — a flood of
+      // junk POSTs shouldn't fill the audit table.
+      return;
+    }
+
+    const eventId = `${body.orderId}-${body.transId}-${body.resultCode}`;
+    let webhookRowId: string;
+    try {
+      const row = await this.prisma.webhookEvent.create({
+        data: {
+          provider: 'MOMO',
+          eventId,
+          type: `momo.ipn.${body.resultCode === 0 ? 'success' : 'failure'}`,
+          payload: body as unknown as Prisma.InputJsonValue,
+        },
+      });
+      webhookRowId = row.id;
+      await this.audit.writeOnce({
+        actorId: null,
+        action: 'webhook.received',
+        target: `WebhookEvent:${row.id}`,
+        meta: { provider: 'MOMO', type: body.orderType, eventId },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        this.logger.log(`momo duplicate IPN ${eventId} — ack as 204`);
+        return;
+      }
+      throw err;
+    }
+
+    try {
+      const { enqueue, analyticsPayload } = await this.applyMomoIpn(body);
+      await this.prisma.webhookEvent.update({
+        where: { id: webhookRowId },
+        data: { status: 'PROCESSED', processedAt: new Date() },
+      });
+      if (enqueue) await enqueue();
+      if (analyticsPayload) {
+        this.analytics.capture({
+          userId: analyticsPayload.tenantId,
+          event: 'bill.paid',
+          properties: {
+            role: 'TENANT',
+            bill_id: analyticsPayload.billId,
+            amount: analyticsPayload.amount,
+            currency: analyticsPayload.currency,
+            provider: 'MOMO',
+          },
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await this.prisma.webhookEvent.update({
+        where: { id: webhookRowId },
+        data: {
+          status: 'FAILED',
+          error: message.slice(0, 2000),
+          processedAt: new Date(),
+        },
+      });
+      throw err;
+    }
+  }
+
+  private async applyMomoIpn(body: MomoIpnBody): Promise<{
+    enqueue: (() => Promise<void>) | null;
+    analyticsPayload: {
+      tenantId: string;
+      billId: string;
+      amount: number;
+      currency: string;
+    } | null;
+  }> {
+    return this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: { provider_providerRef: { provider: 'MOMO', providerRef: body.orderId } },
+      });
+      if (!payment) {
+        this.logger.warn(`momo IPN for unknown orderId ${body.orderId}`);
+        return { enqueue: null, analyticsPayload: null };
+      }
+      if (body.amount !== payment.amount) {
+        this.logger.warn(
+          `momo IPN amount mismatch: payment.amount=${payment.amount}, ipn.amount=${body.amount}`,
+        );
+        throw new Error(`momo amount mismatch on ${body.orderId}`);
+      }
+      if (payment.status === 'SUCCEEDED') {
+        return { enqueue: null, analyticsPayload: null };
+      }
+
+      if (body.resultCode !== 0) {
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'FAILED',
+            failureReason: `momo.resultCode=${body.resultCode}: ${body.message}`.slice(0, 500),
+          },
+        });
+        return { enqueue: null, analyticsPayload: null };
+      }
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'SUCCEEDED',
+          receivedAt: new Date(),
+          providerCaptureRef: String(body.transId),
+          // Stamp the capture date from MoMo's epoch-ms `responseTime`
+          // — used by the refund path (when 12.x adds it).
+          providerCaptureDate: new Date(body.responseTime),
+          note: `momo.transId=${body.transId}`,
+        },
+      });
+
+      const agg = await tx.payment.aggregate({
+        where: { billId: payment.billId, status: 'SUCCEEDED' },
+        _sum: { amount: true },
+      });
+      const bill = await tx.bill.findUnique({
+        where: { id: payment.billId },
+        include: { lease: { select: { tenantId: true } } },
+      });
+      if (!bill) {
+        throw new Error(`Bill ${payment.billId} not found for confirmed payment ${payment.id}`);
+      }
+      const sum = agg._sum.amount ?? 0;
+      const nextStatus: typeof bill.status = sum >= bill.total ? 'PAID' : 'PARTIALLY_PAID';
+      await tx.bill.update({ where: { id: bill.id }, data: { status: nextStatus } });
+
+      await this.audit.write(tx, {
+        actorId: null,
+        action: 'bill.payment.confirmed',
+        target: `Payment:${payment.id}`,
+        meta: {
+          billId: bill.id,
+          amount: payment.amount,
+          currency: payment.currency,
+          provider: 'MOMO',
+          orderId: body.orderId,
+          transId: body.transId,
+          billPreviousStatus: bill.status,
+          billNextStatus: nextStatus,
+        },
+      });
+
+      if (nextStatus !== 'PAID') return { enqueue: null, analyticsPayload: null };
+      const dispatch = await this.notifications.dispatch(tx, {
+        topic: NotificationTopic.BILL_PAID,
+        recipientId: bill.lease.tenantId,
+        data: {
+          billId: bill.id,
+          amount: payment.amount,
+          currency: payment.currency,
+          provider: 'MOMO',
+        },
+      });
+      return {
         enqueue: dispatch.enqueue,
         analyticsPayload: {
           tenantId: bill.lease.tenantId,

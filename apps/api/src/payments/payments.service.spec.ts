@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { MomoService } from './momo.service.js';
 import { PaymentsService } from './payments.service.js';
 import type { StripeService } from './stripe.service.js';
 import type { VnpayService } from './vnpay.service.js';
@@ -8,6 +9,32 @@ import { stubAnalytics } from '../common/analytics/analytics.test-helper.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { ProblemError } from '../common/errors/problem.error.js';
 import { stubNotifications } from '../notifications/notifications.test-helper.js';
+
+/** Mock MomoService — narrow to the methods PaymentsService calls. */
+function makeMomoStub(
+  opts: { enabled?: boolean; throwOnCreate?: Error; resultCode?: number } = {},
+): MomoService {
+  return {
+    isEnabled: vi.fn(() => opts.enabled ?? true),
+    createCheckout: vi.fn(() => {
+      if (opts.throwOnCreate) return Promise.reject(opts.throwOnCreate);
+      const resultCode = opts.resultCode ?? 0;
+      return Promise.resolve({
+        partnerCode: 'TEST',
+        requestId: 'rq_test',
+        orderId: 'order_test',
+        amount: 0,
+        responseTime: Date.now(),
+        message: resultCode === 0 ? 'Successful.' : 'Failed.',
+        resultCode,
+        payUrl: resultCode === 0 ? 'https://test-payment.momo.vn/pay/test_session' : undefined,
+        deeplink: 'momo://test',
+        qrCodeUrl: 'https://test-payment.momo.vn/qr/test',
+      });
+    }),
+    verifyIpn: vi.fn(() => true),
+  };
+}
 
 /** Mock VnpayService — narrow to the methods PaymentsService calls. */
 function makeVnpayStub(
@@ -377,6 +404,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -446,6 +474,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -469,6 +498,7 @@ describe('PaymentsService.recordManualForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -581,6 +611,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       new AuditLogger(store.stub as never),
       stripe.service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -618,6 +649,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       new AuditLogger(store.stub as never),
       stripe.service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -635,6 +667,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub({ enabled: false }).service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -650,6 +683,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -665,6 +699,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -681,6 +716,7 @@ describe('PaymentsService.createStripeCheckoutForTenant', () => {
       new AuditLogger(store.stub as never),
       stripe.service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -744,6 +780,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       stripe.service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -772,6 +809,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -807,6 +845,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -833,6 +872,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -859,6 +899,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -886,6 +927,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       stripe.service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -917,6 +959,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -957,6 +1000,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       vnpay,
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -999,6 +1043,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       vnpay,
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -1028,6 +1073,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -1060,6 +1106,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -1095,6 +1142,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       vnpay,
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
@@ -1123,6 +1171,7 @@ describe('PaymentsService.refundForOwner', () => {
       new AuditLogger(store.stub as never),
       makeStripeStub().service,
       makeVnpayStub(),
+      makeMomoStub(),
       stubNotifications(),
       stubAnalytics(),
     );
