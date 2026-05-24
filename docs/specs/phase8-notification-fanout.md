@@ -345,7 +345,7 @@ server?" without a parallel log.
 - [ ] `QUEUE_NOTIFICATIONS_SEND` registered; worker boots when
       `API_DISABLE_QUEUES` is unset.
 - [ ] `NotificationsService.dispatch(tx, enqueueAfterCommit,
-  input)` persists the row inside the caller's tx and the
+input)` persists the row inside the caller's tx and the
       callback enqueues the BullMQ job.
 - [ ] Each of the seven topics is wired at its state-transition
       call site.
