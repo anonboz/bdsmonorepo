@@ -372,6 +372,32 @@ Acceptance:
 
 ---
 
+### Phase 12 — Open-decisions cleanup + pre-launch polish (Week 37–40)
+
+Goal: close the three §8 open decisions before the public push, plus the
+operational polish that surfaced after Phase 11. No new business
+capabilities — every slice maps to a "still open" or "still to debate"
+line in this plan. Pre-launch stage, so blast radius stays small and
+reversible.
+
+1. **MoMo as second VN payment provider.** Closes §8's MoMo-vs-VNPay-vs-both decision (Phase 7.4 shipped VNPay only). New `MoMoService` in `apps/api/src/payments/`, parallel to `VnpayService`: `/v1/me/bills/:billId/momo/checkout` + `/v1/webhooks/momo` with HMAC IPN verification. UI button on the tenant bill-detail screen (next to Stripe + VNPay). Env vars: `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `MOMO_API_URL`. Pluggable provider interface means the existing webhook reconciliation + payment-row flow is reused.
+2. **Subdomain topology decision (ADR).** Closes §8's single-app-vs-subdomain item. The codebase already has `crossSubDomainCookies` configured in better-auth — the lean is already subdomain. Write `docs/adr/0001-subdomain-topology.md` capturing the trade-offs, lock in `{admin,owner,tenant,partner}.bdsmonorepo.vn` (placeholder — replace when the real domain is registered) as the canonical shape, add env-driven domain config so each PWA can be deployed independently to a Vercel project. Code-only: `AUTH_COOKIE_DOMAIN`, CORS allow-list, `NEXT_PUBLIC_APP_DOMAIN` per PWA.
+3. **Contract e-signature v1 — captured signature + audit row.** Closes §8's e-signature item. Owner draws / uploads signature on lease activation; tenant counter-signs from their lease-detail screen. New `Signature` table: `(leaseId, signerId, role, imageDataUri, ip, userAgent, signedAt)`. Lease state machine extends: `DRAFT → AWAITING_SIGNATURES → ACTIVE`. Receipt PDF (Phase 2.4) appends a signature block. Not legally binding under VN's Electronic Transactions Law 2005 — sufficient for in-platform contract acknowledgement; CA integration deferred to Phase 13.
+4. **`next lint` → ESLint CLI migration.** Next 16 deprecates `next lint`; the four PWAs need the codemod (`npx @next/codemod@canary next-lint-to-eslint-cli .`). Resolves the deprecation warning on every lint run. Touches each app's `package.json` lint script + `eslint.config.mjs`. Small but pre-empts a forced migration on a future Next bump.
+5. **Local e2e DB setup + readiness script.** The e2e suite has a deliberate safety check that refuses to truncate a non-local DB. New `pnpm e2e:setup` script: verifies Docker is running, brings up the local Postgres + Redis + MinIO via `docker compose`, runs `prisma migrate deploy`, seeds. Doc the override pattern (`DATABASE_URL=postgresql://app:app@localhost:5432/app pnpm turbo test --filter=@repo/e2e`) in `apps/e2e/CLAUDE.md`. Closes the gap the Phase 11.7 bootstrap-fix surfaced.
+
+Acceptance:
+
+- A tenant on the bill-detail screen sees three payment buttons (Stripe / VNPay / MoMo) and can complete a MoMo checkout end-to-end on a test partner code.
+- The MoMo IPN webhook validates HMAC and idempotently flips the bill to `PAID`; replay attempts are rejected.
+- `docs/adr/0001-subdomain-topology.md` exists with the locked decision; each PWA's deploy reads its own canonical domain from an env var; cookies scope correctly across `*.bdsmonorepo.vn` (or the chosen domain) in staging.
+- An owner activates a draft lease, draws a signature, the tenant sees a "Sign your lease" CTA, signs, and the lease transitions to `ACTIVE`. The receipt PDF shows both signature blocks with timestamps.
+- `pnpm turbo lint` runs without the `next lint` deprecation warning.
+- A new contributor runs `pnpm e2e:setup && pnpm turbo test --filter=@repo/e2e` and the suite executes (no `MODULE_NOT_FOUND`, no DB safety abort).
+- Out of scope (still): mobile native shells, multi-currency, marketing-page CMS, A/B test infrastructure, legally-binding e-signature certificate-authority integration (Phase 13).
+
+---
+
 ## 6. Working rhythm with Claude Code
 
 For every feature:
@@ -414,10 +440,10 @@ A task is done only when **all** are true:
 
 Track here so we don't re-debate them mid-build:
 
-- [ ] Payment provider for VN market (VNPay vs MoMo vs both). Phase 7.4 starts with VNPay; MoMo as follow-up.
-- [ ] OTP transport provider (Twilio Verify, local SMS gateway, or email-only at start). Phase 8.1 ships email-only via Resend; SMS deferred → **Phase 11.6 picks a VN gateway**.
-- [ ] Single-app vs subdomain-per-role deployment topology.
-- [ ] Default currency, timezone, language (and whether i18n is needed in v1). Phase 11 commits to **vi default + en optional, VND single-currency**.
-- [ ] Contract e-signature — v1 or v2?
+- [ ] Payment provider for VN market (VNPay vs MoMo vs both). Phase 7.4 shipped VNPay; **Phase 12.1 adds MoMo**.
+- [x] OTP transport provider (Twilio Verify, local SMS gateway, or email-only at start). Phase 8.1 shipped email-only via Resend; Phase 11.6 picked **esms.vn** (Speedio).
+- [ ] Single-app vs subdomain-per-role deployment topology. **Phase 12.2 locks subdomain-per-role** in `docs/adr/0001-subdomain-topology.md`.
+- [x] Default currency, timezone, language (and whether i18n is needed in v1). Phase 11 committed to **vi default + en optional, VND single-currency**.
+- [ ] Contract e-signature — v1 or v2? **Phase 12.3 ships captured-signature v1** (in-platform acknowledgement, not legally-binding); CA integration (FPT.eContract / VNPT.eContract) deferred to Phase 13.
 
 When decided, move the item to an ADR under `docs/adr/`.
