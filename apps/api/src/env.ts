@@ -158,6 +158,30 @@ const envSchema = z.object({
   S3_PUBLIC_BASE: z.string().default(''),
   /** Lifetime of presigned PUT URLs, seconds. Default 5 minutes. */
   S3_PRESIGN_EXPIRES_SEC: z.coerce.number().int().positive().default(300),
+
+  /**
+   * Phase 11.6 — SMS provider selection. `mock` logs the OTP to the
+   * console + stashes it in an in-memory inbox (for dev + tests).
+   * `esms-vn` POSTs to esms.vn's `SendMultipleMessage_V4_post_json`
+   * endpoint; needs the API/secret pair below and (optionally) a
+   * registered brandname.
+   */
+  SMS_PROVIDER: z.enum(['mock', 'esms-vn']).default('mock'),
+  ESMS_VN_API_KEY: z.string().optional(),
+  ESMS_VN_SECRET_KEY: z.string().optional(),
+  /**
+   * Registered brandname. Optional — when unset, esms.vn sends the
+   * SMS from a generated random shortcode (cheaper, less trustworthy
+   * on the recipient's end).
+   */
+  ESMS_VN_BRAND_NAME: z.string().optional(),
+  /**
+   * esms.vn JSON endpoint. Pinned here so the test suite can swap to
+   * a mock server without monkey-patching `fetch`.
+   */
+  ESMS_VN_API_URL: url().default(
+    'https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_post_json/',
+  ),
 });
 
 export const env = loadEnv(envSchema);

@@ -110,6 +110,20 @@ async function bootstrap() {
           method === 'POST' && url.startsWith('/v1/auth/sign-in/email-otp'),
         handler: fastify.rateLimit({ max: 10, timeWindow: '1 minute' }),
       },
+      // Phase 11.6 — mirror the email-otp limits on the SMS path so a
+      // bad actor can't pivot from email-rate-limited to phone-flood.
+      // `send-otp` is the expensive (paid) call; `verify` is cheap but
+      // we cap it to deter brute-forcing the 6-digit code.
+      {
+        match: (url: string, method: string) =>
+          method === 'POST' && url.startsWith('/v1/auth/phone-number/send-otp'),
+        handler: fastify.rateLimit({ max: 5, timeWindow: '1 minute' }),
+      },
+      {
+        match: (url: string, method: string) =>
+          method === 'POST' && url.startsWith('/v1/auth/phone-number/verify'),
+        handler: fastify.rateLimit({ max: 10, timeWindow: '1 minute' }),
+      },
       {
         match: (url: string, method: string) => method === 'POST' && url === '/v1/me/applications',
         handler: fastify.rateLimit({ max: 20, timeWindow: '1 hour' }),

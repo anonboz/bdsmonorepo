@@ -25,10 +25,12 @@ import { POST_LOGIN_PATH } from '../../lib/app-config';
 type RequestForm = z.infer<typeof requestOtpSchema>;
 type VerifyForm = z.infer<typeof verifyOtpSchema>;
 
-type Step = { kind: 'request' } | { kind: 'verify'; identifier: string };
+type Mode = 'email' | 'phone';
+type Step = { kind: 'request' } | { kind: 'verify'; mode: Mode; identifier: string };
 
 export function LoginForm() {
   const t = useTranslations('tenant.login');
+  const [mode, setMode] = useState<Mode>('email');
   const [step, setStep] = useState<Step>({ kind: 'request' });
   const [error, setError] = useState<string | null>(null);
 
@@ -42,15 +44,27 @@ export function LoginForm() {
           </Alert>
         )}
         {step.kind === 'request' ? (
-          <RequestStep
-            onSent={(identifier) => {
-              setError(null);
-              setStep({ kind: 'verify', identifier });
-            }}
-            onError={setError}
-          />
+          <>
+            <ModeTabs
+              mode={mode}
+              onChange={(next) => {
+                setError(null);
+                setMode(next);
+              }}
+            />
+            <RequestStep
+              key={mode}
+              mode={mode}
+              onSent={(identifier) => {
+                setError(null);
+                setStep({ kind: 'verify', mode, identifier });
+              }}
+              onError={setError}
+            />
+          </>
         ) : (
           <VerifyStep
+            mode={step.mode}
             identifier={step.identifier}
             onChangeIdentifier={() => {
               setError(null);
@@ -64,10 +78,45 @@ export function LoginForm() {
   );
 }
 
+function ModeTabs({ mode, onChange }: { mode: Mode; onChange: (next: Mode) => void }) {
+  const t = useTranslations('tenant.login.form');
+  const baseClass = 'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors';
+  const activeClass = 'bg-background text-foreground shadow-sm';
+  const inactiveClass = 'text-muted-foreground hover:text-foreground';
+  return (
+    <div
+      role="tablist"
+      aria-label={`${t('tabEmail')} / ${t('tabPhone')}`}
+      className="bg-muted text-muted-foreground inline-flex w-full items-center rounded-lg p-1"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'email'}
+        className={`${baseClass} ${mode === 'email' ? activeClass : inactiveClass}`}
+        onClick={() => onChange('email')}
+      >
+        {t('tabEmail')}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === 'phone'}
+        className={`${baseClass} ${mode === 'phone' ? activeClass : inactiveClass}`}
+        onClick={() => onChange('phone')}
+      >
+        {t('tabPhone')}
+      </button>
+    </div>
+  );
+}
+
 function RequestStep({
+  mode,
   onSent,
   onError,
 }: {
+  mode: Mode;
   onSent: (identifier: string) => void;
   onError: (msg: string) => void;
 }) {
@@ -82,30 +131,54 @@ function RequestStep({
       className="space-y-4"
       onSubmit={form.handleSubmit(async (values) => {
         try {
-          await api.post('/v1/auth/email-otp/send-verification-otp', {
-            email: values.identifier,
-            type: 'sign-in',
-          });
+          if (mode === 'email') {
+            await api.post('/v1/auth/email-otp/send-verification-otp', {
+              email: values.identifier,
+              type: 'sign-in',
+            });
+          } else {
+            await api.post('/v1/auth/phone-number/send-otp', {
+              phoneNumber: values.identifier,
+            });
+          }
           onSent(values.identifier);
         } catch (err) {
           onError(err instanceof ApiError ? err.problem.title : t('couldNotSend'));
         }
       })}
     >
-      <FormField
-        label={t('emailLabel')}
-        htmlFor="identifier"
-        error={form.formState.errors.identifier}
-        description={t('emailDescription')}
-      >
-        <Input
-          id="identifier"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          {...form.register('identifier')}
-        />
-      </FormField>
+      {mode === 'email' ? (
+        <FormField
+          label={t('emailLabel')}
+          htmlFor="identifier"
+          error={form.formState.errors.identifier}
+          description={t('emailDescription')}
+        >
+          <Input
+            id="identifier"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            {...form.register('identifier')}
+          />
+        </FormField>
+      ) : (
+        <FormField
+          label={t('phoneLabel')}
+          htmlFor="identifier"
+          error={form.formState.errors.identifier}
+          description={t('phoneDescription')}
+        >
+          <Input
+            id="identifier"
+            type="tel"
+            autoComplete="tel"
+            inputMode="tel"
+            placeholder="+84..."
+            {...form.register('identifier')}
+          />
+        </FormField>
+      )}
       <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
         {form.formState.isSubmitting && <Spinner />}
         {t('sendCode')}
@@ -115,10 +188,12 @@ function RequestStep({
 }
 
 function VerifyStep({
+  mode,
   identifier,
   onChangeIdentifier,
   onError,
 }: {
+  mode: Mode;
   identifier: string;
   onChangeIdentifier: () => void;
   onError: (msg: string) => void;
@@ -134,10 +209,17 @@ function VerifyStep({
       className="space-y-4"
       onSubmit={form.handleSubmit(async (values) => {
         try {
-          await api.post('/v1/auth/sign-in/email-otp', {
-            email: values.identifier,
-            otp: values.code,
-          });
+          if (mode === 'email') {
+            await api.post('/v1/auth/sign-in/email-otp', {
+              email: values.identifier,
+              otp: values.code,
+            });
+          } else {
+            await api.post('/v1/auth/phone-number/verify', {
+              phoneNumber: values.identifier,
+              code: values.code,
+            });
+          }
           window.location.assign(POST_LOGIN_PATH);
         } catch (err) {
           onError(err instanceof ApiError ? err.problem.title : t('invalidCode'));
@@ -146,7 +228,7 @@ function VerifyStep({
     >
       <p className="text-sm text-muted-foreground">
         {t.rich('codeSentTo', {
-          email: identifier,
+          identifier,
           strong: (chunks) => <strong>{chunks}</strong>,
         })}{' '}
         <button type="button" className="underline" onClick={onChangeIdentifier}>

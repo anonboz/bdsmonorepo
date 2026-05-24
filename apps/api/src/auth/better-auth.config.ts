@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { emailOTP, magicLink } from 'better-auth/plugins';
+import { emailOTP, magicLink, phoneNumber } from 'better-auth/plugins';
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '@repo/db';
@@ -8,6 +8,8 @@ import { prisma } from '@repo/db';
 import { getPostHog } from '../common/analytics/analytics.client.js';
 import { getMailer } from '../common/mailer/mailer.client.js';
 import { renderMagicLinkTemplate, renderOtpTemplate } from '../common/mailer/templates.js';
+import { renderSmsOtpBody } from '../common/sms/otp-templates.js';
+import { getSmsSender } from '../common/sms/sms.client.js';
 import { env } from '../env.js';
 import { getCookieLocale } from './locale-context.js';
 
@@ -70,6 +72,12 @@ export const auth = betterAuth({
     fields: {
       // map better-auth's `name` field to our column
       name: 'displayName',
+      // Phase 11.6 — the phone-number plugin's schema declares
+      // `phoneNumber` + `phoneNumberVerified`; map them onto our
+      // existing `phone` + `phoneVerified` columns (added back in
+      // Phase 1.1) so we don't duplicate the surface or migrate.
+      phoneNumber: 'phone',
+      phoneNumberVerified: 'phoneVerified',
     },
   },
 
@@ -194,7 +202,44 @@ export const auth = betterAuth({
         await send({ to: email, subject, html, text });
       },
     }),
+    /**
+     * Phase 11.6 — SMS OTP via {@link getSmsSender}. Mirrors the
+     * email-otp plugin: same 6-digit code, same 10-minute expiry.
+     *
+     * `signUpOnVerification` is configured so a brand-new phone number
+     * landing at `/v1/auth/phone-number/verify` mints a User row +
+     * session in one shot. The temporary email is a stable derivation
+     * of the phone — keeps better-auth happy while sidestepping a
+     * dummy `null@example.com` that could collide with real emails.
+     */
+    phoneNumber({
+      otpLength: 6,
+      expiresIn: 60 * 10,
+      allowedAttempts: 3,
+      phoneNumberValidator: (raw) => /^\+?[1-9]\d{6,14}$/.test(raw),
+      async sendOTP({ phoneNumber: to, code }) {
+        const send = getSmsSender();
+        await send({
+          to,
+          body: renderSmsOtpBody({ code, locale: getCookieLocale() ?? undefined }),
+        });
+      },
+      signUpOnVerification: {
+        getTempEmail: (phoneNumberValue) =>
+          `phone+${normalizePhoneForEmail(phoneNumberValue)}@bds.local`,
+        getTempName: (phoneNumberValue) => phoneNumberValue,
+      },
+    }),
   ],
 });
+
+/**
+ * Phone numbers carry `+` and `:` neither of which RFC 5321 forbids
+ * in the local part, but Resend / SMTP relays can choke on `+`. Drop
+ * the leading `+` and keep the digits.
+ */
+function normalizePhoneForEmail(phone: string): string {
+  return phone.replace(/^\+/, '');
+}
 
 export type Auth = typeof auth;
