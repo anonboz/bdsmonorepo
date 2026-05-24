@@ -2,6 +2,12 @@
 
 Owner PWA. **Mobile-first.** Role: `OWNER`.
 
+## Deployment
+
+Per **ADR-0001**, this PWA ships to `owner.<platform-domain>` as its
+own Vercel project; cross-app navigation uses absolute URLs to the
+sibling subdomains.
+
 ## Surface
 
 - Houses, Units, Leases CRUD

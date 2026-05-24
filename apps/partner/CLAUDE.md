@@ -3,6 +3,12 @@
 Partner PWA — brokers, repair providers, service providers. **Mobile-first.**
 Role: `PARTNER`.
 
+## Deployment
+
+Per **ADR-0001**, this PWA ships to `partner.<platform-domain>` as
+its own Vercel project; cross-app navigation uses absolute URLs to
+the sibling subdomains.
+
 ## Surface
 
 - Profile + KYC + service catalog with pricing

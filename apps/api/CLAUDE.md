@@ -2,6 +2,15 @@
 
 NestJS (Fastify adapter) backend serving all four frontends.
 
+## Deployment topology
+
+Per **ADR-0001**, production runs each PWA + the API on its own
+subdomain of the platform domain (placeholder
+`{admin,owner,tenant,partner,api}.bdsmonorepo.vn`). Cookie scope is
+the parent domain (`.bdsmonorepo.vn`) via `AUTH_COOKIE_DOMAIN`; CORS
+allow-list (`API_CORS_ORIGINS`) lists the four PWA subdomain origins
+explicitly. See `apps/api/.env.example` for the canonical env shape.
+
 ## Rules
 
 - **REST under `/v1/*`.** Errors follow RFC 7807 (`application/problem+json`).

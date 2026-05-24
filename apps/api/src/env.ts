@@ -10,6 +10,12 @@ const envSchema = z.object({
   NODE_ENV: nodeEnv,
   API_PORT: port.default(3001),
   API_PUBLIC_URL: url().default('http://localhost:3001'),
+  /**
+   * Comma-separated list of origins allowed to call the API with
+   * credentials. Local dev defaults to the four PWA ports; production
+   * lists the four `{admin,owner,tenant,partner}.<domain>` subdomains
+   * per ADR-0001 (plus a wildcard for Vercel preview URLs if used).
+   */
   API_CORS_ORIGINS: z
     .string()
     .default(
@@ -56,6 +62,14 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(60 * 60 * 24 * 30),
+  /**
+   * Cookie domain for the session + locale cookies. Local dev uses
+   * `localhost` so cookies stay on `localhost:*` only; production uses
+   * a leading-dot parent domain (e.g. `.bdsmonorepo.vn`) so a single
+   * session works across `{admin,owner,tenant,partner}.<domain>` per
+   * ADR-0001. Better-auth's `crossSubDomainCookies` block is only
+   * activated when NODE_ENV === 'production'.
+   */
   AUTH_COOKIE_DOMAIN: z.string().default('localhost'),
 
   EMAIL_FROM: z.string().default('BDS <no-reply@localhost>'),
@@ -102,15 +116,32 @@ const envSchema = z.object({
    */
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   /**
-   * Origin of the tenant app — surfaces in Stripe Checkout's success
-   * + cancel URLs. Defaults to the local dev port.
+   * Origin of the tenant app — surfaces in Stripe / VNPay / MoMo
+   * return URLs and any cross-app link composed server-side.
+   * Defaults to the local dev port. Production: per ADR-0001 this is
+   * a subdomain of the platform domain (e.g. `https://tenant.bdsmonorepo.vn`).
    */
   TENANT_APP_URL: url().default('http://localhost:3020'),
+  /**
+   * Origin of the owner app — same shape as `TENANT_APP_URL`.
+   * Surfaces in any server-rendered link the API hands to owners
+   * (e.g. notification CTA URLs). Phase 12.2 added; defaults to the
+   * local dev port (3010).
+   */
+  OWNER_APP_URL: url().default('http://localhost:3010'),
   /**
    * Origin of the partner app — surfaces in Stripe Connect onboarding
    * URLs (refresh + return paths). Defaults to the local dev port.
    */
   PARTNER_APP_URL: url().default('http://localhost:3030'),
+  /**
+   * Origin of the admin app. Phase 12.2 added; admin is the most
+   * sensitive surface so it gets its own env var even though no
+   * server-side code currently composes admin links — keeping the
+   * shape symmetric across the four PWAs makes per-environment
+   * config diffs easier to read. Defaults to the local dev port (3000).
+   */
+  ADMIN_APP_URL: url().default('http://localhost:3000'),
 
   /**
    * VNPay merchant code from the VNPay dashboard. When unset, the

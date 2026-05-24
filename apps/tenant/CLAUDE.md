@@ -2,6 +2,12 @@
 
 Tenant PWA. **Mobile-first.** Role: `TENANT`.
 
+## Deployment
+
+Per **ADR-0001**, this PWA ships to `tenant.<platform-domain>` as its
+own Vercel project; cross-app navigation uses absolute URLs to the
+sibling subdomains.
+
 ## Surface
 
 - View current and historical bills, download receipts

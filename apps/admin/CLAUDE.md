@@ -2,6 +2,13 @@
 
 Admin web app. **Desktop-first.** Role: `ADMIN`.
 
+## Deployment
+
+Per **ADR-0001**, this PWA ships to `admin.<platform-domain>` as its
+own Vercel project. Admin is the most sensitive surface, so the
+subdomain isolation also gives it room for a stricter CSP /
+observability scope without affecting the consumer-facing apps.
+
 ## Surface
 
 - System config (fees, commissions, feature flags)
