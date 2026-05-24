@@ -12,7 +12,7 @@ export async function register(): Promise<void> {
         appRole: 'tenant',
         dsn: process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN,
         release: process.env.SENTRY_RELEASE,
-      }) as Parameters<typeof Sentry.init>[0],
+      }),
     );
   } else if (process.env.NEXT_RUNTIME === 'edge') {
     const Sentry = await import('@sentry/nextjs');
@@ -22,7 +22,7 @@ export async function register(): Promise<void> {
         appRole: 'tenant',
         dsn: process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN,
         release: process.env.SENTRY_RELEASE,
-      }) as Parameters<typeof Sentry.init>[0],
+      }),
     );
   }
 }

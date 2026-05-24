@@ -1,5 +1,6 @@
-import { localeMiddleware } from '@repo/i18n';
 import { NextResponse, type NextRequest } from 'next/server';
+
+import { localeMiddleware } from '@repo/i18n';
 
 /**
  * Lightweight middleware: forwards everything as-is. Real auth gating happens

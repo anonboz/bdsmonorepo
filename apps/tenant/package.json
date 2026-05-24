@@ -6,7 +6,7 @@
     "dev": "next dev -p 3020",
     "build": "next build",
     "start": "next start -p 3020",
-    "lint": "next lint --fix --dir app --dir lib",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "clean": "rimraf .next .turbo node_modules"

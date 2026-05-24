@@ -15,5 +15,5 @@ Sentry.init(
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     release: process.env.NEXT_PUBLIC_SENTRY_RELEASE,
     apiOrigin: process.env.NEXT_PUBLIC_API_URL,
-  }) as Parameters<typeof Sentry.init>[0],
+  }),
 );

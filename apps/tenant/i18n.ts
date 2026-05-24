@@ -1,5 +1,6 @@
-import { getLocaleFromRequest, getMessagesFor } from '@repo/i18n/server';
 import { getRequestConfig } from 'next-intl/server';
+
+import { getLocaleFromRequest, getMessagesFor } from '@repo/i18n/server';
 
 /**
  * Phase 11.1 — next-intl request-config hook. The plugin in
