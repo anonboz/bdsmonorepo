@@ -1,15 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Bill, BillStatus, Page, Payment } from '@repo/shared';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@repo/ui';
 
 import { DownloadReceipt } from './_components/download-receipt';
 import { PaymentsPanel } from './_components/payments-panel';
 import { ApiError } from '../../../../../../../../../../lib/api';
-import { formatDate, formatMoney } from '../../../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../../../lib/session';
 
 export default async function BillDetailPage({
@@ -27,6 +27,8 @@ export default async function BillDetailPage({
   const t = await getTranslations('owner.bills');
   const tDetail = await getTranslations('owner.bills.detail');
   const tKind = await getTranslations('owner.statuses.billLineKindsLower');
+  const fmt = getFormatters(await getLocale());
+  const { formatMoney } = fmt;
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -37,7 +39,7 @@ export default async function BillDetailPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{formatMoney(bill.total, bill.currency)}</h1>
-            <SubtitleLine bill={bill} />
+            <SubtitleLine bill={bill} fmt={fmt} />
           </div>
           <DownloadReceipt houseId={houseId} unitId={unitId} leaseId={leaseId} billId={bill.id} />
         </div>
@@ -97,15 +99,15 @@ export default async function BillDetailPage({
   );
 }
 
-function SubtitleLine({ bill }: { bill: Bill }) {
+function SubtitleLine({ bill, fmt }: { bill: Bill; fmt: Formatters }) {
   const t = useTranslations('owner.bills.detail');
   return (
     <p className="text-sm text-muted-foreground">
       <StatusBadge status={bill.status} /> ·{' '}
       {t('subtitle', {
-        start: formatDate(bill.periodStart),
-        end: formatDate(bill.periodEnd),
-        due: formatDate(bill.dueDate),
+        start: fmt.formatDate(bill.periodStart),
+        end: fmt.formatDate(bill.periodEnd),
+        due: fmt.formatDate(bill.dueDate),
       })}
     </p>
   );

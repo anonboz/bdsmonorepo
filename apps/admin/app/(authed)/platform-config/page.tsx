@@ -1,15 +1,16 @@
 import Link from 'next/link';
 
+import { getFormatters } from '@repo/i18n';
 import type { PlatformConfig } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ConfigForm } from './config-form';
-import { formatDateTime } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Platform config' };
 
 export default async function PlatformConfigPage() {
+  const fmt = getFormatters('en');
   const config = await serverApi<PlatformConfig>('/v1/admin/platform-config');
 
   return (
@@ -30,7 +31,7 @@ export default async function PlatformConfigPage() {
           <CardTitle className="text-lg">Commission</CardTitle>
           <CardDescription>
             Platform cut on every completed partner job. Last updated{' '}
-            {formatDateTime(config.updatedAt)}.
+            {fmt.formatDateTime(config.updatedAt)}.
           </CardDescription>
         </CardHeader>
         <CardContent>

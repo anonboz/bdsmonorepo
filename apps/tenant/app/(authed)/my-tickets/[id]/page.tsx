@@ -1,15 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { Page, Ticket, TicketMessage, TicketStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ReopenButton } from './reopen-button';
 import { TicketThread } from './ticket-thread';
 import { ApiError } from '../../../../lib/api';
-import { formatDate } from '../../../../lib/format';
 import { getSession, serverApi } from '../../../../lib/session';
 
 const REOPEN_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -32,6 +32,7 @@ export default async function MyTicketDetailPage({ params }: { params: Promise<{
   const t = await getTranslations('tenant.tickets');
   const tDetail = await getTranslations('tenant.tickets.detail');
   const tCat = await getTranslations('tenant.statuses.ticketCategories');
+  const { formatDate } = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">

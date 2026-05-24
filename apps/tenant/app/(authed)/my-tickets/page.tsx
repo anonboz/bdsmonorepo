@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Page, Ticket, TicketStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -17,6 +17,7 @@ export default async function MyTicketsPage() {
   const page = await serverApi<Page<Ticket>>('/v1/me/tickets?limit=20');
   const grouped = groupByOpenFirst(page.items);
   const t = await getTranslations('tenant.tickets');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -35,14 +36,14 @@ export default async function MyTicketsPage() {
       {grouped.open.length > 0 && (
         <Section title={t('sectionOpen')}>
           {grouped.open.map((tk) => (
-            <TicketCard key={tk.id} ticket={tk} />
+            <TicketCard key={tk.id} ticket={tk} fmt={fmt} />
           ))}
         </Section>
       )}
       {grouped.closed.length > 0 && (
         <Section title={t('sectionHistory')}>
           {grouped.closed.map((tk) => (
-            <TicketCard key={tk.id} ticket={tk} />
+            <TicketCard key={tk.id} ticket={tk} fmt={fmt} />
           ))}
         </Section>
       )}
@@ -75,7 +76,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function TicketCard({ ticket }: { ticket: Ticket }) {
+function TicketCard({ ticket, fmt }: { ticket: Ticket; fmt: Formatters }) {
   const t = useTranslations('tenant.tickets');
   const tCat = useTranslations('tenant.statuses.ticketCategories');
   return (
@@ -90,7 +91,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
             <StatusBadge status={ticket.status} />
           </div>
           <p className="text-xs text-muted-foreground">
-            {tCat(ticket.category)} · {t('raisedAt', { date: formatDate(ticket.createdAt) })}
+            {tCat(ticket.category)} · {t('raisedAt', { date: fmt.formatDate(ticket.createdAt) })}
           </p>
         </div>
       </Link>

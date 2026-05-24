@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Application, ApplicationStatus, Page } from '@repo/shared';
 import { Button, Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
 export async function generateMetadata() {
@@ -24,6 +24,7 @@ const PALETTE: Record<ApplicationStatus, string> = {
 export default async function MyApplicationsPage() {
   const page = await serverApi<Page<Application>>('/v1/me/applications?limit=20');
   const t = await getTranslations('tenant.applications');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -54,7 +55,7 @@ export default async function MyApplicationsPage() {
       ) : (
         <ul className="space-y-3">
           {page.items.map((a) => (
-            <ApplicationRow key={a.id} application={a} />
+            <ApplicationRow key={a.id} application={a} fmt={fmt} />
           ))}
         </ul>
       )}
@@ -62,7 +63,7 @@ export default async function MyApplicationsPage() {
   );
 }
 
-function ApplicationRow({ application }: { application: Application }) {
+function ApplicationRow({ application, fmt }: { application: Application; fmt: Formatters }) {
   const t = useTranslations('tenant.applications');
   const tStatus = useTranslations('tenant.statuses.applications');
   return (
@@ -77,7 +78,7 @@ function ApplicationRow({ application }: { application: Application }) {
               {t('campaignLabel', { short: application.campaignId.slice(-8) })}
             </p>
             <p className="text-xs text-muted-foreground">
-              {t('submittedAt', { date: formatDate(application.createdAt) })}
+              {t('submittedAt', { date: fmt.formatDate(application.createdAt) })}
             </p>
           </div>
           <span

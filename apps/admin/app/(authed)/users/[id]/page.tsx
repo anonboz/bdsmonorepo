@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { getFormatters } from '@repo/i18n';
 import type { AdminUser, KycStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
@@ -9,10 +10,10 @@ import { EraseActions } from './erase-actions';
 import { KycActions } from './kyc-actions';
 import { SuspendActions } from './suspend-actions';
 import { ApiError } from '../../../../lib/api';
-import { formatDateTime } from '../../../../lib/format';
 import { getSession, serverApi } from '../../../../lib/session';
 
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const fmt = getFormatters('en');
   const { id } = await params;
   const [user, session] = await Promise.all([fetchUser(id), getSession()]);
   if (!user) notFound();
@@ -94,8 +95,8 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <Stat label="User ID" value={user.id} />
             <Stat label="Phone" value={user.phone ?? '—'} />
-            <Stat label="Last login" value={formatDateTime(user.lastLoginAt)} />
-            <Stat label="Created" value={formatDateTime(user.createdAt)} />
+            <Stat label="Last login" value={fmt.formatDateTime(user.lastLoginAt)} />
+            <Stat label="Created" value={fmt.formatDateTime(user.createdAt)} />
           </dl>
         </CardContent>
       </Card>

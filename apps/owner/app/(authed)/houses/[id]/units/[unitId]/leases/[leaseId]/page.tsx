@@ -1,15 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Lease, LeaseRatingState, LeaseStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { BillsCard } from './_components/bills-card';
 import { RatingsCard } from './_components/ratings-card';
 import { ApiError } from '../../../../../../../../lib/api';
-import { formatDate, formatMoney } from '../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../lib/session';
 import { LeaseTransitions } from '../_components/lease-transitions';
 
@@ -26,6 +26,8 @@ export default async function LeaseDetailPage({
   const t = await getTranslations('owner.leases.detail');
   const tChrome = await getTranslations('owner.chrome');
   const tCycle = await getTranslations('owner.statuses.rentCyclesLower');
+  const fmt = getFormatters(await getLocale());
+  const { formatMoney } = fmt;
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -36,7 +38,7 @@ export default async function LeaseDetailPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{t('title')}</h1>
-            <SubtitleLine lease={lease} />
+            <SubtitleLine lease={lease} fmt={fmt} />
           </div>
           {lease.status === 'DRAFT' && (
             <Button asChild variant="outline">
@@ -113,13 +115,13 @@ export default async function LeaseDetailPage({
   );
 }
 
-function SubtitleLine({ lease }: { lease: Lease }) {
+function SubtitleLine({ lease, fmt }: { lease: Lease; fmt: Formatters }) {
   const t = useTranslations('owner.leases.detail');
   return (
     <p className="text-sm text-muted-foreground">
       <StatusBadge status={lease.status} /> ·{' '}
-      {t('subtitleStarted', { start: formatDate(lease.startDate) })}
-      {lease.endDate && t('subtitleEnds', { end: formatDate(lease.endDate) })}
+      {t('subtitleStarted', { start: fmt.formatDate(lease.startDate) })}
+      {lease.endDate && t('subtitleEnds', { end: fmt.formatDate(lease.endDate) })}
     </p>
   );
 }

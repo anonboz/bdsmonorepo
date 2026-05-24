@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { JobLedgerEntry, Page, PayoutEntryStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -34,6 +34,7 @@ export default async function PayoutsPage() {
 
   const t = await getTranslations('partner.payouts');
   const tChrome = await getTranslations('partner.chrome');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -46,16 +47,23 @@ export default async function PayoutsPage() {
       </header>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <SummaryCard labelKey="summaryHeld" tone="bg-sky-50" totals={sumByCurrency(held)} />
+        <SummaryCard
+          labelKey="summaryHeld"
+          tone="bg-sky-50"
+          totals={sumByCurrency(held)}
+          fmt={fmt}
+        />
         <SummaryCard
           labelKey="summaryReleased"
           tone="bg-emerald-50"
           totals={sumByCurrency(released)}
+          fmt={fmt}
         />
         <SummaryCard
           labelKey="summaryDisbursed"
           tone="bg-violet-50"
           totals={sumByCurrency(disbursed)}
+          fmt={fmt}
         />
       </div>
 
@@ -67,13 +75,13 @@ export default async function PayoutsPage() {
           </CardHeader>
         </Card>
       ) : (
-        <PayoutsTable entries={page.items} />
+        <PayoutsTable entries={page.items} fmt={fmt} />
       )}
     </main>
   );
 }
 
-function PayoutsTable({ entries }: { entries: JobLedgerEntry[] }) {
+function PayoutsTable({ entries, fmt }: { entries: JobLedgerEntry[]; fmt: Formatters }) {
   const t = useTranslations('partner.payouts.table');
   const tStatus = useTranslations('partner.statuses.payouts');
   return (
@@ -98,7 +106,7 @@ function PayoutsTable({ entries }: { entries: JobLedgerEntry[] }) {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-right font-medium tabular-nums">
-                  {formatMoney(e.amount, e.currency)}
+                  {fmt.formatMoney(e.amount, e.currency)}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -109,10 +117,10 @@ function PayoutsTable({ entries }: { entries: JobLedgerEntry[] }) {
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">
                   {e.status === 'DISBURSED'
-                    ? formatDateTime(e.disbursedAt)
+                    ? fmt.formatDateTime(e.disbursedAt)
                     : e.status === 'RELEASED'
-                      ? formatDateTime(e.releasedAt)
-                      : formatDateTime(e.cooldownUntil)}
+                      ? fmt.formatDateTime(e.releasedAt)
+                      : fmt.formatDateTime(e.cooldownUntil)}
                 </td>
                 <td className="px-4 py-3 text-xs">
                   {e.disbursementRef ? (
@@ -134,10 +142,12 @@ function SummaryCard({
   labelKey,
   tone,
   totals,
+  fmt,
 }: {
   labelKey: 'summaryHeld' | 'summaryReleased' | 'summaryDisbursed';
   tone: string;
   totals: { currency: string; amount: number }[];
+  fmt: Formatters;
 }) {
   const t = useTranslations('partner.payouts');
   return (
@@ -154,7 +164,7 @@ function SummaryCard({
               <li key={tt.currency} className="flex items-baseline justify-between">
                 <span className="text-muted-foreground">{tt.currency}</span>
                 <span className="font-semibold tabular-nums">
-                  {formatMoney(tt.amount, tt.currency)}
+                  {fmt.formatMoney(tt.amount, tt.currency)}
                 </span>
               </li>
             ))}

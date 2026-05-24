@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { House } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApiError } from '../../../../lib/api';
-import { formatDateTime } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 import { DeleteHouseButton } from '../_components/delete-house-button';
 
@@ -19,7 +19,11 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
   const t = await getTranslations('owner.houses');
   const tDetail = await getTranslations('owner.houses.detail');
   const tChrome = await getTranslations('owner.chrome');
+  const { formatDateTime } = getFormatters(await getLocale());
   const unitsLabel = t('unitCount', { count: house.unitCount });
+  const moderationDecidedAtFormatted = house.moderationDecidedAt
+    ? formatDateTime(house.moderationDecidedAt)
+    : null;
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -45,7 +49,7 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      <ModerationBanner house={house} />
+      <ModerationBanner house={house} decidedAtFormatted={moderationDecidedAtFormatted} />
 
       <Card>
         <CardHeader>
@@ -95,7 +99,13 @@ export default async function HouseDetailPage({ params }: { params: Promise<{ id
   );
 }
 
-function ModerationBanner({ house }: { house: House }) {
+function ModerationBanner({
+  house,
+  decidedAtFormatted,
+}: {
+  house: House;
+  decidedAtFormatted: string | null;
+}) {
   const t = useTranslations('owner.houses.moderation');
   if (house.moderationStatus === 'OK') return null;
   const palette =
@@ -115,9 +125,7 @@ function ModerationBanner({ house }: { house: House }) {
       )}
       <p className="mt-1 text-xs opacity-80">
         {followup}
-        {house.moderationDecidedAt
-          ? t('decidedSuffix', { date: formatDateTime(house.moderationDecidedAt) })
-          : ''}
+        {decidedAtFormatted ? t('decidedSuffix', { date: decidedAtFormatted }) : ''}
       </p>
     </div>
   );

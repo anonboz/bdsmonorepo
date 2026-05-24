@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { type useTranslations as useTranslationsType, useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Campaign, CampaignStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
@@ -10,7 +11,6 @@ import { ApplicationsPanel } from './_components/applications-panel';
 import { CampaignActions } from './_components/campaign-actions';
 import { DeleteCampaignButton } from './_components/delete-campaign-button';
 import { ApiError } from '../../../../../../../../lib/api';
-import { formatDate, formatDateTime, formatMoney } from '../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../lib/session';
 import { StatusBadge } from '../_components/campaign-list-card';
 
@@ -30,6 +30,8 @@ export default async function CampaignDetailPage({
 
   const t = await getTranslations('owner.campaigns.detail');
   const tChrome = await getTranslations('owner.chrome');
+  const fmt = getFormatters(await getLocale());
+  const { formatDateTime } = fmt;
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -40,7 +42,7 @@ export default async function CampaignDetailPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{campaign.title}</h1>
-            <SubtitleLine campaign={campaign} />
+            <SubtitleLine campaign={campaign} fmt={fmt} />
           </div>
           <div className="flex flex-wrap gap-2">
             {canEdit && (
@@ -114,14 +116,14 @@ export default async function CampaignDetailPage({
   );
 }
 
-function SubtitleLine({ campaign }: { campaign: Campaign }) {
+function SubtitleLine({ campaign, fmt }: { campaign: Campaign; fmt: Formatters }) {
   const t = useTranslations('owner.campaigns.detail');
   return (
     <p className="text-sm text-muted-foreground">
       <StatusBadge status={campaign.status} /> ·{' '}
       {t('subtitle', {
-        price: formatMoney(campaign.price, campaign.currency),
-        date: formatDate(campaign.createdAt),
+        price: fmt.formatMoney(campaign.price, campaign.currency),
+        date: fmt.formatDate(campaign.createdAt),
       })}
     </p>
   );

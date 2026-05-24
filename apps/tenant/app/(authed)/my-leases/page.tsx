@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Lease, LeaseStatus, Page } from '@repo/shared';
 import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -17,6 +17,7 @@ export default async function MyLeasesPage() {
   const page = await serverApi<Page<Lease>>('/v1/me/leases?limit=20');
   const grouped = groupByActiveFirst(page.items);
   const t = await getTranslations('tenant.leases');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -30,21 +31,21 @@ export default async function MyLeasesPage() {
       {grouped.active.length > 0 && (
         <Section title={t('sectionCurrent')}>
           {grouped.active.map((lease) => (
-            <LeaseCard key={lease.id} lease={lease} />
+            <LeaseCard key={lease.id} lease={lease} fmt={fmt} />
           ))}
         </Section>
       )}
       {grouped.draft.length > 0 && (
         <Section title={t('sectionDraft')}>
           {grouped.draft.map((lease) => (
-            <LeaseCard key={lease.id} lease={lease} />
+            <LeaseCard key={lease.id} lease={lease} fmt={fmt} />
           ))}
         </Section>
       )}
       {grouped.closed.length > 0 && (
         <Section title={t('sectionHistory')}>
           {grouped.closed.map((lease) => (
-            <LeaseCard key={lease.id} lease={lease} />
+            <LeaseCard key={lease.id} lease={lease} fmt={fmt} />
           ))}
         </Section>
       )}
@@ -72,7 +73,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function LeaseCard({ lease }: { lease: Lease }) {
+function LeaseCard({ lease, fmt }: { lease: Lease; fmt: Formatters }) {
   const t = useTranslations('tenant.leases');
   const tCycle = useTranslations('tenant.statuses.rentCycles');
   return (
@@ -85,14 +86,14 @@ function LeaseCard({ lease }: { lease: Lease }) {
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold">
               {t('rentPerCycle', {
-                amount: formatMoney(lease.rentAmount, lease.currency),
+                amount: fmt.formatMoney(lease.rentAmount, lease.currency),
                 cycle: tCycle(lease.rentCycle),
               })}
             </p>
             <StatusBadge status={lease.status} />
           </div>
           <p className="text-xs text-muted-foreground">
-            {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
+            {fmt.formatDate(lease.startDate)} – {fmt.formatDate(lease.endDate)}
           </p>
         </div>
       </Link>

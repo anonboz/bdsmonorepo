@@ -1,11 +1,11 @@
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Application, ApplicationStatus, Campaign, Page } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApplicationActions } from './application-actions';
-import { formatDateTime } from '../../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../../lib/session';
 
 const PALETTE: Record<ApplicationStatus, string> = {
@@ -29,6 +29,7 @@ export async function ApplicationsPanel({
     `/v1/houses/${houseId}/units/${unitId}/campaigns/${campaign.id}/applications?limit=50`,
   );
   const t = await getTranslations('owner.campaigns.applications');
+  const fmt = getFormatters(await getLocale());
 
   const decidable = (a: Application) => a.status === 'SUBMITTED' || a.status === 'REVIEWING';
 
@@ -51,6 +52,7 @@ export async function ApplicationsPanel({
                 campaignId={campaign.id}
                 application={a}
                 decidable={decidable(a)}
+                fmt={fmt}
               />
             ))}
           </ul>
@@ -66,12 +68,14 @@ function ApplicationRow({
   campaignId,
   application,
   decidable,
+  fmt,
 }: {
   houseId: string;
   unitId: string;
   campaignId: string;
   application: Application;
   decidable: boolean;
+  fmt: Formatters;
 }) {
   const t = useTranslations('owner.campaigns.applications');
   const tStatus = useTranslations('owner.statuses.applications');
@@ -81,7 +85,7 @@ function ApplicationRow({
         <div className="space-y-0.5">
           <p className="text-sm font-semibold">{application.applicantName}</p>
           <p className="text-xs text-muted-foreground">
-            {t('appliedAt', { date: formatDateTime(application.createdAt) })}
+            {t('appliedAt', { date: fmt.formatDateTime(application.createdAt) })}
           </p>
         </div>
         <span

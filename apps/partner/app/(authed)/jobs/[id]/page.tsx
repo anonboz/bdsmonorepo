@@ -1,15 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { JobRatingsForJob, JobStatus, ServiceJob } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { JobActions } from './job-actions';
 import { PartnerRatingPanel } from './partner-rating-panel';
 import { ApiError } from '../../../../lib/api';
-import { formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
 const PALETTE: Record<JobStatus, string> = {
@@ -34,6 +34,7 @@ export default async function PartnerJobDetailPage({
 
   const t = await getTranslations('partner.jobs');
   const tDetail = await getTranslations('partner.jobs.detail');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -42,7 +43,7 @@ export default async function PartnerJobDetailPage({
           <Link href="/jobs">{t('back')}</Link>
         </Button>
         <h1 className="text-2xl font-semibold">{job.serviceName ?? t('directBooking')}</h1>
-        <StatusLine job={job} />
+        <StatusLine job={job} fmt={fmt} />
       </div>
 
       {job.cancelReason && (
@@ -107,7 +108,7 @@ export default async function PartnerJobDetailPage({
   );
 }
 
-function StatusLine({ job }: { job: ServiceJob }) {
+function StatusLine({ job, fmt }: { job: ServiceJob; fmt: Formatters }) {
   const tStatus = useTranslations('partner.statuses.jobs');
   const tDetail = useTranslations('partner.jobs.detail');
   return (
@@ -115,9 +116,9 @@ function StatusLine({ job }: { job: ServiceJob }) {
       <span className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[job.status]}`}>
         {tStatus(job.status)}
       </span>
-      · {tDetail('subtitleRequested', { date: formatDateTime(job.createdAt) })}
+      · {tDetail('subtitleRequested', { date: fmt.formatDateTime(job.createdAt) })}
       {job.quotedAmount != null && job.currency
-        ? ` · ${tDetail('subtitleQuoted', { amount: formatMoney(job.quotedAmount, job.currency) })}`
+        ? ` · ${tDetail('subtitleQuoted', { amount: fmt.formatMoney(job.quotedAmount, job.currency) })}`
         : ''}
     </p>
   );

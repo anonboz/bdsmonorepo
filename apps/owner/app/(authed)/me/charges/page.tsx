@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { JobLedgerEntry, Page } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
 export async function generateMetadata() {
@@ -16,6 +16,7 @@ export default async function MyChargesPage() {
   const page = await serverApi<Page<JobLedgerEntry>>('/v1/me/charges?limit=50');
   const t = await getTranslations('owner.charges');
   const tChrome = await getTranslations('owner.chrome');
+  const { formatDateTime, formatMoney } = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">

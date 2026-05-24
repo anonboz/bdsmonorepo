@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { KycStatus, PartnerSummary } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApiError } from '../../../../lib/api';
-import { formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
 const KYC_PALETTE: Record<KycStatus, string> = {
@@ -34,6 +34,7 @@ export default async function PartnerDetailPage({
 
   const t = await getTranslations('owner.partners');
   const tDetail = await getTranslations('owner.partners.detail');
+  const { formatMoney } = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">

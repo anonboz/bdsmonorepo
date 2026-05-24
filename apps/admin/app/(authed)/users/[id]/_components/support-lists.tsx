@@ -1,7 +1,7 @@
+import { getFormatters } from '@repo/i18n';
 import type { Bill, Page, Payment, Ticket } from '@repo/shared';
 
 import { ApiError } from '../../../../../lib/api';
-import { formatDateTime } from '../../../../../lib/format';
 import { serverApi } from '../../../../../lib/session';
 
 /**
@@ -11,6 +11,7 @@ import { serverApi } from '../../../../../lib/session';
  * admin views when they need to).
  */
 export async function TicketsCard({ userId }: { userId: string }) {
+  const fmt = getFormatters('en');
   const page = await safeFetch<Page<Ticket>>(`/v1/admin/users/${userId}/tickets?limit=20`);
   return (
     <SectionCard title="Tickets" empty="No tickets for this user.">
@@ -25,7 +26,7 @@ export async function TicketsCard({ userId }: { userId: string }) {
                   {t.reporterId === userId ? 'reporter' : 'assignee'}
                 </p>
               </div>
-              <p className="text-xs text-muted-foreground">{formatDateTime(t.createdAt)}</p>
+              <p className="text-xs text-muted-foreground">{fmt.formatDateTime(t.createdAt)}</p>
             </li>
           ))}
         </ul>
@@ -62,6 +63,7 @@ export async function BillsCard({ userId }: { userId: string }) {
 }
 
 export async function PaymentsCard({ userId }: { userId: string }) {
+  const fmt = getFormatters('en');
   const page = await safeFetch<Page<Payment>>(`/v1/admin/users/${userId}/payments?limit=20`);
   return (
     <SectionCard title="Payments" empty="No payments for this user.">
@@ -76,7 +78,7 @@ export async function PaymentsCard({ userId }: { userId: string }) {
                     {isRefund ? 'Refund' : 'Payment'} · {p.provider.toLowerCase()}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {p.status.toLowerCase()} · {formatDateTime(p.receivedAt ?? p.createdAt)}
+                    {p.status.toLowerCase()} · {fmt.formatDateTime(p.receivedAt ?? p.createdAt)}
                   </p>
                 </div>
                 <p className={`text-xs font-medium ${isRefund ? 'text-destructive' : ''}`}>

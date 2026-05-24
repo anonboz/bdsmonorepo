@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { LeaseRating, Page, UserRatingSummary } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
 export async function generateMetadata() {
@@ -19,6 +19,7 @@ export default async function MyRatingsPage() {
     serverApi<UserRatingSummary>('/v1/me/ratings/summary'),
   ]);
   const t = await getTranslations('tenant.ratings');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -48,7 +49,7 @@ export default async function MyRatingsPage() {
       {page.items.length > 0 && (
         <ul className="space-y-3">
           {page.items.map((r) => (
-            <RatingRow key={r.id} rating={r} />
+            <RatingRow key={r.id} rating={r} fmt={fmt} />
           ))}
         </ul>
       )}
@@ -56,7 +57,7 @@ export default async function MyRatingsPage() {
   );
 }
 
-function RatingRow({ rating }: { rating: LeaseRating }) {
+function RatingRow({ rating, fmt }: { rating: LeaseRating; fmt: Formatters }) {
   const t = useTranslations('tenant.ratings');
   const tMilestone = useTranslations('tenant.ratings.milestones');
   return (
@@ -66,7 +67,7 @@ function RatingRow({ rating }: { rating: LeaseRating }) {
           <p className="text-sm font-semibold">
             {t('fromLabel', { milestone: tMilestone(rating.milestone), name: rating.raterName })}
           </p>
-          <p className="text-xs text-muted-foreground">{formatDate(rating.createdAt)}</p>
+          <p className="text-xs text-muted-foreground">{fmt.formatDate(rating.createdAt)}</p>
         </div>
         <Stars score={rating.score} />
       </div>

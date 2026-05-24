@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { Application, ApplicationStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { WithdrawButton } from './withdraw-button';
 import { ApiError } from '../../../../../lib/api';
-import { formatDateTime } from '../../../../../lib/format';
 import { serverApi } from '../../../../../lib/session';
 
 const PALETTE: Record<ApplicationStatus, string> = {
@@ -30,6 +30,7 @@ export default async function MyApplicationDetailPage({
 
   const canWithdraw = application.status === 'SUBMITTED' || application.status === 'REVIEWING';
   const tDetail = await getTranslations('tenant.applications.detail');
+  const { formatDateTime } = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -40,7 +41,10 @@ export default async function MyApplicationDetailPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{tDetail('title')}</h1>
-            <StatusLine status={application.status} createdAt={application.createdAt} />
+            <StatusLine
+              status={application.status}
+              createdAtFormatted={formatDateTime(application.createdAt)}
+            />
           </div>
           {canWithdraw && <WithdrawButton applicationId={application.id} />}
         </div>
@@ -92,7 +96,13 @@ export default async function MyApplicationDetailPage({
   );
 }
 
-function StatusLine({ status, createdAt }: { status: ApplicationStatus; createdAt: string }) {
+function StatusLine({
+  status,
+  createdAtFormatted,
+}: {
+  status: ApplicationStatus;
+  createdAtFormatted: string;
+}) {
   const tStatus = useTranslations('tenant.statuses.applications');
   const tDetail = useTranslations('tenant.applications.detail');
   return (
@@ -100,7 +110,7 @@ function StatusLine({ status, createdAt }: { status: ApplicationStatus; createdA
       <span className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[status]}`}>
         {tStatus(status)}
       </span>
-      · {tDetail('metaSubmitted', { date: formatDateTime(createdAt) })}
+      · {tDetail('metaSubmitted', { date: createdAtFormatted })}
     </p>
   );
 }

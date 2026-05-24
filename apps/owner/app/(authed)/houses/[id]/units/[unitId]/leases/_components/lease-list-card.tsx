@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Lease, LeaseStatus, Page } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate, formatMoney } from '../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../lib/session';
 
 export async function LeaseListCard({ houseId, unitId }: { houseId: string; unitId: string }) {
@@ -13,6 +13,7 @@ export async function LeaseListCard({ houseId, unitId }: { houseId: string; unit
     `/v1/houses/${houseId}/units/${unitId}/leases?limit=20`,
   );
   const t = await getTranslations('owner.leases');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <Card>
@@ -33,7 +34,7 @@ export async function LeaseListCard({ houseId, unitId }: { houseId: string; unit
         <CardContent>
           <ul className="space-y-2">
             {page.items.map((lease) => (
-              <LeaseRow key={lease.id} houseId={houseId} unitId={unitId} lease={lease} />
+              <LeaseRow key={lease.id} houseId={houseId} unitId={unitId} lease={lease} fmt={fmt} />
             ))}
           </ul>
         </CardContent>
@@ -42,7 +43,17 @@ export async function LeaseListCard({ houseId, unitId }: { houseId: string; unit
   );
 }
 
-function LeaseRow({ houseId, unitId, lease }: { houseId: string; unitId: string; lease: Lease }) {
+function LeaseRow({
+  houseId,
+  unitId,
+  lease,
+  fmt,
+}: {
+  houseId: string;
+  unitId: string;
+  lease: Lease;
+  fmt: Formatters;
+}) {
   const t = useTranslations('owner.leases');
   const tCycle = useTranslations('owner.statuses.rentCyclesLower');
   return (
@@ -54,12 +65,12 @@ function LeaseRow({ houseId, unitId, lease }: { houseId: string; unitId: string;
         <div className="space-y-0.5">
           <p className="font-medium">
             {t('rentPerCycle', {
-              amount: formatMoney(lease.rentAmount, lease.currency),
+              amount: fmt.formatMoney(lease.rentAmount, lease.currency),
               cycle: tCycle(lease.rentCycle),
             })}
           </p>
           <p className="text-xs text-muted-foreground">
-            {formatDate(lease.startDate)} – {formatDate(lease.endDate)}
+            {fmt.formatDate(lease.startDate)} – {fmt.formatDate(lease.endDate)}
           </p>
         </div>
         <StatusBadge status={lease.status} />

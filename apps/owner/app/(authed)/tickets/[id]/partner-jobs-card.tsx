@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { JobStatus, Page, ServiceJob } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
 const PALETTE: Record<JobStatus, string> = {
@@ -29,6 +29,7 @@ export async function PartnerJobsCard({
     `/v1/me/service-jobs?ticketId=${ticketId}&limit=20`,
   );
   const t = await getTranslations('owner.tickets.partnerJobs');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <Card>
@@ -51,7 +52,7 @@ export async function PartnerJobsCard({
         <CardContent>
           <ul className="space-y-2">
             {page.items.map((j) => (
-              <JobRow key={j.id} job={j} />
+              <JobRow key={j.id} job={j} fmt={fmt} />
             ))}
           </ul>
         </CardContent>
@@ -60,7 +61,7 @@ export async function PartnerJobsCard({
   );
 }
 
-function JobRow({ job }: { job: ServiceJob }) {
+function JobRow({ job, fmt }: { job: ServiceJob; fmt: Formatters }) {
   const t = useTranslations('owner.tickets.partnerJobs');
   const tStatus = useTranslations('owner.statuses.jobs');
   return (
@@ -72,9 +73,9 @@ function JobRow({ job }: { job: ServiceJob }) {
         <div className="space-y-0.5">
           <p className="font-medium">{job.partnerBusinessName}</p>
           <p className="text-xs text-muted-foreground">
-            {t('bookedAt', { date: formatDateTime(job.createdAt) })}
+            {t('bookedAt', { date: fmt.formatDateTime(job.createdAt) })}
             {job.quotedAmount != null && job.currency
-              ? ` · ${formatMoney(job.quotedAmount, job.currency)}`
+              ? ` · ${fmt.formatMoney(job.quotedAmount, job.currency)}`
               : ''}
           </p>
         </div>

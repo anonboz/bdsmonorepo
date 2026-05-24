@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 
-import { ErrorCodes } from '@repo/shared';
+import { ErrorCodes, formatMoney } from '@repo/shared';
 
 import { ProblemError } from '../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
@@ -160,7 +160,7 @@ async function renderPdf(bill: ReceiptBill): Promise<Buffer> {
     doc.font(FONT_REGULAR).fontSize(11);
     doc.text(line.label, col.item, y, { width: col.qty - col.item - 10 });
     doc.text(String(line.quantity), col.qty, y, { width: 40, align: 'right' });
-    doc.text(formatMoney(line.amount, bill.currency), col.amount, y, {
+    doc.text(formatMoney(line.amount, bill.currency, 'en'), col.amount, y, {
       width: 95,
       align: 'right',
     });
@@ -171,9 +171,11 @@ async function renderPdf(bill: ReceiptBill): Promise<Buffer> {
   hr(doc);
   doc.moveDown(0.5);
 
-  // Totals
-  totalLine(doc, FONT_REGULAR, 'Subtotal', formatMoney(bill.subtotal, bill.currency));
-  totalLine(doc, FONT_BOLD, 'Total', formatMoney(bill.total, bill.currency));
+  // Totals — pinned to English. Receipt audience is the operator
+  // reviewing payments, not the tenant, so we keep one canonical
+  // layout regardless of recipient locale.
+  totalLine(doc, FONT_REGULAR, 'Subtotal', formatMoney(bill.subtotal, bill.currency, 'en'));
+  totalLine(doc, FONT_BOLD, 'Total', formatMoney(bill.total, bill.currency, 'en'));
 
   // Footer
   doc.moveDown(2);
@@ -224,28 +226,4 @@ function ymd(d: Date): string {
 
 function isoUtc(d: Date): string {
   return d.toISOString().replace('T', ' ').replace(/\..*/, ' UTC');
-}
-
-const MINOR_UNIT_DIGITS: Record<string, number> = {
-  VND: 0,
-  JPY: 0,
-  KRW: 0,
-  KWD: 3,
-  BHD: 3,
-  OMR: 3,
-};
-
-function formatMoney(minor: number, currency: string): string {
-  try {
-    const digits = MINOR_UNIT_DIGITS[currency] ?? 2;
-    const major = minor / 10 ** digits;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits,
-    }).format(major);
-  } catch {
-    return `${minor} ${currency}`;
-  }
 }

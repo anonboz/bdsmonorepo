@@ -1,15 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { JobRatingsForJob, JobStatus, ServiceJob } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { OwnerJobActions } from './owner-job-actions';
 import { OwnerRatingPanel } from './owner-rating-panel';
 import { ApiError } from '../../../../../lib/api';
-import { formatDateTime, formatMoney } from '../../../../../lib/format';
 import { serverApi } from '../../../../../lib/session';
 
 const PALETTE: Record<JobStatus, string> = {
@@ -34,6 +34,7 @@ export default async function MyServiceJobDetailPage({
 
   const t = await getTranslations('owner.serviceJobs');
   const tDetail = await getTranslations('owner.serviceJobs.detail');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -42,7 +43,7 @@ export default async function MyServiceJobDetailPage({
           <Link href="/me/service-jobs">{t('back')}</Link>
         </Button>
         <h1 className="text-2xl font-semibold">{job.partnerBusinessName}</h1>
-        <SubtitleLine job={job} />
+        <SubtitleLine job={job} fmt={fmt} />
       </div>
 
       {job.cancelReason && (
@@ -108,7 +109,7 @@ export default async function MyServiceJobDetailPage({
   );
 }
 
-function SubtitleLine({ job }: { job: ServiceJob }) {
+function SubtitleLine({ job, fmt }: { job: ServiceJob; fmt: Formatters }) {
   const tStatus = useTranslations('owner.statuses.jobs');
   const tDetail = useTranslations('owner.serviceJobs.detail');
   return (
@@ -116,12 +117,12 @@ function SubtitleLine({ job }: { job: ServiceJob }) {
       <span className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[job.status]}`}>
         {tStatus(job.status)}
       </span>
-      · {tDetail('subtitleRequested', { date: formatDateTime(job.createdAt) })}
+      · {tDetail('subtitleRequested', { date: fmt.formatDateTime(job.createdAt) })}
       {job.quotedAmount != null && job.currency
-        ? tDetail('subtitleQuoted', { amount: formatMoney(job.quotedAmount, job.currency) })
+        ? tDetail('subtitleQuoted', { amount: fmt.formatMoney(job.quotedAmount, job.currency) })
         : ''}
       {job.status === 'COMPLETED' && job.finalAmount != null && job.currency
-        ? tDetail('subtitleFinal', { amount: formatMoney(job.finalAmount, job.currency) })
+        ? tDetail('subtitleFinal', { amount: fmt.formatMoney(job.finalAmount, job.currency) })
         : ''}
     </p>
   );

@@ -1,13 +1,14 @@
+import { getFormatters } from '@repo/i18n';
 import type { AdminPendingPayout, Page } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { DisburseRow } from './_components/disburse-row';
-import { formatDate, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Pending payouts' };
 
 export default async function AdminPayoutsPage() {
+  const fmt = getFormatters('en');
   const page = await serverApi<Page<AdminPendingPayout>>(
     '/v1/admin/payouts/pending?limit=50&sort=asc',
   );
@@ -31,7 +32,7 @@ export default async function AdminPayoutsPage() {
           <p className="text-sm text-muted-foreground">
             Total owed:{' '}
             {[...totals.entries()]
-              .map(([currency, amount]) => formatMoney(amount, currency))
+              .map(([currency, amount]) => fmt.formatMoney(amount, currency))
               .join(' · ')}
           </p>
         )}
@@ -70,10 +71,10 @@ export default async function AdminPayoutsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums">
-                      {formatMoney(p.amount, p.currency)}
+                      {fmt.formatMoney(p.amount, p.currency)}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatDate(p.releasedAt)}
+                      {fmt.formatDate(p.releasedAt)}
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <code className="text-[11px]">{p.jobId.slice(-8)}</code>

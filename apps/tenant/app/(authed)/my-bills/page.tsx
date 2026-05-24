@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Bill, BillStatus, Page } from '@repo/shared';
 import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -17,6 +17,7 @@ export default async function MyBillsPage() {
   const page = await serverApi<Page<Bill>>('/v1/me/bills?limit=20');
   const grouped = groupByOpenFirst(page.items);
   const t = await getTranslations('tenant.bills');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -30,14 +31,14 @@ export default async function MyBillsPage() {
       {grouped.open.length > 0 && (
         <Section title={t('sectionOpen')}>
           {grouped.open.map((bill) => (
-            <BillCard key={bill.id} bill={bill} />
+            <BillCard key={bill.id} bill={bill} fmt={fmt} />
           ))}
         </Section>
       )}
       {grouped.closed.length > 0 && (
         <Section title={t('sectionHistory')}>
           {grouped.closed.map((bill) => (
-            <BillCard key={bill.id} bill={bill} />
+            <BillCard key={bill.id} bill={bill} fmt={fmt} />
           ))}
         </Section>
       )}
@@ -65,7 +66,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function BillCard({ bill }: { bill: Bill }) {
+function BillCard({ bill, fmt }: { bill: Bill; fmt: Formatters }) {
   const t = useTranslations('tenant.bills');
   return (
     <li>
@@ -75,12 +76,12 @@ function BillCard({ bill }: { bill: Bill }) {
       >
         <div className="space-y-1 p-4">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold">{formatMoney(bill.total, bill.currency)}</p>
+            <p className="font-semibold">{fmt.formatMoney(bill.total, bill.currency)}</p>
             <StatusBadge status={bill.status} />
           </div>
           <p className="text-xs text-muted-foreground">
-            {formatDate(bill.periodStart)} – {formatDate(bill.periodEnd)} ·{' '}
-            {t('due', { date: formatDate(bill.dueDate) })}
+            {fmt.formatDate(bill.periodStart)} – {fmt.formatDate(bill.periodEnd)} ·{' '}
+            {t('due', { date: fmt.formatDate(bill.dueDate) })}
           </p>
         </div>
       </Link>

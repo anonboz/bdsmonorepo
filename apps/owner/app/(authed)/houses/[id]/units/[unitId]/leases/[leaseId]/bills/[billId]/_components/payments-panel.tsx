@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
+import { useFormatters } from '@repo/i18n';
 import type { BillStatus, Payment, RecordPaymentResponse } from '@repo/shared';
 import {
   Alert,
@@ -22,7 +23,6 @@ import {
 } from '@repo/ui';
 
 import { ApiError, api } from '../../../../../../../../../../../lib/api';
-import { formatDateTime, formatMoney } from '../../../../../../../../../../../lib/format';
 
 const PAYABLE_STATES: BillStatus[] = ['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'];
 
@@ -47,6 +47,7 @@ export function PaymentsPanel({
   initialPayments: Payment[];
 }) {
   const t = useTranslations('owner.bills.payments');
+  const { formatDateTime, formatMoney } = useFormatters();
   const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>(initialPayments);
   const [amount, setAmount] = useState<string>(String(remaining));
@@ -283,6 +284,7 @@ function RefundDialog({
 }) {
   const t = useTranslations('owner.bills.payments');
   const tChrome = useTranslations('owner.chrome');
+  const { formatMoney } = useFormatters();
   const [amount, setAmount] = useState<string>(String(refundable));
   const [reason, setReason] = useState('');
 

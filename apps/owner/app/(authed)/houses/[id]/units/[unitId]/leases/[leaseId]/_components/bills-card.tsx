@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Bill, BillStatus, Page } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { GenerateNowButton } from './generate-now-button';
-import { formatDate, formatMoney } from '../../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../../lib/session';
 
 export async function BillsCard({
@@ -25,6 +25,7 @@ export async function BillsCard({
   );
   const isActive = leaseStatus === 'ACTIVE';
   const t = await getTranslations('owner.bills');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <Card>
@@ -51,6 +52,7 @@ export async function BillsCard({
                 unitId={unitId}
                 leaseId={leaseId}
                 bill={bill}
+                fmt={fmt}
               />
             ))}
           </ul>
@@ -65,11 +67,13 @@ function BillRow({
   unitId,
   leaseId,
   bill,
+  fmt,
 }: {
   houseId: string;
   unitId: string;
   leaseId: string;
   bill: Bill;
+  fmt: Formatters;
 }) {
   const t = useTranslations('owner.bills');
   return (
@@ -79,10 +83,10 @@ function BillRow({
         className="flex items-center justify-between rounded-md border p-3 text-sm transition-colors hover:border-foreground/20"
       >
         <div className="space-y-0.5">
-          <p className="font-medium">{formatMoney(bill.total, bill.currency)}</p>
+          <p className="font-medium">{fmt.formatMoney(bill.total, bill.currency)}</p>
           <p className="text-xs text-muted-foreground">
-            {formatDate(bill.periodStart)} – {formatDate(bill.periodEnd)} ·{' '}
-            {t('billDuePrefix', { date: formatDate(bill.dueDate) })}
+            {fmt.formatDate(bill.periodStart)} – {fmt.formatDate(bill.periodEnd)} ·{' '}
+            {t('billDuePrefix', { date: fmt.formatDate(bill.dueDate) })}
           </p>
         </div>
         <StatusBadge status={bill.status} />

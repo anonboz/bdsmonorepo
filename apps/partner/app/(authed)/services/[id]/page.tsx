@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { Service } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { DeleteServiceButton } from './delete-service-button';
 import { ApiError } from '../../../../lib/api';
-import { formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
 export default async function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -18,6 +18,8 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
 
   const t = await getTranslations('partner.services');
   const tDetail = await getTranslations('partner.services.detail');
+  const { formatMoney } = getFormatters(await getLocale());
+  const priceFormatted = formatMoney(service.basePrice, service.currency);
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -28,7 +30,7 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{service.name}</h1>
-            <MetaLine service={service} />
+            <MetaLine service={service} priceFormatted={priceFormatted} />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -60,12 +62,12 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
   );
 }
 
-function MetaLine({ service }: { service: Service }) {
+function MetaLine({ service, priceFormatted }: { service: Service; priceFormatted: string }) {
   const t = useTranslations('partner.services');
   return (
     <p className="text-sm text-muted-foreground">
       {t('metaLine', {
-        price: formatMoney(service.basePrice, service.currency),
+        price: priceFormatted,
         state: service.isActive ? t('stateActive') : t('stateInactive'),
       })}
     </p>

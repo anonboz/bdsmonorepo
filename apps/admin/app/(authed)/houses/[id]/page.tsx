@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { getFormatters } from '@repo/i18n';
 import type { House } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ModerationActions } from './moderation-actions';
 import { ApiError } from '../../../../lib/api';
-import { formatDateTime } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 import { ModerationBadge } from '../page';
 
@@ -15,6 +15,7 @@ export default async function AdminHouseDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const fmt = getFormatters('en');
   const { id } = await params;
   const house = await fetchHouse(id);
   if (!house) notFound();
@@ -56,7 +57,7 @@ export default async function AdminHouseDetailPage({
               <p className="mt-1 whitespace-pre-wrap leading-relaxed">{house.moderationReason}</p>
               {house.moderationDecidedAt && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Decided {formatDateTime(house.moderationDecidedAt)}
+                  Decided {fmt.formatDateTime(house.moderationDecidedAt)}
                   {house.moderationDecidedBy ? ` by ${house.moderationDecidedBy}` : ''}
                 </p>
               )}

@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { JobStatus, Page, ServiceJob } from '@repo/shared';
 import { Button, Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -27,6 +27,7 @@ export default async function JobsPage() {
   const page = await serverApi<Page<ServiceJob>>('/v1/me/jobs?limit=20');
   const t = await getTranslations('partner.jobs');
   const tChrome = await getTranslations('partner.chrome');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -50,7 +51,7 @@ export default async function JobsPage() {
       ) : (
         <ul className="space-y-3">
           {page.items.map((j) => (
-            <JobRow key={j.id} job={j} />
+            <JobRow key={j.id} job={j} fmt={fmt} />
           ))}
         </ul>
       )}
@@ -58,7 +59,7 @@ export default async function JobsPage() {
   );
 }
 
-function JobRow({ job }: { job: ServiceJob }) {
+function JobRow({ job, fmt }: { job: ServiceJob; fmt: Formatters }) {
   const t = useTranslations('partner.jobs');
   const tStatus = useTranslations('partner.statuses.jobs');
   return (
@@ -73,9 +74,9 @@ function JobRow({ job }: { job: ServiceJob }) {
               {job.serviceName ?? t('directBooking')} · {job.description ?? t('noDescriptionDash')}
             </p>
             <p className="text-xs text-muted-foreground">
-              {t('requestedAt', { date: formatDateTime(job.createdAt) })}
+              {t('requestedAt', { date: fmt.formatDateTime(job.createdAt) })}
               {job.quotedAmount != null && job.currency
-                ? ` · ${formatMoney(job.quotedAmount, job.currency)}`
+                ? ` · ${fmt.formatMoney(job.quotedAmount, job.currency)}`
                 : ''}
             </p>
           </div>

@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Page, Ticket, TicketStatus } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -17,6 +17,7 @@ export default async function TicketsPage() {
   const page = await serverApi<Page<Ticket>>('/v1/me/owner-tickets?limit=50');
   const grouped = groupByActiveFirst(page.items);
   const t = await getTranslations('owner.tickets');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-6 py-8">
@@ -32,14 +33,14 @@ export default async function TicketsPage() {
       {grouped.open.length > 0 && (
         <Section title={t('sectionAttention')}>
           {grouped.open.map((tk) => (
-            <TicketRow key={tk.id} ticket={tk} />
+            <TicketRow key={tk.id} ticket={tk} fmt={fmt} />
           ))}
         </Section>
       )}
       {grouped.closed.length > 0 && (
         <Section title={t('sectionClosed')}>
           {grouped.closed.map((tk) => (
-            <TicketRow key={tk.id} ticket={tk} />
+            <TicketRow key={tk.id} ticket={tk} fmt={fmt} />
           ))}
         </Section>
       )}
@@ -70,7 +71,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function TicketRow({ ticket }: { ticket: Ticket }) {
+function TicketRow({ ticket, fmt }: { ticket: Ticket; fmt: Formatters }) {
   const t = useTranslations('owner.tickets');
   const tCat = useTranslations('owner.statuses.ticketCategoriesLower');
   return (
@@ -85,7 +86,7 @@ function TicketRow({ ticket }: { ticket: Ticket }) {
             {t('rowMeta', {
               category: tCat(ticket.category),
               reporter: ticket.reporterName,
-              date: formatDate(ticket.createdAt),
+              date: fmt.formatDate(ticket.createdAt),
             })}
           </p>
         </div>

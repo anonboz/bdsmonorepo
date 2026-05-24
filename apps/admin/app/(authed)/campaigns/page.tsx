@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
+import { getFormatters } from '@repo/i18n';
 import type { Campaign, CampaignStatus, Page } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Campaigns' };
@@ -24,6 +24,7 @@ const PALETTE: Record<CampaignStatus, string> = {
 };
 
 export default async function AdminCampaignsPage({ searchParams }: { searchParams: SearchParams }) {
+  const fmt = getFormatters('en');
   const sp = await searchParams;
   // Default to PENDING since the queue is the most common entry.
   const status = sp.status ?? 'PENDING';
@@ -82,10 +83,10 @@ export default async function AdminCampaignsPage({ searchParams }: { searchParam
                       <Badge status={c.status} />
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {c.publishedAt ? formatDateTime(c.publishedAt) : '—'}
+                      {c.publishedAt ? fmt.formatDateTime(c.publishedAt) : '—'}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatDateTime(c.createdAt)}
+                      {fmt.formatDateTime(c.createdAt)}
                     </td>
                   </tr>
                 ))}

@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { PublicCampaign } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApplyForm } from './apply-form';
 import { ApiError, apiFetch } from '../../../lib/api';
-import { formatDate, formatMoney } from '../../../lib/format';
 import { getSession } from '../../../lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +22,7 @@ export default async function BrowseDetailPage({ params }: { params: Promise<{ i
   const isOwnerOfCampaign = session?.user.id === campaign.ownerId;
   const t = await getTranslations('tenant.browse');
   const tDetail = await getTranslations('tenant.browse.detail');
+  const { formatDate, formatMoney } = getFormatters(await getLocale());
 
   const applyDescription = isOwnerOfCampaign
     ? tDetail('applyOwner')

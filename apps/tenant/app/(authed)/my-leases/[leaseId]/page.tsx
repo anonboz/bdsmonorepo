@@ -1,14 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { Lease, LeaseRatingState, LeaseStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { RatingsCard } from './ratings-card';
 import { ApiError } from '../../../../lib/api';
-import { formatDate, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
 export default async function MyLeaseDetailPage({
@@ -24,6 +24,7 @@ export default async function MyLeaseDetailPage({
   const t = await getTranslations('tenant.leases');
   const tDetail = await getTranslations('tenant.leases.detail');
   const tCycle = await getTranslations('tenant.statuses.rentCycles');
+  const { formatDate, formatMoney } = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">

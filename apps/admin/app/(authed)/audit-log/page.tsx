@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
+import { getFormatters } from '@repo/i18n';
 import type { AuditLogEntry, Page } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Audit log' };
@@ -15,6 +15,7 @@ type SearchParams = Promise<{
 }>;
 
 export default async function AuditLogPage({ searchParams }: { searchParams: SearchParams }) {
+  const fmt = getFormatters('en');
   const sp = await searchParams;
   const qs = new URLSearchParams({ limit: '50' });
   if (sp.action) qs.set('action', sp.action);
@@ -65,7 +66,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Sea
                 {page.items.map((e) => (
                   <tr key={e.id} className="border-b align-top last:border-0">
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatDateTime(e.createdAt)}
+                      {fmt.formatDateTime(e.createdAt)}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium">{e.actorName ?? '—'}</p>

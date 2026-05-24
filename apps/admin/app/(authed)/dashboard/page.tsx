@@ -1,14 +1,15 @@
 import Link from 'next/link';
 
+import { getFormatters } from '@repo/i18n';
 import type { MoneyByCurrency, PlatformDashboard } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Dashboard' };
 
 export default async function DashboardPage() {
+  const fmt = getFormatters('en');
   const snap = await serverApi<PlatformDashboard>('/v1/admin/dashboard');
 
   return (
@@ -17,7 +18,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold">Platform dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Snapshot generated {formatDateTime(snap.generatedAt)}. No FX — totals per currency.
+            Snapshot generated {fmt.formatDateTime(snap.generatedAt)}. No FX — totals per currency.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -152,6 +153,7 @@ function Stat({
 }
 
 function MoneyList({ items }: { items: MoneyByCurrency[] }) {
+  const fmt = getFormatters('en');
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">No data.</p>;
   }
@@ -160,7 +162,9 @@ function MoneyList({ items }: { items: MoneyByCurrency[] }) {
       {items.map((m) => (
         <li key={m.currency} className="flex items-baseline justify-between gap-3">
           <span className="text-muted-foreground">{m.currency}</span>
-          <span className="font-semibold tabular-nums">{formatMoney(m.amount, m.currency)}</span>
+          <span className="font-semibold tabular-nums">
+            {fmt.formatMoney(m.amount, m.currency)}
+          </span>
         </li>
       ))}
     </ul>

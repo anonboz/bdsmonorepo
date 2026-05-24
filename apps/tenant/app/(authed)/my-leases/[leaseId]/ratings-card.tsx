@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 type Translator = ReturnType<typeof useTranslationsType>;
 
+import { useFormatters } from '@repo/i18n';
 import {
   type LeaseRating,
   type LeaseRatingState,
@@ -15,7 +16,6 @@ import {
 import { Button, Spinner, Textarea } from '@repo/ui';
 
 import { ApiError, api } from '../../../../lib/api';
-import { formatDate } from '../../../../lib/format';
 
 /**
  * Renders three rows (one per milestone) for a lease. Each row shows either
@@ -53,6 +53,7 @@ function MilestoneRow({ state, submitPath }: { state: RatingMilestoneState; subm
   const t = useTranslations('tenant.leases.ratings');
   const tMilestone = useTranslations('tenant.leases.ratings.milestones');
   const tBlurb = useTranslations('tenant.leases.ratings.blurbs');
+  const { formatDate } = useFormatters();
   return (
     <li className="rounded-md border p-4">
       <div className="flex items-start justify-between gap-3">
@@ -68,7 +69,7 @@ function MilestoneRow({ state, submitPath }: { state: RatingMilestoneState; subm
         ) : state.isOpen ? (
           <RatingForm submitPath={submitPath} milestone={state.milestone} />
         ) : (
-          <p className="text-sm text-muted-foreground">{notOpenCopy(state, t)}</p>
+          <p className="text-sm text-muted-foreground">{notOpenCopy(state, t, formatDate)}</p>
         )}
       </div>
     </li>
@@ -94,7 +95,11 @@ function Badge({ children, className }: { children: React.ReactNode; className: 
   );
 }
 
-function notOpenCopy(state: RatingMilestoneState, t: Translator): string {
+function notOpenCopy(
+  state: RatingMilestoneState,
+  t: Translator,
+  formatDate: (iso: string | null | undefined) => string,
+): string {
   if (state.reason === 'LEASE_DRAFT') return t('notAvailableDraft');
   if (state.reason === 'LEASE_NOT_ENDED') return t('notAvailableNotEnded');
   if (state.opensAt) return t('opensAt', { date: formatDate(state.opensAt) });

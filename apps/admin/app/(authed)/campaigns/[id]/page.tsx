@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { getFormatters } from '@repo/i18n';
 import type { Campaign } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ModerationActions } from './moderation-actions';
 import { ApiError } from '../../../../lib/api';
-import { formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 import { Badge } from '../page';
 
@@ -15,6 +15,7 @@ export default async function AdminCampaignDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const fmt = getFormatters('en');
   const { id } = await params;
   const campaign = await fetchCampaign(id);
   if (!campaign) notFound();
@@ -29,8 +30,8 @@ export default async function AdminCampaignDetailPage({
           <div>
             <h1 className="text-2xl font-semibold">{campaign.title}</h1>
             <p className="text-sm text-muted-foreground">
-              <Badge status={campaign.status} /> · {formatMoney(campaign.price, campaign.currency)}{' '}
-              · owner{' '}
+              <Badge status={campaign.status} /> ·{' '}
+              {fmt.formatMoney(campaign.price, campaign.currency)} · owner{' '}
               <Link href={`/users/${campaign.ownerId}`} className="underline">
                 {campaign.ownerId}
               </Link>
@@ -57,7 +58,7 @@ export default async function AdminCampaignDetailPage({
               </p>
               {campaign.moderationDecidedAt && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Decided {formatDateTime(campaign.moderationDecidedAt)}
+                  Decided {fmt.formatDateTime(campaign.moderationDecidedAt)}
                   {campaign.moderationDecidedBy ? ` by ${campaign.moderationDecidedBy}` : ''}
                 </p>
               )}

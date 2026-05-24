@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Page, PublicCampaign } from '@repo/shared';
 import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { apiFetch } from '../../lib/api';
-import { formatMoney } from '../../lib/format';
 
 export async function generateMetadata() {
   const t = await getTranslations('tenant.browse');
@@ -35,6 +35,7 @@ export default async function BrowsePage({ searchParams }: { searchParams: Searc
     cache: 'no-store',
   });
   const t = await getTranslations('tenant.browse');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -59,7 +60,7 @@ export default async function BrowsePage({ searchParams }: { searchParams: Searc
       ) : (
         <ul className="space-y-3">
           {page.items.map((c) => (
-            <CampaignCard key={c.id} campaign={c} />
+            <CampaignCard key={c.id} campaign={c} fmt={fmt} />
           ))}
         </ul>
       )}
@@ -114,7 +115,7 @@ function FilterBar({
   );
 }
 
-function CampaignCard({ campaign }: { campaign: PublicCampaign }) {
+function CampaignCard({ campaign, fmt }: { campaign: PublicCampaign; fmt: Formatters }) {
   const t = useTranslations('tenant.browse');
   const cover = campaign.photos[0];
   return (
@@ -142,7 +143,7 @@ function CampaignCard({ campaign }: { campaign: PublicCampaign }) {
               {campaign.unit.bedrooms != null ? t('brSuffix', { n: campaign.unit.bedrooms }) : ''}
             </p>
             <p className="text-sm font-medium">
-              {t('pricePerMonth', { amount: formatMoney(campaign.price, campaign.currency) })}
+              {t('pricePerMonth', { amount: fmt.formatMoney(campaign.price, campaign.currency) })}
             </p>
           </div>
         </div>

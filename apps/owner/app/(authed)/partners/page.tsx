@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { KycStatus, Page, PartnerSummary } from '@repo/shared';
 import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -33,6 +33,7 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
     fromTicket ? `/partners/${id}?fromTicket=${fromTicket}` : `/partners/${id}`;
 
   const t = await getTranslations('owner.partners');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -67,7 +68,7 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
       ) : (
         <ul className="space-y-3">
           {page.items.map((p) => (
-            <PartnerRow key={p.id} partner={p} href={detailHref(p.id)} />
+            <PartnerRow key={p.id} partner={p} href={detailHref(p.id)} fmt={fmt} />
           ))}
         </ul>
       )}
@@ -75,7 +76,15 @@ export default async function PartnersPage({ searchParams }: { searchParams: Sea
   );
 }
 
-function PartnerRow({ partner, href }: { partner: PartnerSummary; href: string }) {
+function PartnerRow({
+  partner,
+  href,
+  fmt,
+}: {
+  partner: PartnerSummary;
+  href: string;
+  fmt: Formatters;
+}) {
   const t = useTranslations('owner.partners');
   const tKyc = useTranslations('owner.statuses.kycLower');
   return (
@@ -109,7 +118,7 @@ function PartnerRow({ partner, href }: { partner: PartnerSummary; href: string }
           <p className="mt-2 text-xs text-muted-foreground">
             {t('servicesSummary', {
               count: partner.activeServices.length,
-              price: formatMoney(
+              price: fmt.formatMoney(
                 Math.min(...partner.activeServices.map((s) => s.basePrice)),
                 partner.activeServices[0]!.currency,
               ),

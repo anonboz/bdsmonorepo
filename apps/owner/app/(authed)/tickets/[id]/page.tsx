@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { Page, Ticket, TicketMessage, TicketStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
@@ -10,7 +11,6 @@ import { PartnerJobsCard } from './partner-jobs-card';
 import { TicketThread } from './ticket-thread';
 import { TicketTransitions } from './ticket-transitions';
 import { ApiError } from '../../../../lib/api';
-import { formatDate } from '../../../../lib/format';
 import { getSession, serverApi } from '../../../../lib/session';
 
 const POST_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -35,6 +35,8 @@ export default async function OwnerTicketDetailPage({
 
   const t = await getTranslations('owner.tickets');
   const tDetail = await getTranslations('owner.tickets.detail');
+  const { formatDate } = getFormatters(await getLocale());
+  const createdAtFormatted = formatDate(ticket.createdAt);
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -45,7 +47,7 @@ export default async function OwnerTicketDetailPage({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{ticket.title}</h1>
-            <SubtitleLine ticket={ticket} />
+            <SubtitleLine ticket={ticket} createdAtFormatted={createdAtFormatted} />
           </div>
         </div>
       </div>
@@ -107,7 +109,13 @@ export default async function OwnerTicketDetailPage({
   );
 }
 
-function SubtitleLine({ ticket }: { ticket: Ticket }) {
+function SubtitleLine({
+  ticket,
+  createdAtFormatted,
+}: {
+  ticket: Ticket;
+  createdAtFormatted: string;
+}) {
   const t = useTranslations('owner.tickets.detail');
   const tCat = useTranslations('owner.statuses.ticketCategoriesLower');
   return (
@@ -116,7 +124,7 @@ function SubtitleLine({ ticket }: { ticket: Ticket }) {
       {t('subtitle', {
         category: tCat(ticket.category),
         reporter: ticket.reporterName,
-        date: formatDate(ticket.createdAt),
+        date: createdAtFormatted,
       })}
     </p>
   );

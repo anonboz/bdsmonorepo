@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { getFormatters } from '@repo/i18n';
 import type { Bill, BillStatus, Page, Payment } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApiError } from '../../../../lib/api';
-import { formatDate, formatDateTime, formatMoney } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 import { DownloadReceipt } from '../_components/download-receipt';
 import { PayOnline } from './_components/pay-online';
@@ -24,6 +24,7 @@ export default async function MyBillDetailPage({
   const t = await getTranslations('tenant.bills');
   const tKind = await getTranslations('tenant.statuses.billLineKinds');
   const tDetail = await getTranslations('tenant.bills.detail');
+  const { formatDate, formatDateTime, formatMoney } = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">

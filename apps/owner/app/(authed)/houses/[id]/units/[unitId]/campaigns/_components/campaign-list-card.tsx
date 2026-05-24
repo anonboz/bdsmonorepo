@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Campaign, CampaignStatus, Page } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate, formatMoney } from '../../../../../../../../lib/format';
 import { serverApi } from '../../../../../../../../lib/session';
 
 export async function CampaignListCard({ houseId, unitId }: { houseId: string; unitId: string }) {
@@ -13,6 +13,7 @@ export async function CampaignListCard({ houseId, unitId }: { houseId: string; u
     `/v1/houses/${houseId}/units/${unitId}/campaigns?limit=20`,
   );
   const t = await getTranslations('owner.campaigns');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <Card>
@@ -33,7 +34,7 @@ export async function CampaignListCard({ houseId, unitId }: { houseId: string; u
         <CardContent>
           <ul className="space-y-2">
             {page.items.map((c) => (
-              <CampaignRow key={c.id} houseId={houseId} unitId={unitId} campaign={c} />
+              <CampaignRow key={c.id} houseId={houseId} unitId={unitId} campaign={c} fmt={fmt} />
             ))}
           </ul>
         </CardContent>
@@ -46,10 +47,12 @@ function CampaignRow({
   houseId,
   unitId,
   campaign,
+  fmt,
 }: {
   houseId: string;
   unitId: string;
   campaign: Campaign;
+  fmt: Formatters;
 }) {
   const t = useTranslations('owner.campaigns');
   return (
@@ -62,8 +65,8 @@ function CampaignRow({
           <p className="font-medium">{campaign.title}</p>
           <p className="text-xs text-muted-foreground">
             {t('campaignMeta', {
-              price: formatMoney(campaign.price, campaign.currency),
-              date: formatDate(campaign.createdAt),
+              price: fmt.formatMoney(campaign.price, campaign.currency),
+              date: fmt.formatDate(campaign.createdAt),
             })}
           </p>
         </div>

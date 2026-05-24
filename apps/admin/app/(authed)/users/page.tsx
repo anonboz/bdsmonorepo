@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
+import { getFormatters } from '@repo/i18n';
 import type { AdminUser, KycStatus, Page, Role } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Users' };
@@ -16,6 +16,7 @@ type SearchParams = Promise<{
 }>;
 
 export default async function UsersPage({ searchParams }: { searchParams: SearchParams }) {
+  const fmt = getFormatters('en');
   const sp = await searchParams;
   const qs = new URLSearchParams({ limit: '50' });
   if (sp.q) qs.set('q', sp.q);
@@ -80,7 +81,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatDateTime(u.createdAt)}
+                      {fmt.formatDateTime(u.createdAt)}
                     </td>
                   </tr>
                 ))}

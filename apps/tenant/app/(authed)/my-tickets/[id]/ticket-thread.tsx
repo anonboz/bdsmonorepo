@@ -3,11 +3,11 @@
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
+import { useFormatters } from '@repo/i18n';
 import type { TicketMessage } from '@repo/shared';
 import { Button, Spinner, Textarea } from '@repo/ui';
 
 import { ApiError, api } from '../../../../lib/api';
-import { formatDateTime } from '../../../../lib/format';
 
 /**
  * Reusable ticket message thread. Tenant + owner pages share this UI;
@@ -127,6 +127,7 @@ function MessageBubble({
   viewerRole: 'TENANT' | 'OWNER';
 }) {
   const tRole = useTranslations('tenant.statuses.rolesLower');
+  const { formatDateTime } = useFormatters();
   // "mine" handles the common case (own messages right-aligned). If
   // someone else on my side ever posts, we still show it as theirs.
   const theirRoleLabel = tRole(message.authorRole === viewerRole ? viewerRole : message.authorRole);

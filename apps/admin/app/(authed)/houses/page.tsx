@@ -1,9 +1,9 @@
 import Link from 'next/link';
 
+import { getFormatters } from '@repo/i18n';
 import type { House, HouseModerationStatus, Page } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDateTime } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export const metadata = { title: 'Houses' };
@@ -15,6 +15,7 @@ type SearchParams = Promise<{
 }>;
 
 export default async function AdminHousesPage({ searchParams }: { searchParams: SearchParams }) {
+  const fmt = getFormatters('en');
   const sp = await searchParams;
   const qs = new URLSearchParams({ limit: '50' });
   if (sp.q) qs.set('q', sp.q);
@@ -75,7 +76,7 @@ export default async function AdminHousesPage({ searchParams }: { searchParams: 
                       <ModerationBadge status={h.moderationStatus} />
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatDateTime(h.createdAt)}
+                      {fmt.formatDateTime(h.createdAt)}
                     </td>
                   </tr>
                 ))}

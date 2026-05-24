@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { Page, Service } from '@repo/shared';
 import { Button, Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { ApiError } from '../../../lib/api';
-import { formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -18,6 +18,7 @@ export default async function ServicesPage() {
   const page = await fetchServices();
   const t = await getTranslations('partner.services');
   const tChrome = await getTranslations('partner.chrome');
+  const fmt = getFormatters(await getLocale());
 
   const summary =
     page === null
@@ -67,7 +68,7 @@ export default async function ServicesPage() {
       ) : (
         <ul className="space-y-3">
           {page.items.map((s) => (
-            <ServiceRow key={s.id} service={s} />
+            <ServiceRow key={s.id} service={s} fmt={fmt} />
           ))}
         </ul>
       )}
@@ -75,7 +76,7 @@ export default async function ServicesPage() {
   );
 }
 
-function ServiceRow({ service }: { service: Service }) {
+function ServiceRow({ service, fmt }: { service: Service; fmt: Formatters }) {
   const t = useTranslations('partner.services');
   return (
     <li>
@@ -88,7 +89,7 @@ function ServiceRow({ service }: { service: Service }) {
             <p className="font-semibold">{service.name}</p>
             <p className="text-xs text-muted-foreground">
               {t('metaLine', {
-                price: formatMoney(service.basePrice, service.currency),
+                price: fmt.formatMoney(service.basePrice, service.currency),
                 state: service.isActive ? t('stateActive') : t('stateInactive'),
               })}
             </p>

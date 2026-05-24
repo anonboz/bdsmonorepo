@@ -3,11 +3,11 @@
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
+import { useFormatters } from '@repo/i18n';
 import type { TicketMessage } from '@repo/shared';
 import { Button, Spinner, Textarea } from '@repo/ui';
 
 import { ApiError, api } from '../../../../lib/api';
-import { formatDateTime } from '../../../../lib/format';
 
 /**
  * Owner-side ticket message thread. Mirrors the tenant component
@@ -124,6 +124,7 @@ function MessageBubble({
   viewerRole: 'TENANT' | 'OWNER';
 }) {
   const tRole = useTranslations('owner.statuses.rolesLower');
+  const { formatDateTime } = useFormatters();
   const roleLabel = tRole(message.authorRole === viewerRole ? viewerRole : message.authorRole);
   return (
     <li className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>

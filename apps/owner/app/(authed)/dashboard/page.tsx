@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
+import { type Formatters, getFormatters } from '@repo/i18n';
 import type { BillDashboardItem, OwnerDashboard } from '@repo/shared';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-import { formatDate, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -16,6 +16,7 @@ export async function generateMetadata() {
 export default async function DashboardPage() {
   const data = await serverApi<OwnerDashboard>('/v1/me/owner-dashboard');
   const t = await getTranslations('owner.dashboard');
+  const fmt = getFormatters(await getLocale());
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
@@ -28,10 +29,14 @@ export default async function DashboardPage() {
         <EmptyState />
       ) : (
         <>
-          <StatsGrid data={data} />
+          <StatsGrid data={data} fmt={fmt} />
           <div className="grid gap-6 lg:grid-cols-2">
-            <OverdueCard items={data.overdueBills} totalCount={data.counts.overdueBills} />
-            <RecentCard items={data.recentBills} />
+            <OverdueCard
+              items={data.overdueBills}
+              totalCount={data.counts.overdueBills}
+              fmt={fmt}
+            />
+            <RecentCard items={data.recentBills} fmt={fmt} />
           </div>
         </>
       )}
@@ -39,7 +44,7 @@ export default async function DashboardPage() {
   );
 }
 
-function StatsGrid({ data }: { data: OwnerDashboard }) {
+function StatsGrid({ data, fmt }: { data: OwnerDashboard; fmt: Formatters }) {
   const t = useTranslations('owner.dashboard.stats');
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -50,12 +55,12 @@ function StatsGrid({ data }: { data: OwnerDashboard }) {
       />
       <StatCard
         title={t('mrrTitle')}
-        value={data.mrr[0] ? formatMoney(data.mrr[0].amount, data.mrr[0].currency) : '—'}
+        value={data.mrr[0] ? fmt.formatMoney(data.mrr[0].amount, data.mrr[0].currency) : '—'}
         sub={
           data.mrr.length > 1
             ? data.mrr
                 .slice(1)
-                .map((m) => formatMoney(m.amount, m.currency))
+                .map((m) => fmt.formatMoney(m.amount, m.currency))
                 .join(' · ')
             : t('mrrSubMonthly')
         }
@@ -107,7 +112,15 @@ function StatCard({
   );
 }
 
-function OverdueCard({ items, totalCount }: { items: BillDashboardItem[]; totalCount: number }) {
+function OverdueCard({
+  items,
+  totalCount,
+  fmt,
+}: {
+  items: BillDashboardItem[];
+  totalCount: number;
+  fmt: Formatters;
+}) {
   const t = useTranslations('owner.dashboard');
   return (
     <Card>
@@ -121,14 +134,14 @@ function OverdueCard({ items, totalCount }: { items: BillDashboardItem[]; totalC
       </CardHeader>
       {items.length > 0 && (
         <CardContent>
-          <BillsTable items={items} highlightDue />
+          <BillsTable items={items} fmt={fmt} highlightDue />
         </CardContent>
       )}
     </Card>
   );
 }
 
-function RecentCard({ items }: { items: BillDashboardItem[] }) {
+function RecentCard({ items, fmt }: { items: BillDashboardItem[]; fmt: Formatters }) {
   const t = useTranslations('owner.dashboard');
   return (
     <Card>
@@ -140,7 +153,7 @@ function RecentCard({ items }: { items: BillDashboardItem[] }) {
       </CardHeader>
       {items.length > 0 && (
         <CardContent>
-          <BillsTable items={items} />
+          <BillsTable items={items} fmt={fmt} />
         </CardContent>
       )}
     </Card>
@@ -149,9 +162,11 @@ function RecentCard({ items }: { items: BillDashboardItem[] }) {
 
 function BillsTable({
   items,
+  fmt,
   highlightDue = false,
 }: {
   items: BillDashboardItem[];
+  fmt: Formatters;
   highlightDue?: boolean;
 }) {
   const t = useTranslations('owner.dashboard.billsTable');
@@ -171,18 +186,18 @@ function BillsTable({
               <p className="truncate text-xs text-muted-foreground">
                 {t('headRight', {
                   tenantName: b.tenantName,
-                  periodStart: formatDate(b.periodStart),
-                  periodEnd: formatDate(b.periodEnd),
+                  periodStart: fmt.formatDate(b.periodStart),
+                  periodEnd: fmt.formatDate(b.periodEnd),
                 })}
               </p>
             </div>
             <div className="text-right">
-              <p className="font-semibold">{formatMoney(b.total, b.currency)}</p>
+              <p className="font-semibold">{fmt.formatMoney(b.total, b.currency)}</p>
               <p
                 className={`text-xs ${highlightDue ? 'text-destructive' : 'text-muted-foreground'}`}
               >
                 {highlightDue ? t('duePrefix') : ''}
-                {t('dueAndStatus', { date: formatDate(b.dueDate), status: tStatus(b.status) })}
+                {t('dueAndStatus', { date: fmt.formatDate(b.dueDate), status: tStatus(b.status) })}
               </p>
             </div>
           </Link>

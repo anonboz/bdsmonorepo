@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { getFormatters } from '@repo/i18n';
 import type { AdminPendingPayout, PayoutDisbursementMethod } from '@repo/shared';
 import {
   Alert,
@@ -16,11 +17,11 @@ import {
 } from '@repo/ui';
 
 import { ApiError, api } from '../../../../lib/api';
-import { formatMoney } from '../../../../lib/format';
 
 type Method = PayoutDisbursementMethod;
 
 export function DisburseRow({ entry }: { entry: AdminPendingPayout }) {
+  const fmt = getFormatters('en');
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -70,7 +71,7 @@ export function DisburseRow({ entry }: { entry: AdminPendingPayout }) {
         </Alert>
       )}
       <p className="text-xs text-muted-foreground">
-        Sending {formatMoney(entry.amount, entry.currency)} to{' '}
+        Sending {fmt.formatMoney(entry.amount, entry.currency)} to{' '}
         <span className="font-medium">{entry.partnerName}</span>.
       </p>
       <div className="grid gap-1">
