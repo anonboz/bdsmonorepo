@@ -6,18 +6,19 @@
  * later means appending to {@link locales}, dropping new JSON files
  * under `messages/<code>/`, and shipping the translations — no other
  * code changes.
+ *
+ * The {@link Locale} type + `LOCALE_COOKIE` constant are re-exported
+ * here so per-PWA code only needs to import from `@repo/i18n`. The
+ * underlying definitions live in `@repo/shared` so the API can read +
+ * write the same cookie without pulling Next.js into the backend.
  */
+export { LOCALE_COOKIE, type Locale } from '@repo/shared';
+
+import { Locale } from '@repo/shared';
+
 export const locales = ['vi', 'en'] as const;
-export type Locale = (typeof locales)[number];
 
-export const defaultLocale: Locale = 'vi';
-
-/**
- * Cookie name shared by every PWA. Reading + writing through one
- * constant keeps the locale-switcher + middleware + server helpers
- * from drifting.
- */
-export const LOCALE_COOKIE = 'bds-locale';
+export const defaultLocale: Locale = Locale.vi;
 
 /** Type guard for narrowing arbitrary strings to the known set. */
 export function isLocale(value: string | null | undefined): value is Locale {

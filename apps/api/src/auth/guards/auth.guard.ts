@@ -2,7 +2,7 @@ import { Inject, Injectable, type CanActivate, type ExecutionContext } from '@ne
 import { Reflector } from '@nestjs/core';
 import type { FastifyRequest } from 'fastify';
 
-import { ErrorCodes } from '@repo/shared';
+import { ErrorCodes, type Locale, defaultLocale, localeSchema } from '@repo/shared';
 
 import { ProblemError } from '../../common/errors/problem.error.js';
 import { PRISMA, type PrismaInstance } from '../../common/prisma/prisma.token.js';
@@ -57,6 +57,7 @@ export class AuthGuard implements CanActivate {
         roles: true,
         isSuspended: true,
         deletedAt: true,
+        locale: true,
       },
     });
 
@@ -84,8 +85,19 @@ export class AuthGuard implements CanActivate {
       displayName: user.displayName,
       roles: user.roles,
       isSuspended: user.isSuspended,
+      locale: normalizeLocale(user.locale),
     };
 
     return true;
   }
+}
+
+/**
+ * Older rows (pre-11.2) can hold a stale locale string if a future
+ * locale is ever rolled back. Narrow to the canonical set so the rest
+ * of the app never has to think about it.
+ */
+function normalizeLocale(value: string): Locale {
+  const parsed = localeSchema.safeParse(value);
+  return parsed.success ? parsed.data : defaultLocale;
 }

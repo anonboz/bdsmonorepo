@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { emailSchema, idSchema, phoneSchema } from './common';
+import { localeSchema } from '../enums/locale';
 import { roleSchema } from '../enums/role';
 
 export const requestOtpSchema = z.object({
@@ -24,6 +25,8 @@ export const sessionUserSchema = z.object({
   roles: z.array(roleSchema).min(1),
   displayName: z.string().min(1).max(120),
   isSuspended: z.boolean(),
+  /** Phase 11.2 — preferred UI language. */
+  locale: localeSchema,
 });
 
 export type SessionUser = z.infer<typeof sessionUserSchema>;
@@ -34,3 +37,18 @@ export const meResponseSchema = z.object({
 });
 
 export type MeResponse = z.infer<typeof meResponseSchema>;
+
+/**
+ * Phase 11.2 — `PATCH /v1/me` input. Locale-only in this slice; future
+ * profile fields (displayName, image) get added here when they grow a
+ * self-serve flow.
+ */
+export const meUpdateInputSchema = z
+  .object({
+    locale: localeSchema.optional(),
+  })
+  .refine((v) => v.locale !== undefined, {
+    message: 'At least one field must be provided.',
+  });
+
+export type MeUpdateInput = z.infer<typeof meUpdateInputSchema>;

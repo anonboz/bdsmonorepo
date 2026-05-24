@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './guards/auth.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
 import { MeController } from './me.controller.js';
+import { AuditModule } from '../common/audit/audit.module.js';
 
 /**
  * Wires Better-Auth (via AuthController), exposes /me, and registers AuthGuard
@@ -12,6 +13,7 @@ import { MeController } from './me.controller.js';
  * RolesGuard is a no-op for routes without `@Roles(...)`.
  */
 @Module({
+  imports: [AuditModule],
   controllers: [AuthController, MeController],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },

@@ -9,6 +9,7 @@ import { getPostHog } from '../common/analytics/analytics.client.js';
 import { getMailer } from '../common/mailer/mailer.client.js';
 import { renderMagicLinkTemplate, renderOtpTemplate } from '../common/mailer/templates.js';
 import { env } from '../env.js';
+import { getCookieLocale } from './locale-context.js';
 
 /**
  * Best-effort audit write. Better-Auth runs us from outside Nest's DI
@@ -129,11 +130,34 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
+          // Phase 11.2 — if the visitor carried a `bds-locale` cookie
+          // (set by the locale-switcher on a pre-signup screen, or by
+          // the cookie-only middleware on first visit), stamp the new
+          // row so the user lands in the language they already chose
+          // instead of the DB default. AuthController seeds the
+          // AsyncLocalStorage; outside that wrap this is a no-op.
+          // Better-Auth's User type doesn't know about our custom
+          // `locale` column, so we issue an unconditional update when
+          // a cookie locale is present — if it matches the DB default
+          // the write is a no-op cost-wise.
+          const cookieLocale = getCookieLocale();
+          if (cookieLocale) {
+            try {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { locale: cookieLocale },
+              });
+            } catch (err) {
+              // eslint-disable-next-line no-console
+              console.warn('[auth] failed to stamp user.locale on signup', err);
+            }
+          }
+
           await writeAuthAudit({
             actorId: user.id,
             action: 'user.signup',
             target: `User:${user.id}`,
-            meta: { via: 'email' },
+            meta: { via: 'email', locale: cookieLocale ?? null },
             ip: null,
             userAgent: null,
           });

@@ -208,6 +208,12 @@ model User {
   roles         Role[]    @default([])
   kycStatus     KycStatus @default(NONE)
   isSuspended   Boolean   @default(false)
+  /// Phase 11.2 — preferred UI language. Mirrors `@repo/i18n`'s
+  /// canonical locale set (`vi` default, `en` opt-in). Stamped from
+  /// the `bds-locale` cookie at signup; otherwise updated via
+  /// `PATCH /v1/me`. The four PWAs read this on `/me` and use it to
+  /// align the locale cookie + `<html lang>`.
+  locale        String    @default("vi") @db.VarChar(8)
   lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

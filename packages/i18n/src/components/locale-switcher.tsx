@@ -7,6 +7,24 @@ import { LOCALE_COOKIE, type Locale, locales } from '../config';
 
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
+export interface LocaleSwitcherProps {
+  current: Locale;
+  className?: string;
+  /**
+   * Phase 11.2 — optional server-side persistence hook. PWAs that have
+   * an authenticated session pass a callback (typically
+   * `(locale) => api.patch('/v1/me', { locale })`) so the change lands
+   * on `User.locale` in addition to the cookie. The callback is awaited
+   * before reload; failures bubble (the calling component decides
+   * whether to surface them).
+   *
+   * When omitted, the switcher only updates the cookie — the right
+   * behaviour for unauthenticated visitors and for surfaces that
+   * intentionally stay local-only.
+   */
+  onSave?: (locale: Locale) => Promise<void> | void;
+}
+
 /**
  * Phase 11 — a minimal `<select>` that flips {@link LOCALE_COOKIE}
  * + reloads the page so the server-rendered locale catches up.
@@ -15,14 +33,24 @@ const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
  * needs to be a leaf so all four PWAs (including `@repo/ui` itself
  * if it ever imports it) can use it without import cycles.
  */
-export function LocaleSwitcher({ current, className }: { current: Locale; className?: string }) {
+export function LocaleSwitcher({ current, className, onSave }: LocaleSwitcherProps) {
   const t = useTranslations('common.localeSwitcher');
+  const [pending, setPending] = React.useState(false);
 
-  function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
+  async function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const next = e.currentTarget.value as Locale;
+    if (next === current) return;
+
+    setPending(true);
     document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; samesite=lax`;
-    // Server-rendered translations need a fresh request to apply.
-    window.location.reload();
+    try {
+      if (onSave) await onSave(next);
+    } finally {
+      // Server-rendered translations need a fresh request to apply,
+      // even when the server save fails — at least the cookie is set
+      // and the next request will render the chosen language.
+      window.location.reload();
+    }
   }
 
   return (
@@ -31,7 +59,8 @@ export function LocaleSwitcher({ current, className }: { current: Locale; classN
       <select
         defaultValue={current}
         onChange={onChange}
-        className="rounded-md border bg-background px-2 py-1 text-sm"
+        disabled={pending}
+        className="rounded-md border bg-background px-2 py-1 text-sm disabled:opacity-60"
       >
         {locales.map((code) => (
           <option key={code} value={code}>

@@ -1,4 +1,4 @@
-import type { Role } from '@repo/shared';
+import type { Locale, Role } from '@repo/shared';
 
 export interface AuthenticatedUser {
   id: string;
@@ -7,4 +7,6 @@ export interface AuthenticatedUser {
   displayName: string;
   roles: Role[];
   isSuspended: boolean;
+  /** Phase 11.2 — preferred UI language; mirrored in the `bds-locale` cookie. */
+  locale: Locale;
 }

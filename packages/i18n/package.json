@@ -16,6 +16,7 @@
     "clean": "rimraf .turbo node_modules"
   },
   "dependencies": {
+    "@repo/shared": "workspace:*",
     "next-intl": "^3.26.0"
   },
   "devDependencies": {

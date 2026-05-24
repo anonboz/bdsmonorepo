@@ -2,8 +2,11 @@ import { All, Controller, Req, Res } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
+import { LOCALE_COOKIE, localeSchema } from '@repo/shared';
+
 import { auth } from './better-auth.config.js';
 import { Public } from './decorators/public.decorator.js';
+import { runWithLocale } from './locale-context.js';
 
 /**
  * Forwards every request under `/v1/auth/*` to the Better-Auth handler.
@@ -38,7 +41,17 @@ export class AuthController {
     }
 
     const webReq = new Request(url, init);
-    const webRes = await auth.handler(webReq);
+
+    // Phase 11.2 — propagate the visitor's chosen locale (from the
+    // `bds-locale` cookie) into better-auth's user-create hook so a
+    // signup that completes inside this handler stamps `User.locale`
+    // before the DB default ("vi") wins. Reads via `@fastify/cookie`
+    // which parses + populates `req.cookies` ahead of route handlers.
+    const rawCookie = req.cookies?.[LOCALE_COOKIE];
+    const parsed = rawCookie ? localeSchema.safeParse(rawCookie) : null;
+    const cookieLocale = parsed?.success ? parsed.data : null;
+
+    const webRes = await runWithLocale(cookieLocale, () => auth.handler(webReq));
 
     reply.status(webRes.status);
     webRes.headers.forEach((value, key) => {
