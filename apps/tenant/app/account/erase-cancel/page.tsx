@@ -1,7 +1,12 @@
+import { getTranslations } from 'next-intl/server';
+
 import { ApiError } from '../../../lib/api';
 import { serverApi } from '../../../lib/session';
 
-export const metadata = { title: 'Cancel account deletion' };
+export async function generateMetadata() {
+  const t = await getTranslations('tenant.eraseCancel');
+  return { title: t('metadataTitle') };
+}
 
 interface SearchParams {
   token?: string;
@@ -20,14 +25,12 @@ export default async function EraseCancelPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const t = await getTranslations('tenant.eraseCancel');
   const { token } = await searchParams;
   if (!token) {
     return (
-      <Shell title="No token in the link">
-        <p>
-          This page expects a one-time token from the confirmation email. Open the email and click
-          the undo link directly.
-        </p>
+      <Shell title={t('noToken')}>
+        <p>{t('noTokenBody')}</p>
       </Shell>
     );
   }
@@ -41,23 +44,20 @@ export default async function EraseCancelPage({
     if (err instanceof ApiError) {
       message = err.problem.title;
     } else {
-      message = 'We could not cancel the deletion. Try again or contact support.';
+      message = t('fallback');
     }
   }
 
   if (ok) {
     return (
-      <Shell title="Deletion cancelled">
-        <p>
-          Your account deletion request has been cancelled. No further action is needed — you can
-          close this tab.
-        </p>
+      <Shell title={t('ok')}>
+        <p>{t('okBody')}</p>
       </Shell>
     );
   }
 
   return (
-    <Shell title="Could not cancel">
+    <Shell title={t('fail')}>
       <p>{message}</p>
     </Shell>
   );

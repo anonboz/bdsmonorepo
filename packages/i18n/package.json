@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./server": "./src/server.ts",
     "./messages/*": "./src/messages/*",
     "./package.json": "./package.json"
   },

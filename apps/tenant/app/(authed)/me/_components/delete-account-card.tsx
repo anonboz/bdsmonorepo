@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import type { AccountErasureRequestResponse } from '@repo/shared';
@@ -26,6 +27,7 @@ import { ApiError, api } from '../../../../lib/api';
  *     the user wouldn't be authenticated at this point.
  */
 export function DeleteAccountCard() {
+  const t = useTranslations('tenant.account.delete');
   const [state, setState] = useState<AccountErasureRequestResponse | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -50,7 +52,7 @@ export function DeleteAccountCard() {
       setState(res);
       setConfirming(false);
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Could not schedule deletion.');
+      setError(err instanceof ApiError ? err.problem.title : t('couldNotSchedule'));
     } finally {
       setBusy(false);
     }
@@ -63,7 +65,7 @@ export function DeleteAccountCard() {
       await api.delete('/v1/me/erase-request');
       setState(null);
     } catch {
-      setError('Could not cancel the deletion. Try again.');
+      setError(t('couldNotCancel'));
     } finally {
       setBusy(false);
     }
@@ -73,21 +75,21 @@ export function DeleteAccountCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Delete account</CardTitle>
+          <CardTitle className="text-lg">{t('title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">{t('loading')}</p>
         </CardContent>
       </Card>
     );
   }
 
-  const pending = state && state.cancelledAt === null && state.completedAt === null;
+  const pending = state?.cancelledAt === null && state.completedAt === null;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Delete account</CardTitle>
+        <CardTitle className="text-lg">{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {error && (
@@ -99,39 +101,36 @@ export function DeleteAccountCard() {
           <>
             <Alert>
               <AlertDescription>
-                Your account is scheduled for deletion on{' '}
-                <strong>{new Date(state.executeAfter).toLocaleString()}</strong>. You can cancel
-                anytime before then.
+                {t.rich('pendingBody', {
+                  date: new Date(state.executeAfter).toLocaleString(),
+                  strong: (chunks) => <strong>{chunks}</strong>,
+                })}
               </AlertDescription>
             </Alert>
             <Button variant="outline" onClick={() => void cancel()} disabled={busy}>
               {busy && <Spinner />}
-              Cancel deletion
+              {t('cancelButton')}
             </Button>
           </>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground">
-              You can delete your account at any time. We&apos;ll keep a 7-day grace window so you
-              can undo from the confirmation email if you change your mind. After that, your data is
-              anonymized and uploaded photos are purged.
-            </p>
+            <p className="text-sm text-muted-foreground">{t('warning')}</p>
             {confirming ? (
               <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-                <p className="text-sm font-medium">This will schedule your account for deletion.</p>
+                <p className="text-sm font-medium">{t('confirmTitle')}</p>
                 <div className="flex gap-2">
                   <Button variant="destructive" onClick={() => void schedule()} disabled={busy}>
                     {busy && <Spinner />}
-                    Yes, schedule deletion
+                    {t('confirmYes')}
                   </Button>
                   <Button variant="outline" onClick={() => setConfirming(false)} disabled={busy}>
-                    Keep my account
+                    {t('confirmNo')}
                   </Button>
                 </div>
               </div>
             ) : (
               <Button variant="destructive" onClick={() => setConfirming(true)}>
-                Delete my account
+                {t('deleteButton')}
               </Button>
             )}
           </>

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import type { UnreadCountResponse } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -15,96 +16,86 @@ export default async function HomePage() {
   const { unread } = await serverApi<UnreadCountResponse>('/v1/notifications/unread-count').catch(
     () => ({ unread: 0 }),
   );
+
+  const t = await getTranslations('tenant.home');
+  const tChrome = await getTranslations('tenant.chrome');
+  const tiles = [
+    { key: 'leases', href: '/my-leases', variant: undefined },
+    { key: 'bills', href: '/my-bills', variant: undefined },
+    { key: 'tickets', href: '/my-tickets', variant: undefined },
+  ] as const;
+
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-6 py-10">
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold">{APP_NAME}</h1>
           <p className="text-muted-foreground">
-            Signed in as <strong>{session.user.displayName}</strong>.
+            {tChrome.rich('signedInAs', {
+              name: session.user.displayName,
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })}
           </p>
         </div>
         <NotificationBellLink initialUnread={unread} />
       </header>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>My leases</CardTitle>
-            <CardDescription>Current + past.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/my-leases">Open</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>My bills</CardTitle>
-            <CardDescription>Issued and paid.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/my-bills">Open</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>My tickets</CardTitle>
-            <CardDescription>Repairs and reports.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/my-tickets">Open</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        {tiles.map((tile) => (
+          <Card key={tile.key}>
+            <CardHeader>
+              <CardTitle>{t(`tiles.${tile.key}Title`)}</CardTitle>
+              <CardDescription>{t(`tiles.${tile.key}Description`)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href={tile.href}>{t('open')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>My ratings</CardTitle>
-          <CardDescription>See what landlords have said about you.</CardDescription>
+          <CardTitle>{t('tiles.ratingsTitle')}</CardTitle>
+          <CardDescription>{t('tiles.ratingsDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href="/me/ratings">Open</Link>
+            <Link href="/me/ratings">{t('open')}</Link>
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Browse listings</CardTitle>
-          <CardDescription>Find your next place.</CardDescription>
+          <CardTitle>{t('tiles.browseTitle')}</CardTitle>
+          <CardDescription>{t('tiles.browseDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline">
-            <Link href="/browse">Open</Link>
+            <Link href="/browse">{t('open')}</Link>
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>My applications</CardTitle>
-          <CardDescription>Track listings you&apos;ve applied to.</CardDescription>
+          <CardTitle>{t('tiles.applicationsTitle')}</CardTitle>
+          <CardDescription>{t('tiles.applicationsDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline">
-            <Link href="/me/applications">Open</Link>
+            <Link href="/me/applications">{t('open')}</Link>
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>Online payments land in upcoming phases.</CardDescription>
+          <CardTitle className="text-lg">{t('tiles.comingSoonTitle')}</CardTitle>
+          <CardDescription>{t('tiles.comingSoonDescription')}</CardDescription>
         </CardHeader>
       </Card>
     </main>

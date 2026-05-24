@@ -1,4 +1,4 @@
-import { getLocaleFromRequest, getMessagesFor } from '@repo/i18n';
+import { getLocaleFromRequest, getMessagesFor } from '@repo/i18n/server';
 import { getRequestConfig } from 'next-intl/server';
 
 /**

@@ -4,7 +4,9 @@ import type { AbstractIntlMessages } from 'next-intl';
 
 import { LOCALE_COOKIE, type Locale, defaultLocale, isLocale } from './config';
 import enCommon from './messages/en/common.json';
+import enTenant from './messages/en/tenant.json';
 import viCommon from './messages/vi/common.json';
+import viTenant from './messages/vi/tenant.json';
 
 /**
  * Phase 11 — server-side locale detection.
@@ -36,9 +38,16 @@ export async function getLocaleFromRequest(): Promise<Locale> {
   return defaultLocale;
 }
 
+/**
+ * Catalogs bundled into the loader, keyed by `<locale>.<namespace>`.
+ * Per-app namespaces are added here so all four PWAs hit one canonical
+ * tree — `useTranslations('tenant.account')` etc. Bundle impact is
+ * tiny (JSON, no code), and routing-by-namespace stays a presentation
+ * concern at the call-site.
+ */
 const messageCatalogs: Record<Locale, AbstractIntlMessages> = {
-  en: { common: enCommon },
-  vi: { common: viCommon },
+  en: { common: enCommon, tenant: enTenant },
+  vi: { common: viCommon, tenant: viTenant },
 };
 
 /**

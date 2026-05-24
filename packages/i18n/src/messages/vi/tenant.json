@@ -1,0 +1,83 @@
+{
+  "appDescription": "BDS Người thuê — xem hóa đơn, thanh toán, báo sửa chữa, đánh giá.",
+  "chrome": {
+    "signedInAs": "Đã đăng nhập với tên <strong>{name}</strong>.",
+    "notificationsAria": "Thông báo",
+    "notificationsAriaUnread": "Thông báo, {count} chưa đọc"
+  },
+  "login": {
+    "title": "Đăng nhập",
+    "subtitle": "Đăng nhập để tiếp tục.",
+    "browsePrefix": "Chỉ ghé xem?",
+    "browseLink": "Xem danh sách",
+    "browseSuffix": "mà không cần tài khoản.",
+    "failedTitle": "Đăng nhập thất bại",
+    "form": {
+      "emailLabel": "Email",
+      "emailDescription": "Chúng tôi sẽ gửi mã 6 chữ số tới email của bạn.",
+      "sendCode": "Gửi mã",
+      "couldNotSend": "Không thể gửi mã.",
+      "codeSentTo": "Đã gửi mã tới <strong>{email}</strong>.",
+      "change": "Đổi",
+      "codeLabel": "Mã 6 chữ số",
+      "verify": "Xác minh & đăng nhập",
+      "invalidCode": "Mã không hợp lệ."
+    }
+  },
+  "home": {
+    "tiles": {
+      "leasesTitle": "Hợp đồng thuê",
+      "leasesDescription": "Hiện tại và đã qua.",
+      "billsTitle": "Hóa đơn",
+      "billsDescription": "Đã phát hành và đã thanh toán.",
+      "ticketsTitle": "Yêu cầu",
+      "ticketsDescription": "Sửa chữa và báo cáo.",
+      "ratingsTitle": "Đánh giá của tôi",
+      "ratingsDescription": "Xem các chủ nhà đã đánh giá bạn ra sao.",
+      "browseTitle": "Tìm phòng",
+      "browseDescription": "Tìm chỗ ở tiếp theo của bạn.",
+      "applicationsTitle": "Đơn đăng ký",
+      "applicationsDescription": "Theo dõi các tin bạn đã đăng ký thuê.",
+      "comingSoonTitle": "Sắp ra mắt",
+      "comingSoonDescription": "Thanh toán trực tuyến sẽ có ở các giai đoạn tới."
+    },
+    "open": "Mở"
+  },
+  "account": {
+    "metadataTitle": "Tài khoản",
+    "title": "Tài khoản",
+    "subtitle": "Quản lý cài đặt tài khoản của bạn.",
+    "delete": {
+      "title": "Xóa tài khoản",
+      "loading": "Đang tải…",
+      "pendingBody": "Tài khoản của bạn được lên lịch xóa vào <strong>{date}</strong>. Bạn có thể hủy bất cứ lúc nào trước đó.",
+      "cancelButton": "Hủy xóa",
+      "warning": "Bạn có thể xóa tài khoản bất cứ lúc nào. Chúng tôi giữ 7 ngày để bạn có thể hoàn tác qua email xác nhận nếu đổi ý. Sau đó, dữ liệu của bạn sẽ được ẩn danh và ảnh đã tải lên sẽ bị xóa.",
+      "confirmTitle": "Hành động này sẽ lên lịch xóa tài khoản của bạn.",
+      "confirmYes": "Có, lên lịch xóa",
+      "confirmNo": "Giữ tài khoản",
+      "deleteButton": "Xóa tài khoản",
+      "couldNotSchedule": "Không thể lên lịch xóa.",
+      "couldNotCancel": "Không thể hủy xóa. Vui lòng thử lại."
+    }
+  },
+  "forbidden": {
+    "title": "Truy cập bị từ chối",
+    "description": "Bạn đã đăng nhập, nhưng tài khoản này không có quyền {role} cần thiết để dùng {appName}.",
+    "signInDifferent": "Đăng nhập bằng tài khoản khác"
+  },
+  "offline": {
+    "title": "Bạn đang ngoại tuyến",
+    "description": "Chúng tôi không thể kết nối mạng. Một số trang đã lưu có thể vẫn xem được; nếu không, hãy kiểm tra kết nối và thử lại.",
+    "retry": "Thử lại"
+  },
+  "eraseCancel": {
+    "metadataTitle": "Hủy xóa tài khoản",
+    "noToken": "Không có mã trong liên kết",
+    "noTokenBody": "Trang này cần mã một lần từ email xác nhận. Mở email và bấm trực tiếp vào liên kết hoàn tác.",
+    "ok": "Đã hủy xóa",
+    "okBody": "Yêu cầu xóa tài khoản của bạn đã được hủy. Không cần làm thêm bước nào — bạn có thể đóng tab này.",
+    "fail": "Không thể hủy",
+    "fallback": "Không thể hủy xóa. Vui lòng thử lại hoặc liên hệ hỗ trợ."
+  }
+}

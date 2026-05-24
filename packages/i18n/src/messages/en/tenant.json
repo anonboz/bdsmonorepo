@@ -1,0 +1,83 @@
+{
+  "appDescription": "BDS Tenant — view bills, pay, raise repairs, leave feedback.",
+  "chrome": {
+    "signedInAs": "Signed in as <strong>{name}</strong>.",
+    "notificationsAria": "Notifications",
+    "notificationsAriaUnread": "Notifications, {count} unread"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Sign in to continue.",
+    "browsePrefix": "Just looking?",
+    "browseLink": "Browse listings",
+    "browseSuffix": "without an account.",
+    "failedTitle": "Sign-in failed",
+    "form": {
+      "emailLabel": "Email",
+      "emailDescription": "We'll email you a 6-digit code.",
+      "sendCode": "Send code",
+      "couldNotSend": "Could not send code.",
+      "codeSentTo": "Code sent to <strong>{email}</strong>.",
+      "change": "Change",
+      "codeLabel": "6-digit code",
+      "verify": "Verify & sign in",
+      "invalidCode": "Invalid code."
+    }
+  },
+  "home": {
+    "tiles": {
+      "leasesTitle": "My leases",
+      "leasesDescription": "Current + past.",
+      "billsTitle": "My bills",
+      "billsDescription": "Issued and paid.",
+      "ticketsTitle": "My tickets",
+      "ticketsDescription": "Repairs and reports.",
+      "ratingsTitle": "My ratings",
+      "ratingsDescription": "See what landlords have said about you.",
+      "browseTitle": "Browse listings",
+      "browseDescription": "Find your next place.",
+      "applicationsTitle": "My applications",
+      "applicationsDescription": "Track listings you've applied to.",
+      "comingSoonTitle": "Coming soon",
+      "comingSoonDescription": "Online payments land in upcoming phases."
+    },
+    "open": "Open"
+  },
+  "account": {
+    "metadataTitle": "Account",
+    "title": "Account",
+    "subtitle": "Manage your account settings.",
+    "delete": {
+      "title": "Delete account",
+      "loading": "Loading…",
+      "pendingBody": "Your account is scheduled for deletion on <strong>{date}</strong>. You can cancel anytime before then.",
+      "cancelButton": "Cancel deletion",
+      "warning": "You can delete your account at any time. We'll keep a 7-day grace window so you can undo from the confirmation email if you change your mind. After that, your data is anonymized and uploaded photos are purged.",
+      "confirmTitle": "This will schedule your account for deletion.",
+      "confirmYes": "Yes, schedule deletion",
+      "confirmNo": "Keep my account",
+      "deleteButton": "Delete my account",
+      "couldNotSchedule": "Could not schedule deletion.",
+      "couldNotCancel": "Could not cancel the deletion. Try again."
+    }
+  },
+  "forbidden": {
+    "title": "Access denied",
+    "description": "You are signed in, but this account does not have the {role} role required to use {appName}.",
+    "signInDifferent": "Sign in with a different account"
+  },
+  "offline": {
+    "title": "You are offline",
+    "description": "We could not reach the network. Some cached pages may still be available; otherwise check your connection and try again.",
+    "retry": "Retry"
+  },
+  "eraseCancel": {
+    "metadataTitle": "Cancel account deletion",
+    "noToken": "No token in the link",
+    "noTokenBody": "This page expects a one-time token from the confirmation email. Open the email and click the undo link directly.",
+    "ok": "Deletion cancelled",
+    "okBody": "Your account deletion request has been cancelled. No further action is needed — you can close this tab.",
+    "fail": "Could not cancel",
+    "fallback": "We could not cancel the deletion. Try again or contact support."
+  }
+}

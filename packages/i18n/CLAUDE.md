@@ -44,6 +44,20 @@ stay inline.
 - Database content (campaign descriptions, ticket bodies). These are
   user-generated and stay in the language the author wrote them.
 
+## Entrypoints
+
+Two public surfaces, so a client component never accidentally drags
+`next/headers` into the browser bundle:
+
+- `@repo/i18n` — config, `LocaleSwitcher`, `I18nProvider`,
+  `localeMiddleware`, types. Safe in client + server components.
+- `@repo/i18n/server` — `getLocaleFromRequest`, `getMessagesFor`.
+  Server-only; importing into a client component is a webpack error
+  by design.
+
+Per-PWA `i18n.ts` (the next-intl request-config hook) is the canonical
+caller of the `/server` entrypoint.
+
 ## Layout
 
 ```
@@ -57,5 +71,5 @@ src/
 ├── messages/
 │   ├── en/<namespace>.json
 │   └── vi/<namespace>.json
-└── index.ts                   # barrel
+└── index.ts                   # client-safe barrel
 ```
