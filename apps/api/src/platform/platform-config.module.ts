@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
+import { AuditModule } from '../common/audit/audit.module.js';
 import { PlatformConfigService } from './platform-config.service.js';
 
 /**
@@ -10,6 +11,7 @@ import { PlatformConfigService } from './platform-config.service.js';
  */
 @Global()
 @Module({
+  imports: [AuditModule],
   providers: [PlatformConfigService],
   exports: [PlatformConfigService],
 })
