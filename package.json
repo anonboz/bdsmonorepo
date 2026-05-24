@@ -15,6 +15,7 @@
     "typecheck": "turbo run typecheck --concurrency=1",
     "test": "turbo run test --concurrency=1",
     "test:e2e": "pnpm --filter @repo/e2e test",
+    "e2e:setup": "node scripts/e2e-setup.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
     "clean": "turbo run clean && rimraf node_modules .turbo",
