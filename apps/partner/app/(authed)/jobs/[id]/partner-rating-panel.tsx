@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { JobRating, JobRatingsForJob } from '@repo/shared';
@@ -17,6 +18,7 @@ export function PartnerRatingPanel({
   jobId: string;
   initial: JobRatingsForJob;
 }) {
+  const t = useTranslations('partner.jobs.rating');
   const router = useRouter();
   const [own, setOwn] = useState<JobRating | null>(initial.partnerToOwner);
   const [score, setScore] = useState<number>(0);
@@ -27,7 +29,7 @@ export function PartnerRatingPanel({
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (score < 1) {
-      setError('Pick a score from 1 to 5.');
+      setError(t('pickScoreError'));
       return;
     }
     setBusy(true);
@@ -41,7 +43,7 @@ export function PartnerRatingPanel({
       setOwn(created);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Submit failed');
+      setError(err instanceof ApiError ? err.problem.title : t('submitFailed'));
     } finally {
       setBusy(false);
     }
@@ -51,7 +53,9 @@ export function PartnerRatingPanel({
     <div className="space-y-4">
       {own ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-sm font-medium text-emerald-900">You rated the owner {own.score}★</p>
+          <p className="text-sm font-medium text-emerald-900">
+            {t('ownPrefix', { score: own.score })}
+          </p>
           {own.comment && (
             <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-emerald-900">
               {own.comment}
@@ -62,13 +66,13 @@ export function PartnerRatingPanel({
         <form className="space-y-3" onSubmit={submit}>
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Rating failed</AlertTitle>
+              <AlertTitle>{t('failedTitle')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Rate the owner</legend>
-            <div className="flex gap-1" role="radiogroup" aria-label="Score 1-5">
+            <legend className="text-sm font-medium">{t('submitTitle')}</legend>
+            <div className="flex gap-1" role="radiogroup" aria-label={t('scoreAria')}>
               {STAR_VALUES.map((n) => (
                 <button
                   key={n}
@@ -90,13 +94,13 @@ export function PartnerRatingPanel({
           <Textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Comment (optional)"
+            placeholder={t('commentPlaceholder')}
             maxLength={2000}
             rows={3}
           />
           <Button type="submit" disabled={busy}>
             {busy && <Spinner />}
-            Submit rating
+            {t('submitButton')}
           </Button>
         </form>
       )}
@@ -104,7 +108,10 @@ export function PartnerRatingPanel({
       {initial.ownerToPartner && (
         <div className="rounded-md border bg-muted/30 p-3">
           <p className="text-sm font-medium">
-            {initial.ownerToPartner.raterName} rated you {initial.ownerToPartner.score}★
+            {t('otherRatedYou', {
+              name: initial.ownerToPartner.raterName,
+              score: initial.ownerToPartner.score,
+            })}
           </p>
           {initial.ownerToPartner.comment && (
             <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">

@@ -4,8 +4,10 @@ import type { AbstractIntlMessages } from 'next-intl';
 
 import { LOCALE_COOKIE, type Locale, defaultLocale, isLocale } from './config';
 import enCommon from './messages/en/common.json';
+import enPartner from './messages/en/partner.json';
 import enTenant from './messages/en/tenant.json';
 import viCommon from './messages/vi/common.json';
+import viPartner from './messages/vi/partner.json';
 import viTenant from './messages/vi/tenant.json';
 
 /**
@@ -46,8 +48,8 @@ export async function getLocaleFromRequest(): Promise<Locale> {
  * concern at the call-site.
  */
 const messageCatalogs: Record<Locale, AbstractIntlMessages> = {
-  en: { common: enCommon, tenant: enTenant },
-  vi: { common: viCommon, tenant: viTenant },
+  en: { common: enCommon, tenant: enTenant, partner: enPartner },
+  vi: { common: viCommon, tenant: viTenant, partner: viPartner },
 };
 
 /**

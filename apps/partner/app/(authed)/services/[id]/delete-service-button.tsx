@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { Button, Spinner } from '@repo/ui';
@@ -14,12 +15,14 @@ export function DeleteServiceButton({
   serviceId: string;
   serviceName: string;
 }) {
+  const t = useTranslations('partner.services');
+  const tDel = useTranslations('partner.services.delete');
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handle() {
-    if (!window.confirm(`Delete service "${serviceName}"? This cannot be undone.`)) return;
+    if (!window.confirm(tDel('confirm', { name: serviceName }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -27,7 +30,7 @@ export function DeleteServiceButton({
       router.push('/services');
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Delete failed.');
+      setError(err instanceof ApiError ? err.problem.title : tDel('failed'));
       setBusy(false);
     }
   }
@@ -36,7 +39,7 @@ export function DeleteServiceButton({
     <div className="flex flex-col items-end gap-1">
       <Button variant="destructive" disabled={busy} onClick={handle}>
         {busy && <Spinner />}
-        Delete
+        {t('detail.deleteButton')}
       </Button>
       {error && (
         <p className="text-xs text-destructive" role="alert">

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import type { ListNotificationPreferencesResponse, NotificationPreference } from '@repo/shared';
@@ -7,19 +8,13 @@ import { Alert, AlertDescription, Card, CardContent, CardHeader, CardTitle } fro
 
 import { api } from '../../../../lib/api';
 
-const PARTNER_TOPICS: readonly {
-  topic: NotificationPreference['topic'];
-  label: string;
-  help: string;
-}[] = [
-  {
-    topic: 'payout.disbursed',
-    label: 'Payout disbursed',
-    help: 'Email when an admin disburses a payout to you.',
-  },
+const PARTNER_TOPICS: readonly { topic: NotificationPreference['topic']; key: string }[] = [
+  { topic: 'payout.disbursed', key: 'payout.disbursed' },
 ];
 
 export function PreferencesCard() {
+  const t = useTranslations('partner.notifications.prefs');
+  const tTopic = useTranslations('partner.notifications.prefs.topics');
   const [muted, setMuted] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -46,7 +41,7 @@ export function PreferencesCard() {
       await api.put(`/v1/notifications/preferences/${topic}`, { muted: next });
     } catch {
       setMuted((cur) => ({ ...cur, [topic]: previous }));
-      setError(`Could not update "${topic}". Try again.`);
+      setError(t('updateFailed', { topic }));
     } finally {
       setBusy(null);
     }
@@ -55,7 +50,7 @@ export function PreferencesCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Notification preferences</CardTitle>
+        <CardTitle className="text-lg">{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {error && (
@@ -64,23 +59,23 @@ export function PreferencesCard() {
           </Alert>
         )}
         <ul className="divide-y">
-          {PARTNER_TOPICS.map((t) => {
-            const isMuted = muted[t.topic] ?? false;
+          {PARTNER_TOPICS.map((row) => {
+            const isMuted = muted[row.topic] ?? false;
             return (
-              <li key={t.topic} className="flex items-start justify-between gap-3 py-3">
+              <li key={row.topic} className="flex items-start justify-between gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{t.label}</p>
-                  <p className="text-xs text-muted-foreground">{t.help}</p>
+                  <p className="text-sm font-medium">{tTopic(`${row.key}.label`)}</p>
+                  <p className="text-xs text-muted-foreground">{tTopic(`${row.key}.help`)}</p>
                 </div>
                 <label className="flex flex-none items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={!isMuted}
-                    disabled={busy === t.topic}
-                    onChange={(e) => void toggle(t.topic, !e.currentTarget.checked)}
+                    disabled={busy === row.topic}
+                    onChange={(e) => void toggle(row.topic, !e.currentTarget.checked)}
                     className="h-4 w-4"
                   />
-                  <span className="text-muted-foreground">{isMuted ? 'Muted' : 'On'}</span>
+                  <span className="text-muted-foreground">{isMuted ? t('muted') : t('on')}</span>
                 </label>
               </li>
             );

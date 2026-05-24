@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { CreateMediaUploadResponse, MediaAsset, ServiceJob } from '@repo/shared';
@@ -35,6 +36,7 @@ type Action = 'quote' | 'start' | 'complete' | 'cancel';
  * server so misclicks return a clean 422.
  */
 export function JobActions({ job }: { job: ServiceJob }) {
+  const t = useTranslations('partner.jobs.actions');
   const router = useRouter();
   const [busy, setBusy] = useState<Action | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function JobActions({ job }: { job: ServiceJob }) {
       await api.post<ServiceJob>(`/v1/me/jobs/${job.id}/${action}`, body ?? {});
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : `${action} failed`);
+      setError(err instanceof ApiError ? err.problem.title : t('actionFailed', { action }));
     } finally {
       setBusy(null);
     }
@@ -59,7 +61,7 @@ export function JobActions({ job }: { job: ServiceJob }) {
   async function quote(): Promise<void> {
     const n = Number(amount);
     if (!Number.isFinite(n) || n < 0) {
-      setError('Enter a non-negative amount.');
+      setError(t('enterAmountError'));
       return;
     }
     await call('quote', { amount: n, currency });
@@ -70,7 +72,7 @@ export function JobActions({ job }: { job: ServiceJob }) {
   }
 
   async function cancel(): Promise<void> {
-    const reason = window.prompt('Reason for cancelling? (visible to the owner)');
+    const reason = window.prompt(t('cancelPrompt'));
     if (!reason?.trim()) return;
     await call('cancel', { reason: reason.trim() });
   }
@@ -85,33 +87,33 @@ export function JobActions({ job }: { job: ServiceJob }) {
     <div className="space-y-4">
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Action failed</AlertTitle>
+          <AlertTitle>{t('failedTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {job.status === 'REQUESTED' && (
         <div className="space-y-2">
-          <p className="text-sm font-semibold">Send a quote</p>
+          <p className="text-sm font-semibold">{t('sendQuoteTitle')}</p>
           <div className="grid grid-cols-3 gap-2">
             <Input
               type="number"
               min={0}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="Amount (minor units)"
+              placeholder={t('amountPlaceholder')}
               className="col-span-2"
             />
             <Input
               maxLength={3}
               value={currency}
               onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              placeholder="VND"
+              placeholder={t('currencyPlaceholder')}
             />
           </div>
           <Button onClick={quote} disabled={busy != null}>
             {busy === 'quote' && <Spinner />}
-            Send quote
+            {t('sendQuoteButton')}
           </Button>
         </div>
       )}
@@ -119,16 +121,14 @@ export function JobActions({ job }: { job: ServiceJob }) {
       {job.status === 'ACCEPTED' && (
         <Button onClick={() => call('start')} disabled={busy != null}>
           {busy === 'start' && <Spinner />}
-          Start work
+          {t('startButton')}
         </Button>
       )}
 
       {job.status === 'IN_PROGRESS' && (
         <div className="space-y-2">
-          <p className="text-sm font-semibold">Mark complete</p>
-          <p className="text-xs text-muted-foreground">
-            Optional proof photos (up to 10). Uploaded directly to our storage.
-          </p>
+          <p className="text-sm font-semibold">{t('markCompleteTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('proofHint')}</p>
           <MediaUploader
             purpose="JOB_PROOF"
             maxFiles={10}
@@ -138,7 +138,7 @@ export function JobActions({ job }: { job: ServiceJob }) {
           />
           <Button onClick={complete} disabled={busy != null || uploaderBusy}>
             {busy === 'complete' && <Spinner />}
-            Mark complete
+            {t('markCompleteButton')}
           </Button>
         </div>
       )}
@@ -146,12 +146,12 @@ export function JobActions({ job }: { job: ServiceJob }) {
       {canCancel && (
         <Button variant="destructive" onClick={cancel} disabled={busy != null}>
           {busy === 'cancel' && <Spinner />}
-          Cancel
+          {t('cancelButton')}
         </Button>
       )}
 
       {(job.status === 'COMPLETED' || job.status === 'RATED' || job.status === 'CANCELLED') && (
-        <p className="text-sm text-muted-foreground">No further partner actions.</p>
+        <p className="text-sm text-muted-foreground">{t('noFurtherActions')}</p>
       )}
     </div>
   );

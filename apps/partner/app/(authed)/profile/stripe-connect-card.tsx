@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { PartnerProfile, StartStripeOnboardingResponse } from '@repo/shared';
@@ -23,11 +24,9 @@ import { ApiError, api } from '../../../lib/api';
  *   - NOT_STARTED / ONBOARDING → "Connect with Stripe" button
  *   - ACTIVE → green badge + onboarded-on date
  *   - RESTRICTED → red badge + "Re-onboard" button
- *
- * Clicking the button POSTs to `/v1/me/partner-profile/stripe-onboarding`,
- * then redirects the browser to Stripe's hosted onboarding URL.
  */
 export function StripeConnectCard({ profile }: { profile: PartnerProfile }) {
+  const t = useTranslations('partner.profile.stripe');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const status = profile.stripeConnectStatus;
@@ -42,26 +41,29 @@ export function StripeConnectCard({ profile }: { profile: PartnerProfile }) {
       window.location.href = res.url;
     } catch (err) {
       const message =
-        err instanceof ApiError ? (err.problem.detail ?? err.problem.title) : 'Unexpected error';
+        err instanceof ApiError ? (err.problem.detail ?? err.problem.title) : t('unexpectedError');
       setError(message);
       setBusy(false);
     }
   }
 
   if (status === 'ACTIVE') {
+    const date = profile.stripeConnectOnboardedAt
+      ? new Date(profile.stripeConnectOnboardedAt).toLocaleDateString()
+      : t('activeFallbackDate');
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Payouts via Stripe</CardTitle>
+          <CardTitle className="text-lg">{t('title')}</CardTitle>
           <CardDescription>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">
-              ● Active
-            </span>{' '}
-            since{' '}
-            {profile.stripeConnectOnboardedAt
-              ? new Date(profile.stripeConnectOnboardedAt).toLocaleDateString()
-              : '—'}
-            . Admins can disburse your payouts to your Stripe-held balance.
+            {t.rich('activeBody', {
+              active: () => (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">
+                  ● {t('active')}
+                </span>
+              ),
+              date,
+            })}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -72,12 +74,15 @@ export function StripeConnectCard({ profile }: { profile: PartnerProfile }) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Payouts via Stripe</CardTitle>
+          <CardTitle className="text-lg">{t('title')}</CardTitle>
           <CardDescription>
-            <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-900">
-              ● Restricted
-            </span>{' '}
-            Stripe has paused payouts on your account. Re-onboard to resolve.
+            {t.rich('restrictedBody', {
+              restricted: () => (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-900">
+                  ● {t('restricted')}
+                </span>
+              ),
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -87,7 +92,7 @@ export function StripeConnectCard({ profile }: { profile: PartnerProfile }) {
             </Alert>
           )}
           <Button onClick={handleStart} disabled={busy}>
-            {busy ? 'Redirecting…' : 'Re-onboard with Stripe'}
+            {busy ? t('redirecting') : t('reonboardButton')}
           </Button>
         </CardContent>
       </Card>
@@ -98,11 +103,9 @@ export function StripeConnectCard({ profile }: { profile: PartnerProfile }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Payouts via Stripe</CardTitle>
+        <CardTitle className="text-lg">{t('title')}</CardTitle>
         <CardDescription>
-          {status === 'ONBOARDING'
-            ? 'Onboarding in progress. Pick up where you left off — Stripe remembers your progress.'
-            : 'Get paid into your own Stripe-managed bank account. Onboarding is a few minutes and handles KYC for you.'}
+          {status === 'ONBOARDING' ? t('onboardingBody') : t('notStartedBody')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -112,7 +115,7 @@ export function StripeConnectCard({ profile }: { profile: PartnerProfile }) {
           </Alert>
         )}
         <Button onClick={handleStart} disabled={busy}>
-          {busy ? 'Redirecting…' : 'Connect with Stripe'}
+          {busy ? t('redirecting') : t('connectButton')}
         </Button>
       </CardContent>
     </Card>

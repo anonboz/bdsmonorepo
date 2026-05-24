@@ -1,0 +1,247 @@
+{
+  "appDescription": "BDS Partner — receive jobs, send quotes, and track payouts.",
+  "chrome": {
+    "signedInAs": "Signed in as <strong>{name}</strong>.",
+    "notificationsAria": "Notifications",
+    "notificationsAriaUnread": "Notifications, {count} unread",
+    "back": "← Back",
+    "cancel": "Cancel"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Sign in to continue.",
+    "failedTitle": "Sign-in failed",
+    "form": {
+      "emailLabel": "Email",
+      "emailDescription": "We'll email you a 6-digit code.",
+      "sendCode": "Send code",
+      "couldNotSend": "Could not send code.",
+      "codeSentTo": "Code sent to <strong>{email}</strong>.",
+      "change": "Change",
+      "codeLabel": "6-digit code",
+      "verify": "Verify & sign in",
+      "invalidCode": "Invalid code."
+    }
+  },
+  "home": {
+    "tiles": {
+      "profileTitle": "Profile",
+      "profileDescription": "How owners see you.",
+      "servicesTitle": "Services",
+      "servicesDescription": "Manage your catalog + pricing.",
+      "jobsTitle": "Jobs",
+      "jobsDescription": "Incoming requests + in-flight work.",
+      "payoutsTitle": "Payouts",
+      "payoutsDescription": "Held + released balances.",
+      "comingSoonTitle": "Coming soon",
+      "comingSoonDescription": "Ratings land in the next Phase 5 slice."
+    },
+    "open": "Open"
+  },
+  "forbidden": {
+    "title": "Access denied",
+    "description": "You are signed in, but this account does not have the {role} role required to use {appName}.",
+    "signInDifferent": "Sign in with a different account"
+  },
+  "offline": {
+    "title": "You are offline",
+    "description": "We could not reach the network. Some cached pages may still be available; otherwise check your connection and try again.",
+    "retry": "Retry"
+  },
+  "statuses": {
+    "jobs": {
+      "REQUESTED": "requested",
+      "QUOTED": "quoted",
+      "ACCEPTED": "accepted",
+      "IN_PROGRESS": "in progress",
+      "COMPLETED": "completed",
+      "RATED": "rated",
+      "CANCELLED": "cancelled"
+    },
+    "payouts": {
+      "PENDING": "pending",
+      "HELD": "held",
+      "RELEASED": "released",
+      "DISBURSED": "disbursed"
+    }
+  },
+  "jobs": {
+    "metadataTitle": "Jobs",
+    "listTitle": "Jobs",
+    "summaryEmpty": "No jobs yet.",
+    "summaryCount": "{count, plural, =0 {No jobs yet.} other {{count} on record.}}",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "Owners book you from the partner directory. Make sure your profile is published.",
+    "directBooking": "Direct booking",
+    "noDescriptionDash": "—",
+    "requestedAt": "Requested {date}",
+    "back": "← Back to jobs",
+    "detail": {
+      "subtitleRequested": "requested {date}",
+      "subtitleQuoted": "quoted {amount}",
+      "cancelledTitle": "Cancelled",
+      "cancelledReasonPrefix": "Reason: {reason}",
+      "requestTitle": "Request",
+      "requestDescription": "From the owner.",
+      "noDescription": "No description provided.",
+      "actionsTitle": "Actions",
+      "proofTitle": "Proof of work",
+      "ratingTitle": "Rating",
+      "ratingDescription": "How was working with this owner?"
+    },
+    "actions": {
+      "failedTitle": "Action failed",
+      "actionFailed": "{action} failed",
+      "sendQuoteTitle": "Send a quote",
+      "amountPlaceholder": "Amount (minor units)",
+      "currencyPlaceholder": "VND",
+      "sendQuoteButton": "Send quote",
+      "enterAmountError": "Enter a non-negative amount.",
+      "startButton": "Start work",
+      "markCompleteTitle": "Mark complete",
+      "proofHint": "Optional proof photos (up to 10). Uploaded directly to our storage.",
+      "markCompleteButton": "Mark complete",
+      "cancelButton": "Cancel",
+      "cancelPrompt": "Reason for cancelling? (visible to the owner)",
+      "noFurtherActions": "No further partner actions."
+    },
+    "rating": {
+      "ownPrefix": "You rated the owner {score}★",
+      "submitTitle": "Rate the owner",
+      "scoreAria": "Score 1-5",
+      "commentPlaceholder": "Comment (optional)",
+      "submitButton": "Submit rating",
+      "failedTitle": "Rating failed",
+      "submitFailed": "Submit failed",
+      "pickScoreError": "Pick a score from 1 to 5.",
+      "otherRatedYou": "{name} rated you {score}★"
+    }
+  },
+  "services": {
+    "metadataTitle": "Services",
+    "listTitle": "Services",
+    "newButton": "New service",
+    "summaryNoProfile": "Publish a profile first to start listing services.",
+    "summaryEmpty": "No services yet.",
+    "summaryCount": "{count, plural, other {{count} listed.}}",
+    "profileRequiredTitle": "Profile required",
+    "profileRequiredPrefix": "",
+    "profileRequiredLink": "Publish your partner profile",
+    "profileRequiredSuffix": " before adding services.",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "Add a service and set a base price.",
+    "metaLine": "{price} · {state}",
+    "stateActive": "active",
+    "stateInactive": "inactive",
+    "back": "← Back to services",
+    "detail": {
+      "editButton": "Edit",
+      "deleteButton": "Delete",
+      "descriptionTitle": "Description",
+      "bookingsTitle": "Bookings",
+      "bookingsDescription": "Direct booking + ticket-routed jobs land in 5.2."
+    },
+    "delete": {
+      "confirm": "Delete service \"{name}\"? This cannot be undone.",
+      "failed": "Delete failed."
+    },
+    "form": {
+      "couldNotSave": "Could not save service.",
+      "couldNotSaveTitle": "Could not save",
+      "nameLabel": "Name",
+      "namePlaceholder": "Plumbing — 1h call-out",
+      "descriptionLabel": "Description",
+      "descriptionDescription": "What's included, what's not.",
+      "basePriceLabel": "Base price (minor units)",
+      "basePriceDescription": "e.g. 50000 = ₫50,000.",
+      "currencyLabel": "Currency",
+      "activeLabel": "Active — show to owners on the public listing.",
+      "createButton": "Create service",
+      "saveButton": "Save changes",
+      "cancelButton": "Cancel",
+      "newMetadataTitle": "New service",
+      "newTitle": "New service",
+      "editMetadataTitle": "Edit service",
+      "editTitle": "Edit service",
+      "backToService": "← Back to service"
+    }
+  },
+  "profile": {
+    "metadataTitle": "Partner profile",
+    "title": "Partner profile",
+    "subtitle": "What owners see when they browse the partner directory. Publish it to start listing services.",
+    "businessTitle": "Business",
+    "lastUpdated": "Last updated {date}.",
+    "noProfile": "No profile yet — fill in the form to publish one.",
+    "form": {
+      "couldNotSave": "Could not save profile.",
+      "couldNotSaveTitle": "Could not save",
+      "savedTitle": "Saved",
+      "savedBody": "Your profile is up to date.",
+      "businessNameLabel": "Business name",
+      "businessNamePlaceholder": "Bob's Plumbing",
+      "bioLabel": "Bio",
+      "bioDescription": "What you do, years of experience, anything an owner should know.",
+      "serviceAreaLabel": "Service area",
+      "serviceAreaDescription": "Cities or districts you cover. Free-form for now.",
+      "serviceAreaPlaceholder": "Hanoi, Hai Ba Trung",
+      "publishButton": "Publish profile",
+      "saveButton": "Save changes"
+    },
+    "stripe": {
+      "title": "Payouts via Stripe",
+      "active": "Active",
+      "restricted": "Restricted",
+      "activeBody": "<active /> since {date}. Admins can disburse your payouts to your Stripe-held balance.",
+      "activeFallbackDate": "—",
+      "restrictedBody": "<restricted /> Stripe has paused payouts on your account. Re-onboard to resolve.",
+      "onboardingBody": "Onboarding in progress. Pick up where you left off — Stripe remembers your progress.",
+      "notStartedBody": "Get paid into your own Stripe-managed bank account. Onboarding is a few minutes and handles KYC for you.",
+      "connectButton": "Connect with Stripe",
+      "reonboardButton": "Re-onboard with Stripe",
+      "redirecting": "Redirecting…",
+      "unexpectedError": "Unexpected error"
+    },
+    "language": {
+      "title": "Language"
+    }
+  },
+  "payouts": {
+    "metadataTitle": "Payouts",
+    "title": "Payouts",
+    "subtitle": "Your share of completed jobs. Released amounts cleared the 3-day cooldown; disbursed rows landed in your bank — match against your statement using the reference.",
+    "summaryHeld": "Held",
+    "summaryReleased": "Released",
+    "summaryDisbursed": "Disbursed",
+    "summaryEmpty": "—",
+    "emptyTitle": "No payouts yet",
+    "emptyDescription": "Complete a job to earn your first.",
+    "table": {
+      "job": "Job",
+      "amount": "Amount",
+      "status": "Status",
+      "when": "When",
+      "reference": "Reference",
+      "noReference": "—"
+    }
+  },
+  "notifications": {
+    "metadataTitle": "Notifications",
+    "title": "Notifications",
+    "subtitle": "Updates about your jobs and payouts.",
+    "unreadCount": "{count, plural, =0 {All caught up} other {{count} unread}}",
+    "markAll": "Mark all as read",
+    "prefs": {
+      "title": "Notification preferences",
+      "muted": "Muted",
+      "on": "On",
+      "updateFailed": "Could not update \"{topic}\". Try again.",
+      "topics": {
+        "payout.disbursed": {
+          "label": "Payout disbursed",
+          "help": "Email when an admin disburses a payout to you."
+        }
+      }
+    }
+  }
+}

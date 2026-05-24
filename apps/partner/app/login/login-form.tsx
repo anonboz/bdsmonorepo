@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
@@ -27,6 +28,7 @@ type VerifyForm = z.infer<typeof verifyOtpSchema>;
 type Step = { kind: 'request' } | { kind: 'verify'; identifier: string };
 
 export function LoginForm() {
+  const t = useTranslations('partner.login');
   const [step, setStep] = useState<Step>({ kind: 'request' });
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +37,7 @@ export function LoginForm() {
       <CardContent className="space-y-4 pt-6">
         {error && (
           <Alert variant="destructive">
-            <AlertTitle>Sign-in failed</AlertTitle>
+            <AlertTitle>{t('failedTitle')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -69,6 +71,7 @@ function RequestStep({
   onSent: (identifier: string) => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('partner.login.form');
   const form = useForm<RequestForm>({
     resolver: zodResolver(requestOtpSchema),
     defaultValues: { identifier: '' },
@@ -85,15 +88,15 @@ function RequestStep({
           });
           onSent(values.identifier);
         } catch (err) {
-          onError(err instanceof ApiError ? err.problem.title : 'Could not send code.');
+          onError(err instanceof ApiError ? err.problem.title : t('couldNotSend'));
         }
       })}
     >
       <FormField
-        label="Email"
+        label={t('emailLabel')}
         htmlFor="identifier"
         error={form.formState.errors.identifier}
-        description="We'll email you a 6-digit code."
+        description={t('emailDescription')}
       >
         <Input
           id="identifier"
@@ -105,7 +108,7 @@ function RequestStep({
       </FormField>
       <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
         {form.formState.isSubmitting && <Spinner />}
-        Send code
+        {t('sendCode')}
       </Button>
     </form>
   );
@@ -120,6 +123,7 @@ function VerifyStep({
   onChangeIdentifier: () => void;
   onError: (msg: string) => void;
 }) {
+  const t = useTranslations('partner.login.form');
   const form = useForm<VerifyForm>({
     resolver: zodResolver(verifyOtpSchema),
     defaultValues: { identifier, code: '' },
@@ -136,17 +140,20 @@ function VerifyStep({
           });
           window.location.assign(POST_LOGIN_PATH);
         } catch (err) {
-          onError(err instanceof ApiError ? err.problem.title : 'Invalid code.');
+          onError(err instanceof ApiError ? err.problem.title : t('invalidCode'));
         }
       })}
     >
       <p className="text-sm text-muted-foreground">
-        Code sent to <strong>{identifier}</strong>.{' '}
+        {t.rich('codeSentTo', {
+          email: identifier,
+          strong: (chunks) => <strong>{chunks}</strong>,
+        })}{' '}
         <button type="button" className="underline" onClick={onChangeIdentifier}>
-          Change
+          {t('change')}
         </button>
       </p>
-      <FormField label="6-digit code" htmlFor="code" error={form.formState.errors.code}>
+      <FormField label={t('codeLabel')} htmlFor="code" error={form.formState.errors.code}>
         <Input
           id="code"
           inputMode="numeric"
@@ -157,7 +164,7 @@ function VerifyStep({
       </FormField>
       <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
         {form.formState.isSubmitting && <Spinner />}
-        Verify & sign in
+        {t('verify')}
       </Button>
     </form>
   );

@@ -1,44 +1,52 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
+import { defaultLocale, type Locale } from '@repo/i18n';
 import type { PartnerProfile } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { LanguageCard } from './language-card';
 import { ProfileForm } from './profile-form';
 import { StripeConnectCard } from './stripe-connect-card';
 import { ApiError } from '../../../lib/api';
-import { serverApi } from '../../../lib/session';
+import { getSession, serverApi } from '../../../lib/session';
 
-export const metadata = { title: 'Partner profile' };
+export async function generateMetadata() {
+  const t = await getTranslations('partner.profile');
+  return { title: t('metadataTitle') };
+}
 
 export default async function PartnerProfilePage() {
-  const profile = await fetchProfile();
+  const [profile, session] = await Promise.all([fetchProfile(), getSession()]);
+  const t = await getTranslations('partner.profile');
+  const tChrome = await getTranslations('partner.chrome');
+  const currentLocale: Locale = session?.user.locale ?? defaultLocale;
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/">← Back</Link>
+          <Link href="/">{tChrome('back')}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold">Partner profile</h1>
-        <p className="text-sm text-muted-foreground">
-          What owners see when they browse the partner directory. Publish it to start listing
-          services.
-        </p>
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Business</CardTitle>
+          <CardTitle className="text-lg">{t('businessTitle')}</CardTitle>
           <CardDescription>
             {profile
-              ? `Last updated ${new Date(profile.updatedAt).toLocaleDateString()}.`
-              : 'No profile yet — fill in the form to publish one.'}
+              ? t('lastUpdated', { date: new Date(profile.updatedAt).toLocaleDateString() })
+              : t('noProfile')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <ProfileForm initial={profile} />
         </CardContent>
       </Card>
+
+      <LanguageCard current={currentLocale} />
 
       {profile && <StripeConnectCard profile={profile} />}
     </main>

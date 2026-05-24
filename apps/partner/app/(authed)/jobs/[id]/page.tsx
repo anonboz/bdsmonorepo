@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { JobRatingsForJob, JobStatus, ServiceJob } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -30,24 +32,17 @@ export default async function PartnerJobDetailPage({
   if (!job) notFound();
   const ratings = job.status === 'COMPLETED' ? await fetchRatings(id) : null;
 
+  const t = await getTranslations('partner.jobs');
+  const tDetail = await getTranslations('partner.jobs.detail');
+
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/jobs">← Back to jobs</Link>
+          <Link href="/jobs">{t('back')}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold">{job.serviceName ?? 'Direct booking'}</h1>
-        <p className="text-sm text-muted-foreground">
-          <span
-            className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[job.status]}`}
-          >
-            {job.status.toLowerCase().replace('_', ' ')}
-          </span>
-          · requested {formatDateTime(job.createdAt)}
-          {job.quotedAmount != null && job.currency
-            ? ` · quoted ${formatMoney(job.quotedAmount, job.currency)}`
-            : ''}
-        </p>
+        <h1 className="text-2xl font-semibold">{job.serviceName ?? t('directBooking')}</h1>
+        <StatusLine job={job} />
       </div>
 
       {job.cancelReason && (
@@ -55,28 +50,26 @@ export default async function PartnerJobDetailPage({
           className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-rose-900"
           role="status"
         >
-          <p className="text-sm font-semibold">Cancelled</p>
+          <p className="text-sm font-semibold">{tDetail('cancelledTitle')}</p>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
-            Reason: {job.cancelReason}
+            {tDetail('cancelledReasonPrefix', { reason: job.cancelReason })}
           </p>
         </div>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Request</CardTitle>
-          <CardDescription>From the owner.</CardDescription>
+          <CardTitle className="text-lg">{tDetail('requestTitle')}</CardTitle>
+          <CardDescription>{tDetail('requestDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">
-            {job.description ?? <em className="text-muted-foreground">No description provided.</em>}
-          </p>
+          <RequestBody description={job.description ?? null} />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Actions</CardTitle>
+          <CardTitle className="text-lg">{tDetail('actionsTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <JobActions job={job} />
@@ -86,7 +79,7 @@ export default async function PartnerJobDetailPage({
       {job.proofPhotos.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Proof of work</CardTitle>
+            <CardTitle className="text-lg">{tDetail('proofTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -102,8 +95,8 @@ export default async function PartnerJobDetailPage({
       {ratings && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Rating</CardTitle>
-            <CardDescription>How was working with this owner?</CardDescription>
+            <CardTitle className="text-lg">{tDetail('ratingTitle')}</CardTitle>
+            <CardDescription>{tDetail('ratingDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <PartnerRatingPanel jobId={job.id} initial={ratings} />
@@ -111,6 +104,34 @@ export default async function PartnerJobDetailPage({
         </Card>
       )}
     </main>
+  );
+}
+
+function StatusLine({ job }: { job: ServiceJob }) {
+  const tStatus = useTranslations('partner.statuses.jobs');
+  const tDetail = useTranslations('partner.jobs.detail');
+  return (
+    <p className="text-sm text-muted-foreground">
+      <span className={`mr-1 rounded-full px-2 py-0.5 text-xs font-medium ${PALETTE[job.status]}`}>
+        {tStatus(job.status)}
+      </span>
+      · {tDetail('subtitleRequested', { date: formatDateTime(job.createdAt) })}
+      {job.quotedAmount != null && job.currency
+        ? ` · ${tDetail('subtitleQuoted', { amount: formatMoney(job.quotedAmount, job.currency) })}`
+        : ''}
+    </p>
+  );
+}
+
+function RequestBody({ description }: { description: string | null }) {
+  const t = useTranslations('partner.jobs.detail');
+  if (description) {
+    return <p className="whitespace-pre-wrap text-sm leading-relaxed">{description}</p>;
+  }
+  return (
+    <p className="whitespace-pre-wrap text-sm leading-relaxed">
+      <em className="text-muted-foreground">{t('noDescription')}</em>
+    </p>
   );
 }
 

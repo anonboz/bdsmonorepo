@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import type { UnreadCountResponse } from '@repo/shared';
@@ -11,6 +12,7 @@ import { api } from '../../../lib/api';
 const POLL_MS = 60_000;
 
 export function NotificationBellLink({ initialUnread = 0 }: { initialUnread?: number }) {
+  const t = useTranslations('partner.chrome');
   const [unread, setUnread] = useState(initialUnread);
   useEffect(() => {
     let cancelled = false;
@@ -30,10 +32,13 @@ export function NotificationBellLink({ initialUnread = 0 }: { initialUnread?: nu
     };
   }, []);
 
+  const ariaLabel =
+    unread > 0 ? t('notificationsAriaUnread', { count: unread }) : t('notificationsAria');
+
   return (
     <Link
       href="/notifications"
-      aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ''}`}
+      aria-label={ariaLabel}
       className="text-foreground hover:text-foreground/80"
     >
       <NotificationBell unreadCount={unread} />

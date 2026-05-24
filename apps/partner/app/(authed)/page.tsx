@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import type { UnreadCountResponse } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -13,72 +14,51 @@ export default async function HomePage() {
   const { unread } = await serverApi<UnreadCountResponse>('/v1/notifications/unread-count').catch(
     () => ({ unread: 0 }),
   );
+  const t = await getTranslations('partner.home');
+  const tChrome = await getTranslations('partner.chrome');
+
+  const tiles = [
+    { key: 'profile', href: '/profile', variant: undefined },
+    { key: 'services', href: '/services', variant: undefined },
+    { key: 'jobs', href: '/jobs', variant: undefined },
+    { key: 'payouts', href: '/payouts', variant: 'outline' as const },
+  ];
+
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-6 py-10">
       <header className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold">{APP_NAME}</h1>
           <p className="text-muted-foreground">
-            Signed in as <strong>{session.user.displayName}</strong>.
+            {tChrome.rich('signedInAs', {
+              name: session.user.displayName,
+              strong: (chunks) => <strong>{chunks}</strong>,
+            })}
           </p>
         </div>
         <NotificationBellLink initialUnread={unread} />
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile</CardTitle>
-            <CardDescription>How owners see you.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/profile">Open</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Services</CardTitle>
-            <CardDescription>Manage your catalog + pricing.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/services">Open</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Jobs</CardTitle>
-            <CardDescription>Incoming requests + in-flight work.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/jobs">Open</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Payouts</CardTitle>
-            <CardDescription>Held + released balances.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline">
-              <Link href="/payouts">Open</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        {tiles.map((tile) => (
+          <Card key={tile.key}>
+            <CardHeader>
+              <CardTitle>{t(`tiles.${tile.key}Title`)}</CardTitle>
+              <CardDescription>{t(`tiles.${tile.key}Description`)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant={tile.variant}>
+                <Link href={tile.href}>{t('open')}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Coming soon</CardTitle>
-          <CardDescription>Ratings land in the next Phase 5 slice.</CardDescription>
+          <CardTitle className="text-lg">{t('tiles.comingSoonTitle')}</CardTitle>
+          <CardDescription>{t('tiles.comingSoonDescription')}</CardDescription>
         </CardHeader>
       </Card>
     </main>

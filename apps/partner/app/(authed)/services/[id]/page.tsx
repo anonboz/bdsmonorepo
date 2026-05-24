@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Service } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -14,23 +16,23 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
   const service = await fetchService(id);
   if (!service) notFound();
 
+  const t = await getTranslations('partner.services');
+  const tDetail = await getTranslations('partner.services.detail');
+
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/services">← Back to services</Link>
+          <Link href="/services">{t('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{service.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {formatMoney(service.basePrice, service.currency)} ·{' '}
-              {service.isActive ? 'active' : 'inactive'}
-            </p>
+            <MetaLine service={service} />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-              <Link href={`/services/${service.id}/edit`}>Edit</Link>
+              <Link href={`/services/${service.id}/edit`}>{tDetail('editButton')}</Link>
             </Button>
             <DeleteServiceButton serviceId={service.id} serviceName={service.name} />
           </div>
@@ -40,7 +42,7 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
       {service.description && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Description</CardTitle>
+            <CardTitle className="text-lg">{tDetail('descriptionTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{service.description}</p>
@@ -50,11 +52,23 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Bookings</CardTitle>
-          <CardDescription>Direct booking + ticket-routed jobs land in 5.2.</CardDescription>
+          <CardTitle className="text-lg">{tDetail('bookingsTitle')}</CardTitle>
+          <CardDescription>{tDetail('bookingsDescription')}</CardDescription>
         </CardHeader>
       </Card>
     </main>
+  );
+}
+
+function MetaLine({ service }: { service: Service }) {
+  const t = useTranslations('partner.services');
+  return (
+    <p className="text-sm text-muted-foreground">
+      {t('metaLine', {
+        price: formatMoney(service.basePrice, service.currency),
+        state: service.isActive ? t('stateActive') : t('stateInactive'),
+      })}
+    </p>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -28,6 +29,7 @@ interface FormValues {
 }
 
 export function ServiceForm({ mode, initial }: { mode: 'create' | 'edit'; initial?: Service }) {
+  const t = useTranslations('partner.services.form');
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -68,7 +70,7 @@ export function ServiceForm({ mode, initial }: { mode: 'create' | 'edit'; initia
         router.refresh();
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Could not save service.');
+      setError(err instanceof ApiError ? err.problem.title : t('couldNotSave'));
     }
   });
 
@@ -76,28 +78,28 @@ export function ServiceForm({ mode, initial }: { mode: 'create' | 'edit'; initia
     <form className="space-y-6" onSubmit={onSubmit}>
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Could not save</AlertTitle>
+          <AlertTitle>{t('couldNotSaveTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <FormField label="Name" htmlFor="name" error={form.formState.errors.name}>
-        <Input id="name" {...form.register('name')} placeholder="Plumbing — 1h call-out" />
+      <FormField label={t('nameLabel')} htmlFor="name" error={form.formState.errors.name}>
+        <Input id="name" {...form.register('name')} placeholder={t('namePlaceholder')} />
       </FormField>
 
       <FormField
-        label="Description"
+        label={t('descriptionLabel')}
         htmlFor="description"
-        description="What's included, what's not."
+        description={t('descriptionDescription')}
       >
         <Textarea id="description" rows={4} {...form.register('description')} />
       </FormField>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
-          label="Base price (minor units)"
+          label={t('basePriceLabel')}
           htmlFor="basePrice"
-          description="e.g. 50000 = ₫50,000."
+          description={t('basePriceDescription')}
           error={form.formState.errors.basePrice}
         >
           <Input
@@ -108,20 +110,24 @@ export function ServiceForm({ mode, initial }: { mode: 'create' | 'edit'; initia
           />
         </FormField>
 
-        <FormField label="Currency" htmlFor="currency" error={form.formState.errors.currency}>
+        <FormField
+          label={t('currencyLabel')}
+          htmlFor="currency"
+          error={form.formState.errors.currency}
+        >
           <Input id="currency" maxLength={3} {...form.register('currency')} />
         </FormField>
       </div>
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" {...form.register('isActive')} />
-        Active — show to owners on the public listing.
+        {t('activeLabel')}
       </label>
 
       <div className="flex gap-3">
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting && <Spinner />}
-          {mode === 'create' ? 'Create service' : 'Save changes'}
+          {mode === 'create' ? t('createButton') : t('saveButton')}
         </Button>
         <Button
           type="button"
@@ -129,7 +135,7 @@ export function ServiceForm({ mode, initial }: { mode: 'create' | 'edit'; initia
           onClick={() => router.back()}
           disabled={form.formState.isSubmitting}
         >
-          Cancel
+          {t('cancelButton')}
         </Button>
       </div>
     </form>
