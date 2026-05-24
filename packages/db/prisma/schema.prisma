@@ -38,9 +38,17 @@ enum UnitStatus {
 
 enum LeaseStatus {
   DRAFT
+  /// Phase 12.3 — owner has finished editing the lease and is awaiting
+  /// both signatures. Auto-flips to ACTIVE when both Signature rows land.
+  AWAITING_SIGNATURES
   ACTIVE
   ENDED
   TERMINATED
+}
+
+enum SignatureRole {
+  OWNER
+  TENANT
 }
 
 enum RentCycle {
@@ -236,6 +244,7 @@ model User {
   ratingsReceived         LeaseRating[]            @relation("RatingRated")
   jobRatingsGiven         JobRating[]              @relation("JobRatingRater")
   jobRatingsReceived      JobRating[]              @relation("JobRatingRated")
+  signatures              Signature[]              @relation("UserSignatures")
   partnerProfile          PartnerProfile?
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
@@ -384,9 +393,10 @@ model Lease {
 
   terminationReason String? @db.VarChar(500)
 
-  bills   Bill[]
-  tickets Ticket[]
-  ratings LeaseRating[]
+  bills      Bill[]
+  tickets    Ticket[]
+  ratings    LeaseRating[]
+  signatures Signature[]
 
   /// Back-reference for application → lease provenance (Phase 4.4).
   application Application? @relation("ApplicationLease")
@@ -398,6 +408,33 @@ model Lease {
   @@index([tenantId, status])
   @@index([ownerId, status])
   @@index([unitId, status])
+}
+
+/// Phase 12.3 — captured signature for in-platform lease acknowledgement.
+/// NOT legally binding under VN's Electronic Transactions Law 2005 — that
+/// requires a registered CA (FPT.eContract / VNPT.eContract) and lands in
+/// Phase 13. v1 is a contract-acknowledgement + dispute trail.
+model Signature {
+  id           String        @id @default(cuid())
+  leaseId      String
+  lease        Lease         @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  signerId     String
+  signer       User          @relation("UserSignatures", fields: [signerId], references: [id], onDelete: Restrict)
+  role         SignatureRole
+  /// Base64-encoded PNG data URI (`data:image/png;base64,...`). Stored
+  /// inline because signatures are small (~10-30KB) and the access
+  /// pattern is "join with lease, render in PDF" — no S3 round-trip
+  /// needed. App-level cap: 100 KB raw string.
+  imageDataUri String        @db.Text
+  ip           String?       @db.VarChar(45)
+  userAgent    String?       @db.VarChar(500)
+  signedAt     DateTime      @default(now())
+
+  /// One signature per (lease, role) — re-signing replaces the existing
+  /// row via upsert in the service. Cascading lease deletion drops
+  /// captured signatures with it (re-edit a lease → re-sign).
+  @@unique([leaseId, role])
+  @@index([signerId])
 }
 
 // ---------- Billing & payments -----------------------------------------

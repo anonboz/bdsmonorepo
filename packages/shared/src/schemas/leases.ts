@@ -59,9 +59,15 @@ export const updateLeaseSchema = z.object({
 
 export type UpdateLeaseInput = z.infer<typeof updateLeaseSchema>;
 
+/**
+ * Phase 12.3 — `to: 'ACTIVE'` was removed; owners now move
+ * `DRAFT → AWAITING_SIGNATURES` and the signatures service flips the
+ * lease to ACTIVE when both Signature rows land. `AWAITING_SIGNATURES →
+ * DRAFT` is allowed for re-editing (drops captured signatures).
+ */
 export const transitionLeaseSchema = z
   .object({
-    to: z.enum(['ACTIVE', 'ENDED', 'TERMINATED']),
+    to: z.enum(['AWAITING_SIGNATURES', 'DRAFT', 'ENDED', 'TERMINATED']),
     terminationReason: z.string().max(500).optional(),
   })
   .superRefine((val, ctx) => {

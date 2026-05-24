@@ -15,8 +15,19 @@ interface Props {
   lease: Lease;
 }
 
-const ALLOWED: Record<LeaseStatus, LeaseStatus[]> = {
-  DRAFT: ['ACTIVE', 'TERMINATED'],
+/**
+ * Phase 12.3 — the manual transition API no longer takes a lease
+ * directly to `ACTIVE`. Owners now move
+ * `DRAFT → AWAITING_SIGNATURES`; both parties draw signatures; the
+ * signatures service auto-flips the lease to `ACTIVE` when both
+ * Signature rows land. `AWAITING_SIGNATURES → DRAFT` is allowed for
+ * re-editing (cascades any captured signatures).
+ */
+type ManualTarget = Extract<LeaseStatus, 'AWAITING_SIGNATURES' | 'DRAFT' | 'ENDED' | 'TERMINATED'>;
+
+const ALLOWED: Record<LeaseStatus, ManualTarget[]> = {
+  DRAFT: ['AWAITING_SIGNATURES', 'TERMINATED'],
+  AWAITING_SIGNATURES: ['DRAFT', 'TERMINATED'],
   ACTIVE: ['ENDED', 'TERMINATED'],
   ENDED: [],
   TERMINATED: [],
@@ -25,19 +36,22 @@ const ALLOWED: Record<LeaseStatus, LeaseStatus[]> = {
 export function LeaseTransitions({ houseId, unitId, lease }: Props) {
   const t = useTranslations('owner.leases.transitions');
   const router = useRouter();
-  const [busy, setBusy] = useState<LeaseStatus | null>(null);
+  const [busy, setBusy] = useState<ManualTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const allowed = ALLOWED[lease.status];
   if (allowed.length === 0) return null;
 
-  async function transition(to: LeaseStatus) {
+  async function transition(to: ManualTarget) {
     let reason: string | undefined;
     if (to === 'TERMINATED') {
       reason = window.prompt(t('terminatePrompt')) ?? undefined;
       if (!reason?.trim()) return;
+    } else if (to === 'DRAFT') {
+      if (!window.confirm(t('revertConfirm'))) return;
     } else {
-      const confirmMsg = to === 'ACTIVE' ? t('activateConfirm') : t('endConfirm');
+      const confirmMsg =
+        to === 'AWAITING_SIGNATURES' ? t('sendForSignaturesConfirm') : t('endConfirm');
       if (!window.confirm(confirmMsg)) return;
     }
 
@@ -56,16 +70,16 @@ export function LeaseTransitions({ houseId, unitId, lease }: Props) {
     }
   }
 
-  function labelFor(to: LeaseStatus): string {
+  function labelFor(to: ManualTarget): string {
     switch (to) {
-      case 'ACTIVE':
-        return t('activate');
+      case 'AWAITING_SIGNATURES':
+        return t('sendForSignatures');
+      case 'DRAFT':
+        return t('revertToDraft');
       case 'ENDED':
         return t('endLease');
       case 'TERMINATED':
         return t('terminate');
-      default:
-        return to;
     }
   }
 

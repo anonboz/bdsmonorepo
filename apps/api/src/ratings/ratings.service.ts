@@ -30,7 +30,7 @@ interface LeaseLite {
   id: string;
   ownerId: string;
   tenantId: string;
-  status: 'DRAFT' | 'ACTIVE' | 'ENDED' | 'TERMINATED';
+  status: 'DRAFT' | 'AWAITING_SIGNATURES' | 'ACTIVE' | 'ENDED' | 'TERMINATED';
   startDate: Date;
   endDate: Date | null;
   deletedAt: Date | null;

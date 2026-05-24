@@ -82,6 +82,7 @@
     },
     "leases": {
       "DRAFT": "draft",
+      "AWAITING_SIGNATURES": "awaiting signatures",
       "ACTIVE": "active",
       "ENDED": "ended",
       "TERMINATED": "terminated"
@@ -303,21 +304,42 @@
       "cycleLabel": "Cycle",
       "terminationTitle": "Termination reason",
       "actionsTitle": "Actions",
-      "actionsDraft": "Activate to bind the tenant and flip the unit to occupied.",
+      "actionsDraft": "Send for signatures to lock terms and invite the tenant to counter-sign.",
+      "actionsAwaitingSignatures": "Sign here and wait for the tenant to counter-sign. The lease activates automatically.",
       "actionsActive": "End to release the unit cleanly, or terminate with a reason.",
       "actionsClosed": "This lease is closed. No further transitions are possible.",
+      "signaturesTitle": "Signatures",
+      "signaturesDescriptionAwaiting": "Both parties sign here. The lease activates automatically once both signatures land.",
+      "signaturesDescriptionActive": "Captured signatures for audit / dispute reference.",
       "rateTitle": "Rate your tenant",
       "rateDescription": "Quick 1–5 star rating at each lease milestone. Comments are optional."
     },
     "transitions": {
       "failedTitle": "Transition failed",
       "failed": "Transition failed.",
-      "activate": "Activate",
+      "sendForSignatures": "Send for signatures",
+      "revertToDraft": "Back to draft",
       "endLease": "End lease",
       "terminate": "Terminate",
       "terminatePrompt": "Why are you terminating this lease?",
-      "activateConfirm": "Are you sure you want to activate this lease?",
+      "sendForSignaturesConfirm": "Send this lease to the tenant for signing? You will not be able to edit until both sides sign or you revert it.",
+      "revertConfirm": "Revert to draft? Any captured signatures will be cleared and both parties will need to re-sign.",
       "endConfirm": "Are you sure you want to end this lease?"
+    },
+    "signatures": {
+      "loading": "Loading…",
+      "intro": "Draw your signature below and submit. The lease activates automatically once both signatures land.",
+      "ownerStatusLabel": "Owner",
+      "tenantStatusLabel": "Tenant",
+      "yourStatusLabel": "You",
+      "waitingForTenant": "Waiting on the tenant.",
+      "notSigned": "Not signed.",
+      "signedOn": "Signed on {date}",
+      "youSignedOn": "✓ You signed on {date}",
+      "padAria": "Signature canvas",
+      "submit": "Submit signature",
+      "submitFailed": "Could not submit your signature. Try again.",
+      "submitFailedTitle": "Submission failed"
     },
     "form": {
       "newMetadata": "New lease",

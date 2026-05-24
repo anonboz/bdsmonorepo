@@ -83,6 +83,7 @@ function StatusBadge({ status }: { status: LeaseStatus }) {
   const t = useTranslations('owner.statuses.leases');
   const palette: Record<LeaseStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
+    AWAITING_SIGNATURES: 'bg-amber-100 text-amber-900',
     ACTIVE: 'bg-emerald-100 text-emerald-900',
     ENDED: 'bg-zinc-200 text-zinc-700',
     TERMINATED: 'bg-rose-100 text-rose-900',

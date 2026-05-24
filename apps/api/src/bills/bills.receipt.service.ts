@@ -13,6 +13,10 @@ const RECEIPT_INCLUDE = {
     include: {
       tenant: { select: { displayName: true, email: true } },
       owner: { select: { displayName: true, email: true } },
+      // Phase 12.3 — captured signatures rendered at the bottom of
+      // the PDF when present. Ordered by role so OWNER lands left,
+      // TENANT right.
+      signatures: { orderBy: { role: 'asc' } },
       unit: {
         include: {
           house: {
@@ -177,6 +181,19 @@ async function renderPdf(bill: ReceiptBill): Promise<Buffer> {
   totalLine(doc, FONT_REGULAR, 'Subtotal', formatMoney(bill.subtotal, bill.currency, 'en'));
   totalLine(doc, FONT_BOLD, 'Total', formatMoney(bill.total, bill.currency, 'en'));
 
+  // Phase 12.3 — Signatures (when captured). One block per signer;
+  // missing signers are simply omitted (rare race: PDF requested
+  // between the two sign events, or for a lease backfilled to ACTIVE
+  // pre-12.3).
+  if (bill.lease.signatures.length > 0) {
+    doc.moveDown(1.5);
+    hr(doc);
+    doc.moveDown(0.5);
+    doc.font(FONT_BOLD).fontSize(10).fillColor('#666').text('SIGNATURES').fillColor('black');
+    doc.moveDown(0.5);
+    renderSignatureBlock(doc, FONT_BOLD, FONT_REGULAR, bill.lease.signatures);
+  }
+
   // Footer
   doc.moveDown(2);
   doc
@@ -188,6 +205,55 @@ async function renderPdf(bill: ReceiptBill): Promise<Buffer> {
 
   doc.end();
   return done;
+}
+
+interface SignatureForPdf {
+  role: 'OWNER' | 'TENANT';
+  imageDataUri: string;
+  signedAt: Date;
+}
+
+function renderSignatureBlock(
+  doc: PDFKit.PDFDocument,
+  bold: string,
+  regular: string,
+  signatures: SignatureForPdf[],
+): void {
+  const startY = doc.y;
+  const colWidth = 180;
+  const colSpacing = 40;
+  const blockLeftX = 50;
+
+  signatures.forEach((sig, i) => {
+    const colX = blockLeftX + i * (colWidth + colSpacing);
+    doc
+      .font(bold)
+      .fontSize(9)
+      .text(sig.role === 'OWNER' ? 'Owner' : 'Tenant', colX, startY, { width: colWidth });
+    try {
+      const pngBytes = Buffer.from(
+        sig.imageDataUri.replace(/^data:image\/png;base64,/, ''),
+        'base64',
+      );
+      doc.image(pngBytes, colX, doc.y + 4, { fit: [colWidth, 50] });
+      // Manually move past the image; pdfkit's `image` doesn't
+      // advance `doc.y` consistently when `fit` is used.
+      doc.y = doc.y + 56;
+    } catch {
+      // Defensive — a malformed data URI shouldn't blow up the
+      // whole PDF. Show a placeholder instead.
+      doc.font(regular).fontSize(9).fillColor('#999').text('(signature image unavailable)');
+      doc.fillColor('black');
+    }
+    doc
+      .font(regular)
+      .fontSize(8)
+      .fillColor('#666')
+      .text(`Signed ${ymd(sig.signedAt)}`, colX, doc.y, { width: colWidth })
+      .fillColor('black');
+    // Reset Y to startY for the next column.
+    if (i < signatures.length - 1) doc.y = startY;
+  });
 }
 
 function metaLine(

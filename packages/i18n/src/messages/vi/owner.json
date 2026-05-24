@@ -82,6 +82,7 @@
     },
     "leases": {
       "DRAFT": "nháp",
+      "AWAITING_SIGNATURES": "chờ chữ ký",
       "ACTIVE": "đang hiệu lực",
       "ENDED": "đã kết thúc",
       "TERMINATED": "đã chấm dứt"
@@ -303,21 +304,42 @@
       "cycleLabel": "Chu kỳ",
       "terminationTitle": "Lý do chấm dứt",
       "actionsTitle": "Hành động",
-      "actionsDraft": "Kích hoạt để ràng buộc người thuê và chuyển căn sang trạng thái đã thuê.",
+      "actionsDraft": "Gửi để ký để khóa các điều khoản và mời người thuê đối ký.",
+      "actionsAwaitingSignatures": "Ký tại đây và chờ người thuê đối ký. Hợp đồng tự động có hiệu lực.",
       "actionsActive": "Kết thúc để giải phóng căn, hoặc chấm dứt kèm lý do.",
       "actionsClosed": "Hợp đồng này đã đóng. Không còn chuyển trạng thái được.",
+      "signaturesTitle": "Chữ ký",
+      "signaturesDescriptionAwaiting": "Cả hai bên ký tại đây. Hợp đồng tự động có hiệu lực khi cả hai chữ ký đều đã lưu.",
+      "signaturesDescriptionActive": "Chữ ký đã ghi nhận để đối chiếu / khiếu nại.",
       "rateTitle": "Đánh giá người thuê",
       "rateDescription": "Đánh giá nhanh 1–5 sao tại mỗi mốc. Bình luận là tùy chọn."
     },
     "transitions": {
       "failedTitle": "Chuyển trạng thái thất bại",
       "failed": "Chuyển trạng thái thất bại.",
-      "activate": "Kích hoạt",
+      "sendForSignatures": "Gửi để ký",
+      "revertToDraft": "Trở lại bản nháp",
       "endLease": "Kết thúc",
       "terminate": "Chấm dứt",
       "terminatePrompt": "Vì sao bạn chấm dứt hợp đồng này?",
-      "activateConfirm": "Bạn có chắc muốn kích hoạt hợp đồng này?",
+      "sendForSignaturesConfirm": "Gửi hợp đồng cho người thuê ký? Bạn sẽ không thể chỉnh sửa cho tới khi cả hai bên ký xong hoặc bạn trở về bản nháp.",
+      "revertConfirm": "Trở về bản nháp? Mọi chữ ký đã ghi nhận sẽ bị xóa và cả hai bên phải ký lại.",
       "endConfirm": "Bạn có chắc muốn kết thúc hợp đồng này?"
+    },
+    "signatures": {
+      "loading": "Đang tải…",
+      "intro": "Hãy ký bên dưới và gửi. Hợp đồng tự động có hiệu lực khi cả hai chữ ký đều đã lưu.",
+      "ownerStatusLabel": "Chủ nhà",
+      "tenantStatusLabel": "Người thuê",
+      "yourStatusLabel": "Bạn",
+      "waitingForTenant": "Đang chờ người thuê ký.",
+      "notSigned": "Chưa ký.",
+      "signedOn": "Đã ký vào {date}",
+      "youSignedOn": "✓ Bạn đã ký vào {date}",
+      "padAria": "Khung chữ ký",
+      "submit": "Gửi chữ ký",
+      "submitFailed": "Không thể gửi chữ ký. Vui lòng thử lại.",
+      "submitFailedTitle": "Gửi thất bại"
     },
     "form": {
       "newMetadata": "Hợp đồng mới",

@@ -59,6 +59,11 @@ export const ErrorCodes = {
   PAYMENT_REFUND_MISSING_CAPTURE_REF: 'payments.refund_missing_capture_ref',
   PAYMENT_REFUND_PROVIDER_FAILED: 'payments.refund_provider_failed',
 
+  // ---- signatures (phase 12.3) --------------------------------------
+  SIGNATURE_LEASE_NOT_AWAITING: 'signatures.lease_not_awaiting',
+  SIGNATURE_TOO_LARGE: 'signatures.too_large',
+  SIGNATURE_INVALID_FORMAT: 'signatures.invalid_format',
+
   // ---- tickets ------------------------------------------------------
   TICKET_NOT_FOUND: 'tickets.not_found',
   TICKET_INVALID_TRANSITION: 'tickets.invalid_transition',

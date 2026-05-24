@@ -97,6 +97,7 @@
     },
     "leases": {
       "DRAFT": "nháp",
+      "AWAITING_SIGNATURES": "chờ chữ ký",
       "ACTIVE": "đang hiệu lực",
       "ENDED": "đã kết thúc",
       "TERMINATED": "đã chấm dứt"
@@ -248,8 +249,23 @@
       "depositLabel": "Tiền cọc",
       "terminationTitle": "Lý do chấm dứt",
       "terminationDescription": "Do chủ nhà ghi nhận.",
+      "signaturesTitle": "Ký hợp đồng",
+      "signaturesDescription": "Cả bạn và chủ nhà đều ký tại đây để hợp đồng có hiệu lực.",
       "ratingsTitle": "Đánh giá chủ nhà",
       "ratingsDescription": "Đánh giá nhanh 1–5 sao tại mỗi mốc của hợp đồng. Bình luận là tùy chọn."
+    },
+    "signatures": {
+      "loading": "Đang tải…",
+      "intro": "Hãy ký bên dưới và gửi. Hợp đồng sẽ tự động có hiệu lực khi cả hai chữ ký đều đã được lưu.",
+      "ownerStatusLabel": "Chủ nhà",
+      "yourStatusLabel": "Bạn",
+      "waitingForOwner": "Đang chờ chủ nhà ký.",
+      "signedOn": "Đã ký vào {date}",
+      "youSignedOn": "✓ Bạn đã ký vào {date}",
+      "padAria": "Khung chữ ký",
+      "submit": "Gửi chữ ký",
+      "submitFailed": "Không thể gửi chữ ký. Vui lòng thử lại.",
+      "submitFailedTitle": "Gửi thất bại"
     },
     "ratings": {
       "leadOwner": "Hãy cho các chủ nhà tương lai biết bạn nên kỳ vọng điều gì. Mỗi mốc một đánh giá.",

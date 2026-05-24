@@ -23,17 +23,28 @@ const LEASE_WITH_UNIT = {
 /**
  * Allowed state transitions for a lease. Source of truth — both the service
  * and any future API surface should reference this rather than reimplementing.
+ *
+ * Phase 12.3 — `DRAFT → ACTIVE` was removed. Owners now move
+ * `DRAFT → AWAITING_SIGNATURES`; both parties sign; the signatures
+ * service auto-flips `AWAITING_SIGNATURES → ACTIVE` when both Signature
+ * rows land. `AWAITING_SIGNATURES → DRAFT` is allowed for re-editing
+ * (cascades any captured signatures via the schema).
  */
 const ALLOWED_TRANSITIONS: Record<LeaseStatus, LeaseStatus[]> = {
-  DRAFT: ['ACTIVE', 'TERMINATED'],
+  DRAFT: ['AWAITING_SIGNATURES', 'TERMINATED'],
+  AWAITING_SIGNATURES: ['DRAFT', 'TERMINATED'],
   ACTIVE: ['ENDED', 'TERMINATED'],
   ENDED: [],
   TERMINATED: [],
 };
 
-/** Audit action code per terminal status. */
-const ACTION_FOR_TRANSITION: Record<'ACTIVE' | 'ENDED' | 'TERMINATED', string> = {
-  ACTIVE: 'lease.activate',
+/** Audit action code per terminal status reachable via the manual API. */
+const ACTION_FOR_TRANSITION: Record<
+  'AWAITING_SIGNATURES' | 'DRAFT' | 'ENDED' | 'TERMINATED',
+  string
+> = {
+  AWAITING_SIGNATURES: 'lease.send_for_signatures',
+  DRAFT: 'lease.revert_to_draft',
   ENDED: 'lease.end',
   TERMINATED: 'lease.terminate',
 };
@@ -175,8 +186,11 @@ export class LeasesService {
       });
     }
 
-    // Activating: refuse if another lease is already ACTIVE on this unit.
-    if (input.to === 'ACTIVE') {
+    // Sending for signatures: refuse if another lease on the unit is
+    // already ACTIVE. (We don't fight over AWAITING_SIGNATURES — the
+    // auto-activate in the signatures service re-checks this conflict
+    // before flipping to ACTIVE.)
+    if (input.to === 'AWAITING_SIGNATURES') {
       const conflicting = await this.prisma.lease.count({
         where: { unitId, status: 'ACTIVE', deletedAt: null, NOT: { id } },
       });
@@ -185,7 +199,7 @@ export class LeasesService {
           status: 409,
           type: ErrorCodes.LEASE_DATES_OVERLAP,
           title: 'Unit already has an active lease',
-          detail: 'End or terminate the active lease before activating this one.',
+          detail: 'End or terminate the active lease before signing this one.',
         });
       }
     }
@@ -193,6 +207,26 @@ export class LeasesService {
     // Snapshot the previous status before opening the transaction. We
     // can't read it back from inside — the mutation overwrites it.
     const previousStatus = existing.status;
+
+    // Phase 12.3 — `transition` is now the owner-facing manual API for
+    // DRAFT / AWAITING_SIGNATURES / ENDED / TERMINATED. The auto-flip
+    // to ACTIVE lives in `SignaturesService.create` so that path can
+    // bundle the unit-status update with the second-signature insert.
+    const isManualTarget = (
+      to: LeaseStatus,
+    ): to is 'AWAITING_SIGNATURES' | 'DRAFT' | 'ENDED' | 'TERMINATED' =>
+      to === 'AWAITING_SIGNATURES' || to === 'DRAFT' || to === 'ENDED' || to === 'TERMINATED';
+    if (!isManualTarget(input.to)) {
+      // Unreachable per ALLOWED_TRANSITIONS — defensive throw so a
+      // schema drift doesn't silently miss the audit write.
+      throw new ProblemError({
+        status: 422,
+        type: ErrorCodes.LEASE_INVALID_TRANSITION,
+        title: 'Invalid lease transition',
+        detail: `Manual API cannot move lease to ${input.to as string}.`,
+      });
+    }
+    const targetAction = ACTION_FOR_TRANSITION[input.to];
 
     // Update lease + flip unit status + audit row atomically.
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -207,9 +241,7 @@ export class LeasesService {
         ...LEASE_WITH_UNIT,
       });
 
-      if (input.to === 'ACTIVE') {
-        await tx.unit.update({ where: { id: unitId }, data: { status: 'OCCUPIED' } });
-      } else if (input.to === 'ENDED' || input.to === 'TERMINATED') {
+      if (input.to === 'ENDED' || input.to === 'TERMINATED') {
         // Only flip the unit back if it was occupied by THIS lease (defensive
         // — overlap guard above should make this always true).
         await tx.unit.update({ where: { id: unitId }, data: { status: 'VACANT' } });
@@ -221,7 +253,7 @@ export class LeasesService {
       }
       await this.audit.write(tx, {
         actorId: ctx.actorId,
-        action: ACTION_FOR_TRANSITION[input.to],
+        action: targetAction,
         target: `Lease:${id}`,
         meta,
         ip: ctx.ip,

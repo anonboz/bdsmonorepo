@@ -97,6 +97,7 @@
     },
     "leases": {
       "DRAFT": "draft",
+      "AWAITING_SIGNATURES": "awaiting signatures",
       "ACTIVE": "active",
       "ENDED": "ended",
       "TERMINATED": "terminated"
@@ -248,8 +249,23 @@
       "depositLabel": "Deposit",
       "terminationTitle": "Termination reason",
       "terminationDescription": "Recorded by your landlord.",
+      "signaturesTitle": "Sign your lease",
+      "signaturesDescription": "Both you and the owner sign here to activate the lease.",
       "ratingsTitle": "Rate your owner",
       "ratingsDescription": "Quick 1–5 star rating at each lease milestone. Comments are optional."
+    },
+    "signatures": {
+      "loading": "Loading…",
+      "intro": "Draw your signature below and submit. The lease activates automatically once both signatures land.",
+      "ownerStatusLabel": "Owner",
+      "yourStatusLabel": "You",
+      "waitingForOwner": "Waiting on the owner.",
+      "signedOn": "Signed on {date}",
+      "youSignedOn": "✓ You signed on {date}",
+      "padAria": "Signature canvas",
+      "submit": "Submit signature",
+      "submitFailed": "Could not submit your signature. Try again.",
+      "submitFailedTitle": "Submission failed"
     },
     "ratings": {
       "leadOwner": "Tell future owners what to expect. One rating per milestone.",

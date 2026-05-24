@@ -26,6 +26,7 @@ import { PlatformConfigModule } from './platform/platform-config.module.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { RatingsModule } from './ratings/ratings.module.js';
 import { ServiceJobsModule } from './service-jobs/service-jobs.module.js';
+import { SignaturesModule } from './signatures/signatures.module.js';
 import { TicketsModule } from './tickets/tickets.module.js';
 import { UnitsModule } from './units/units.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -65,6 +66,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     HousesModule,
     UnitsModule,
     LeasesModule,
+    SignaturesModule,
     UsersModule,
     BillsModule,
     PaymentsModule,

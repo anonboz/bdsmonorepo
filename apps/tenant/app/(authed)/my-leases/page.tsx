@@ -105,6 +105,7 @@ function StatusBadge({ status }: { status: LeaseStatus }) {
   const t = useTranslations('tenant.statuses.leases');
   const palette: Record<LeaseStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
+    AWAITING_SIGNATURES: 'bg-amber-100 text-amber-900',
     ACTIVE: 'bg-emerald-100 text-emerald-900',
     ENDED: 'bg-zinc-200 text-zinc-700',
     TERMINATED: 'bg-rose-100 text-rose-900',
@@ -125,8 +126,10 @@ function groupByActiveFirst(items: Lease[]): {
   const draft: Lease[] = [];
   const closed: Lease[] = [];
   for (const l of items) {
+    // Phase 12.3 — AWAITING_SIGNATURES lands in the draft section
+    // visually; it's a "not yet active" state from the tenant's POV.
     if (l.status === 'ACTIVE') active.push(l);
-    else if (l.status === 'DRAFT') draft.push(l);
+    else if (l.status === 'DRAFT' || l.status === 'AWAITING_SIGNATURES') draft.push(l);
     else closed.push(l);
   }
   return { active, draft, closed };

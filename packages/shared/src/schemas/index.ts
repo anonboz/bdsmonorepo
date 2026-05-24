@@ -23,3 +23,4 @@ export * from './media';
 export * from './push';
 export * from './platform';
 export * from './account-erasure';
+export * from './signatures';

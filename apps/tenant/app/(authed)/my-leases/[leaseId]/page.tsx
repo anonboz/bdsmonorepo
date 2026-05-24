@@ -7,6 +7,7 @@ import { getFormatters } from '@repo/i18n';
 import type { Lease, LeaseRatingState, LeaseStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
+import { SignatureBlock } from './_components/signature-block';
 import { RatingsCard } from './ratings-card';
 import { ApiError } from '../../../../lib/api';
 import { serverApi } from '../../../../lib/session';
@@ -69,6 +70,18 @@ export default async function MyLeaseDetailPage({
         </Card>
       )}
 
+      {lease.status === 'AWAITING_SIGNATURES' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">{tDetail('signaturesTitle')}</CardTitle>
+            <CardDescription>{tDetail('signaturesDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SignatureBlock leaseId={lease.id} />
+          </CardContent>
+        </Card>
+      )}
+
       {ratingState && (
         <Card>
           <CardHeader>
@@ -110,6 +123,7 @@ function StatusBadge({ status }: { status: LeaseStatus }) {
   const t = useTranslations('tenant.statuses.leases');
   const palette: Record<LeaseStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
+    AWAITING_SIGNATURES: 'bg-amber-100 text-amber-900',
     ACTIVE: 'bg-emerald-100 text-emerald-900',
     ENDED: 'bg-zinc-200 text-zinc-700',
     TERMINATED: 'bg-rose-100 text-rose-900',

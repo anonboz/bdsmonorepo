@@ -10,12 +10,22 @@ export const unitStatusSchema = z.nativeEnum(UnitStatus);
 
 export const LeaseStatus = {
   DRAFT: 'DRAFT',
+  /** Phase 12.3 — owner has sent the lease for signing; both parties
+   *  draw a signature, then the lease auto-flips to ACTIVE. */
+  AWAITING_SIGNATURES: 'AWAITING_SIGNATURES',
   ACTIVE: 'ACTIVE',
   ENDED: 'ENDED',
   TERMINATED: 'TERMINATED',
 } as const;
 export type LeaseStatus = (typeof LeaseStatus)[keyof typeof LeaseStatus];
 export const leaseStatusSchema = z.nativeEnum(LeaseStatus);
+
+export const SignatureRole = {
+  OWNER: 'OWNER',
+  TENANT: 'TENANT',
+} as const;
+export type SignatureRole = (typeof SignatureRole)[keyof typeof SignatureRole];
+export const signatureRoleSchema = z.nativeEnum(SignatureRole);
 
 export const RentCycle = {
   WEEKLY: 'WEEKLY',

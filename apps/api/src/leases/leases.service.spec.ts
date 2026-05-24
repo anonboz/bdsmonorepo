@@ -149,31 +149,49 @@ describe('LeasesService', () => {
     ).rejects.toBeInstanceOf(ProblemError);
   });
 
-  it('DRAFT → ACTIVE flips unit status to OCCUPIED', async () => {
+  /**
+   * Phase 12.3 — the manual transition API no longer takes a lease to
+   * ACTIVE; the signatures service does that when both Signature rows
+   * land. For tests that need to exercise ACTIVE-state behaviour
+   * (ACTIVE → ENDED / TERMINATED, the activate-overlap guard), we
+   * simulate the auto-flip by patching the stub directly: move via
+   * AWAITING_SIGNATURES, then set the row + unit to the post-flip
+   * state. The signatures service has its own spec covering the real
+   * flip path.
+   */
+  function activateInStub(leaseId: string): void {
+    const lease = prismaStub.leases.find((l) => l.id === leaseId);
+    if (!lease) throw new Error(`lease ${leaseId} not seeded`);
+    lease.status = 'ACTIVE';
+    const unit = prismaStub.units.find((u) => u.id === lease.unitId);
+    if (unit) unit.status = 'OCCUPIED';
+  }
+
+  it('DRAFT → AWAITING_SIGNATURES leaves the unit VACANT (signatures service flips it later)', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
-    expect(prismaStub.units[0]?.status).toBe('OCCUPIED');
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'AWAITING_SIGNATURES' }, ctx);
+    expect(prismaStub.units[0]?.status).toBe('VACANT');
   });
 
   it('ACTIVE → ENDED flips unit status back to VACANT', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    activateInStub(lease.id);
     await service.transition(owner, houseId, unitId, lease.id, { to: 'ENDED' }, ctx);
     expect(prismaStub.units[0]?.status).toBe('VACANT');
   });
 
-  it('activating a second lease while one is active → 409 dates_overlap', async () => {
+  it('sending a second lease for signatures while one is active → 409 dates_overlap', async () => {
     const first = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, first.id, { to: 'ACTIVE' }, ctx);
+    activateInStub(first.id);
     const second = await service.createForUnit(owner, houseId, unitId, draftInput);
     await expect(
-      service.transition(owner, houseId, unitId, second.id, { to: 'ACTIVE' }, ctx),
+      service.transition(owner, houseId, unitId, second.id, { to: 'AWAITING_SIGNATURES' }, ctx),
     ).rejects.toBeInstanceOf(ProblemError);
   });
 
   it('TERMINATED requires a reason — set inline by the transition handler', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    activateInStub(lease.id);
     const terminated = await service.transition(
       owner,
       houseId,
@@ -196,7 +214,7 @@ describe('LeasesService', () => {
 
   it('rejects edit on non-DRAFT lease', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'AWAITING_SIGNATURES' }, ctx);
     await expect(
       service.updateDraft(owner, houseId, unitId, lease.id, { rentAmount: 999 }),
     ).rejects.toBeInstanceOf(ProblemError);
@@ -227,10 +245,10 @@ describe('LeasesService', () => {
 
   it('successful transitions write a paired audit row', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    await service.transition(owner, houseId, unitId, lease.id, { to: 'AWAITING_SIGNATURES' }, ctx);
     expect(prismaStub.auditRows).toHaveLength(1);
     expect(prismaStub.auditRows[0]).toMatchObject({
-      action: 'lease.activate',
+      action: 'lease.send_for_signatures',
       target: `Lease:${lease.id}`,
       actorId: ctx.actorId,
     });
@@ -242,7 +260,7 @@ describe('LeasesService', () => {
 
   it('terminate audit row includes the termination reason', async () => {
     const lease = await service.createForUnit(owner, houseId, unitId, draftInput);
-    await service.transition(owner, houseId, unitId, lease.id, { to: 'ACTIVE' }, ctx);
+    activateInStub(lease.id);
     await service.transition(
       owner,
       houseId,

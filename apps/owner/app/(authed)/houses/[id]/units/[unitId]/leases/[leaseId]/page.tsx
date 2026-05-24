@@ -9,6 +9,7 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 
 import { BillsCard } from './_components/bills-card';
 import { RatingsCard } from './_components/ratings-card';
+import { SignatureBlock } from './_components/signature-block';
 import { ApiError } from '../../../../../../../../lib/api';
 import { serverApi } from '../../../../../../../../lib/session';
 import { LeaseTransitions } from '../_components/lease-transitions';
@@ -86,6 +87,7 @@ export default async function LeaseDetailPage({
           <CardTitle className="text-lg">{t('actionsTitle')}</CardTitle>
           <CardDescription>
             {lease.status === 'DRAFT' && t('actionsDraft')}
+            {lease.status === 'AWAITING_SIGNATURES' && t('actionsAwaitingSignatures')}
             {lease.status === 'ACTIVE' && t('actionsActive')}
             {(lease.status === 'ENDED' || lease.status === 'TERMINATED') && t('actionsClosed')}
           </CardDescription>
@@ -94,6 +96,27 @@ export default async function LeaseDetailPage({
           <LeaseTransitions houseId={houseId} unitId={unitId} lease={lease} />
         </CardContent>
       </Card>
+
+      {(lease.status === 'AWAITING_SIGNATURES' || lease.status === 'ACTIVE') && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">{t('signaturesTitle')}</CardTitle>
+            <CardDescription>
+              {lease.status === 'AWAITING_SIGNATURES'
+                ? t('signaturesDescriptionAwaiting')
+                : t('signaturesDescriptionActive')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SignatureBlock
+              houseId={houseId}
+              unitId={unitId}
+              leaseId={leaseId}
+              readOnly={lease.status === 'ACTIVE'}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <BillsCard houseId={houseId} unitId={unitId} leaseId={leaseId} leaseStatus={lease.status} />
 
@@ -154,6 +177,7 @@ function StatusBadge({ status }: { status: LeaseStatus }) {
   const t = useTranslations('owner.statuses.leases');
   const palette: Record<LeaseStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
+    AWAITING_SIGNATURES: 'bg-amber-100 text-amber-900',
     ACTIVE: 'bg-emerald-100 text-emerald-900',
     ENDED: 'bg-zinc-200 text-zinc-700',
     TERMINATED: 'bg-rose-100 text-rose-900',
