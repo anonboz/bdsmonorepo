@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Bill, BillStatus, Page } from '@repo/shared';
 import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -6,30 +8,34 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 import { formatDate, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
-export const metadata = { title: 'My bills' };
+export async function generateMetadata() {
+  const t = await getTranslations('tenant.bills');
+  return { title: t('metadataTitle') };
+}
 
 export default async function MyBillsPage() {
   const page = await serverApi<Page<Bill>>('/v1/me/bills?limit=20');
   const grouped = groupByOpenFirst(page.items);
+  const t = await getTranslations('tenant.bills');
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">My bills</h1>
+        <h1 className="text-2xl font-semibold">{t('listTitle')}</h1>
         <p className="text-sm text-muted-foreground">
-          {page.items.length === 0 ? 'No bills yet.' : `${page.items.length} on record.`}
+          {t('summaryCount', { count: page.items.length })}
         </p>
       </header>
 
       {grouped.open.length > 0 && (
-        <Section title="Open">
+        <Section title={t('sectionOpen')}>
           {grouped.open.map((bill) => (
             <BillCard key={bill.id} bill={bill} />
           ))}
         </Section>
       )}
       {grouped.closed.length > 0 && (
-        <Section title="History">
+        <Section title={t('sectionHistory')}>
           {grouped.closed.map((bill) => (
             <BillCard key={bill.id} bill={bill} />
           ))}
@@ -39,10 +45,8 @@ export default async function MyBillsPage() {
       {page.items.length === 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Nothing here yet</CardTitle>
-            <CardDescription>
-              Bills appear here on the first of each month while your lease is active.
-            </CardDescription>
+            <CardTitle>{t('emptyTitle')}</CardTitle>
+            <CardDescription>{t('emptyDescription')}</CardDescription>
           </CardHeader>
         </Card>
       )}
@@ -62,6 +66,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function BillCard({ bill }: { bill: Bill }) {
+  const t = useTranslations('tenant.bills');
   return (
     <li>
       <Link
@@ -74,8 +79,8 @@ function BillCard({ bill }: { bill: Bill }) {
             <StatusBadge status={bill.status} />
           </div>
           <p className="text-xs text-muted-foreground">
-            {formatDate(bill.periodStart)} – {formatDate(bill.periodEnd)} · due{' '}
-            {formatDate(bill.dueDate)}
+            {formatDate(bill.periodStart)} – {formatDate(bill.periodEnd)} ·{' '}
+            {t('due', { date: formatDate(bill.dueDate) })}
           </p>
         </div>
       </Link>
@@ -84,6 +89,7 @@ function BillCard({ bill }: { bill: Bill }) {
 }
 
 function StatusBadge({ status }: { status: BillStatus }) {
+  const t = useTranslations('tenant.statuses.bills');
   const palette: Record<BillStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     ISSUED: 'bg-blue-100 text-blue-900',
@@ -94,7 +100,7 @@ function StatusBadge({ status }: { status: BillStatus }) {
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase().replace('_', ' ')}
+      {t(status)}
     </span>
   );
 }

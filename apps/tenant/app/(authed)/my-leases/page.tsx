@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Lease, LeaseStatus, Page } from '@repo/shared';
 import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -6,37 +8,41 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 import { formatDate, formatMoney } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
-export const metadata = { title: 'My leases' };
+export async function generateMetadata() {
+  const t = await getTranslations('tenant.leases');
+  return { title: t('metadataTitle') };
+}
 
 export default async function MyLeasesPage() {
   const page = await serverApi<Page<Lease>>('/v1/me/leases?limit=20');
   const grouped = groupByActiveFirst(page.items);
+  const t = await getTranslations('tenant.leases');
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">My leases</h1>
+        <h1 className="text-2xl font-semibold">{t('listTitle')}</h1>
         <p className="text-sm text-muted-foreground">
-          {page.items.length === 0 ? 'No leases yet.' : `${page.items.length} on record.`}
+          {t('summaryCount', { count: page.items.length })}
         </p>
       </header>
 
       {grouped.active.length > 0 && (
-        <Section title="Current">
+        <Section title={t('sectionCurrent')}>
           {grouped.active.map((lease) => (
             <LeaseCard key={lease.id} lease={lease} />
           ))}
         </Section>
       )}
       {grouped.draft.length > 0 && (
-        <Section title="Draft (not yet active)">
+        <Section title={t('sectionDraft')}>
           {grouped.draft.map((lease) => (
             <LeaseCard key={lease.id} lease={lease} />
           ))}
         </Section>
       )}
       {grouped.closed.length > 0 && (
-        <Section title="History">
+        <Section title={t('sectionHistory')}>
           {grouped.closed.map((lease) => (
             <LeaseCard key={lease.id} lease={lease} />
           ))}
@@ -46,10 +52,8 @@ export default async function MyLeasesPage() {
       {page.items.length === 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Nothing here yet</CardTitle>
-            <CardDescription>
-              When your landlord creates a lease for you, it will appear here.
-            </CardDescription>
+            <CardTitle>{t('emptyTitle')}</CardTitle>
+            <CardDescription>{t('emptyDescription')}</CardDescription>
           </CardHeader>
         </Card>
       )}
@@ -69,6 +73,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function LeaseCard({ lease }: { lease: Lease }) {
+  const t = useTranslations('tenant.leases');
+  const tCycle = useTranslations('tenant.statuses.rentCycles');
   return (
     <li>
       <Link
@@ -78,7 +84,10 @@ function LeaseCard({ lease }: { lease: Lease }) {
         <div className="space-y-1 p-4">
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold">
-              {formatMoney(lease.rentAmount, lease.currency)} / {lease.rentCycle.toLowerCase()}
+              {t('rentPerCycle', {
+                amount: formatMoney(lease.rentAmount, lease.currency),
+                cycle: tCycle(lease.rentCycle),
+              })}
             </p>
             <StatusBadge status={lease.status} />
           </div>
@@ -92,6 +101,7 @@ function LeaseCard({ lease }: { lease: Lease }) {
 }
 
 function StatusBadge({ status }: { status: LeaseStatus }) {
+  const t = useTranslations('tenant.statuses.leases');
   const palette: Record<LeaseStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     ACTIVE: 'bg-emerald-100 text-emerald-900',
@@ -100,7 +110,7 @@ function StatusBadge({ status }: { status: LeaseStatus }) {
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase()}
+      {t(status)}
     </span>
   );
 }

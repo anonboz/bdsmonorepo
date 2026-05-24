@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { Application } from '@repo/shared';
@@ -13,6 +14,7 @@ import { ApiError, api } from '../../../lib/api';
  * redirects to the application detail page so the tenant can track / withdraw.
  */
 export function ApplyForm({ campaignId }: { campaignId: string }) {
+  const t = useTranslations('tenant.browse.apply');
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -30,7 +32,7 @@ export function ApplyForm({ campaignId }: { campaignId: string }) {
       router.push(`/me/applications/${created.id}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Could not submit application.');
+      setError(err instanceof ApiError ? err.problem.title : t('couldNotSubmit'));
       setBusy(false);
     }
   }
@@ -39,22 +41,22 @@ export function ApplyForm({ campaignId }: { campaignId: string }) {
     <form className="space-y-3" onSubmit={submit}>
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Could not submit</AlertTitle>
+          <AlertTitle>{t('couldNotSubmitTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Optional message to the owner — why you're a good fit."
+        placeholder={t('placeholder')}
         rows={4}
         maxLength={2000}
         disabled={busy}
-        aria-label="Message"
+        aria-label={t('messageAria')}
       />
       <Button type="submit" disabled={busy}>
         {busy && <Spinner />}
-        Send application
+        {t('send')}
       </Button>
     </form>
   );

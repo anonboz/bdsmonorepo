@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import type { ListPushSubscriptionsResponse, PushSubscription } from '@repo/shared';
@@ -32,6 +33,8 @@ import {
  * no value showing a disabled toggle the user can't act on.
  */
 export function PushToggle() {
+  const t = useTranslations('tenant.notifications.push');
+  const tErr = useTranslations('tenant.notifications.push.errors');
   const [supported, setSupported] = useState(false);
   const [subs, setSubs] = useState<PushSubscription[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,9 +68,9 @@ export function PushToggle() {
       setSubs((cur) => [created, ...(cur ?? []).filter((s) => s.id !== created.id)]);
     } catch (err) {
       if (err instanceof PushSubscriptionError) {
-        setError(messageFor(err));
+        setError(messageFor(err, tErr));
       } else {
-        setError('Could not enable push notifications. Try again.');
+        setError(t('enableFailed'));
       }
     } finally {
       setBusy(false);
@@ -81,7 +84,7 @@ export function PushToggle() {
       await unsubscribeFromPush(id);
       setSubs((cur) => (cur ?? []).filter((s) => s.id !== id));
     } catch {
-      setError('Could not disable. Try again.');
+      setError(t('disableFailed'));
     } finally {
       setBusy(false);
     }
@@ -92,20 +95,17 @@ export function PushToggle() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Push notifications</CardTitle>
+        <CardTitle className="text-lg">{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Get system notifications on this device when a bill drops or a ticket updates. You can
-          mute by topic in the preferences panel above.
-        </p>
+        <p className="text-sm text-muted-foreground">{t('description')}</p>
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
         {subs == null ? (
-          <p className="text-sm text-muted-foreground">Loading subscriptions…</p>
+          <p className="text-sm text-muted-foreground">{t('loading')}</p>
         ) : (
           <>
             {hasAny && (
@@ -116,9 +116,9 @@ export function PushToggle() {
                     className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{s.userAgent ?? 'Unknown device'}</p>
+                      <p className="truncate font-medium">{s.userAgent ?? t('unknownDevice')}</p>
                       <p className="truncate text-xs text-muted-foreground">
-                        Added {new Date(s.createdAt).toLocaleString()}
+                        {t('addedAt', { date: new Date(s.createdAt).toLocaleString() })}
                       </p>
                     </div>
                     <Button
@@ -128,7 +128,7 @@ export function PushToggle() {
                       disabled={busy}
                       onClick={() => void disable(s.id)}
                     >
-                      Remove
+                      {t('remove')}
                     </Button>
                   </li>
                 ))}
@@ -137,7 +137,7 @@ export function PushToggle() {
             <div>
               <Button type="button" disabled={busy} onClick={() => void enable()}>
                 {busy && <Spinner />}
-                {hasAny ? 'Add this device' : 'Enable push on this device'}
+                {hasAny ? t('addThisDevice') : t('enable')}
               </Button>
             </div>
           </>
@@ -147,16 +147,16 @@ export function PushToggle() {
   );
 }
 
-function messageFor(err: PushSubscriptionError): string {
+function messageFor(err: PushSubscriptionError, tErr: (key: string) => string): string {
   switch (err.code) {
     case 'permission-denied':
-      return 'Browser blocked notification permission. Re-enable it in site settings, then try again.';
+      return tErr('permissionDenied');
     case 'vapid-missing':
-      return 'Push isn’t configured on the server.';
+      return tErr('vapidMissing');
     case 'unsupported':
-      return 'This browser doesn’t support web push.';
+      return tErr('unsupported');
     case 'no-service-worker':
-      return 'The app’s service worker hasn’t loaded yet — reload the page and try again.';
+      return tErr('noServiceWorker');
     default:
       return err.message;
   }

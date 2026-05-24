@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { LeaseRating, Page, UserRatingSummary } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -6,37 +8,39 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { formatDate } from '../../../../lib/format';
 import { serverApi } from '../../../../lib/session';
 
-export const metadata = { title: 'My ratings' };
+export async function generateMetadata() {
+  const t = await getTranslations('tenant.ratings');
+  return { title: t('metadataTitle') };
+}
 
 export default async function MyRatingsPage() {
   const [page, summary] = await Promise.all([
     serverApi<Page<LeaseRating>>('/v1/me/ratings?limit=20'),
     serverApi<UserRatingSummary>('/v1/me/ratings/summary'),
   ]);
+  const t = await getTranslations('tenant.ratings');
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/">← Back</Link>
+          <Link href="/">{t('back')}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold">My ratings</h1>
-        <p className="text-sm text-muted-foreground">What your landlords have said about you.</p>
+        <h1 className="text-2xl font-semibold">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Reputation</CardTitle>
+          <CardTitle className="text-lg">{t('reputationTitle')}</CardTitle>
           <CardDescription>
-            {summary.count === 0
-              ? 'No ratings yet — your reputation will appear here as owners rate you.'
-              : `${summary.count} rating${summary.count === 1 ? '' : 's'} on record.`}
+            {summary.count === 0 ? t('noRatings') : t('ratingsCount', { count: summary.count })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-3xl font-semibold">
             {summary.average === null ? '—' : summary.average.toFixed(1)}
-            <span className="ml-1 text-sm font-normal text-muted-foreground">/ 5</span>
+            <span className="ml-1 text-sm font-normal text-muted-foreground">{t('perFive')}</span>
           </p>
         </CardContent>
       </Card>
@@ -53,12 +57,14 @@ export default async function MyRatingsPage() {
 }
 
 function RatingRow({ rating }: { rating: LeaseRating }) {
+  const t = useTranslations('tenant.ratings');
+  const tMilestone = useTranslations('tenant.ratings.milestones');
   return (
     <li className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">
-            {milestoneLabel(rating.milestone)} · from {rating.raterName}
+            {t('fromLabel', { milestone: tMilestone(rating.milestone), name: rating.raterName })}
           </p>
           <p className="text-xs text-muted-foreground">{formatDate(rating.createdAt)}</p>
         </div>
@@ -71,20 +77,10 @@ function RatingRow({ rating }: { rating: LeaseRating }) {
   );
 }
 
-function milestoneLabel(m: LeaseRating['milestone']): string {
-  switch (m) {
-    case 'MOVE_IN':
-      return 'Move-in';
-    case 'MID_LEASE':
-      return 'Mid-lease';
-    case 'MOVE_OUT':
-      return 'Move-out';
-  }
-}
-
 function Stars({ score }: { score: number }) {
+  const t = useTranslations('tenant.ratings');
   return (
-    <span className="text-amber-500" aria-label={`${score} of 5`}>
+    <span className="text-amber-500" aria-label={t('scoreAria', { score })}>
       {'★'.repeat(score)}
       <span className="text-muted-foreground">{'★'.repeat(5 - score)}</span>
     </span>

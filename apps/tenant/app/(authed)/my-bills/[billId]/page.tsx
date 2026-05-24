@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Bill, BillStatus, Page, Payment } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -19,23 +21,30 @@ export default async function MyBillDetailPage({
   const bill = await fetchBill(billId);
   if (!bill) notFound();
   const payments = await fetchPayments(billId);
+  const t = await getTranslations('tenant.bills');
+  const tKind = await getTranslations('tenant.statuses.billLineKinds');
+  const tDetail = await getTranslations('tenant.bills.detail');
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/my-bills">← Back to my bills</Link>
+          <Link href="/my-bills">{t('back')}</Link>
         </Button>
         <h1 className="text-2xl font-semibold">{formatMoney(bill.total, bill.currency)}</h1>
         <p className="text-sm text-muted-foreground">
-          <StatusBadge status={bill.status} /> · for {formatDate(bill.periodStart)} –{' '}
-          {formatDate(bill.periodEnd)} · due {formatDate(bill.dueDate)}
+          <StatusBadge status={bill.status} /> ·{' '}
+          {tDetail('subtitle', {
+            periodStart: formatDate(bill.periodStart),
+            periodEnd: formatDate(bill.periodEnd),
+            dueDate: formatDate(bill.dueDate),
+          })}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Lines</CardTitle>
+          <CardTitle className="text-lg">{tDetail('linesTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="divide-y text-sm">
@@ -44,8 +53,8 @@ export default async function MyBillDetailPage({
                 <div>
                   <p className="font-medium">{line.label}</p>
                   <p className="text-xs text-muted-foreground">
-                    {line.kind.toLowerCase().replace(/_/g, ' ')}
-                    {line.quantity > 1 ? ` · qty ${line.quantity}` : ''}
+                    {tKind(line.kind)}
+                    {line.quantity > 1 ? tDetail('quantitySuffix', { qty: line.quantity }) : ''}
                   </p>
                 </div>
                 <p className="font-medium">{formatMoney(line.amount, bill.currency)}</p>
@@ -57,11 +66,11 @@ export default async function MyBillDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Payments</CardTitle>
+          <CardTitle className="text-lg">{tDetail('paymentsTitle')}</CardTitle>
           <CardDescription>
             {payments.length === 0
-              ? 'No payments recorded yet.'
-              : `${payments.length} payment${payments.length === 1 ? '' : 's'} on file.`}
+              ? tDetail('paymentsEmpty')
+              : tDetail('paymentsCount', { count: payments.length })}
           </CardDescription>
         </CardHeader>
         {payments.length > 0 && (
@@ -86,8 +95,8 @@ export default async function MyBillDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Receipt</CardTitle>
-          <CardDescription>Download a PDF copy for your records.</CardDescription>
+          <CardTitle className="text-lg">{tDetail('receiptTitle')}</CardTitle>
+          <CardDescription>{tDetail('receiptDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <DownloadReceipt billId={bill.id} />
@@ -96,11 +105,8 @@ export default async function MyBillDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Pay online</CardTitle>
-          <CardDescription>
-            Pay this bill with a card via Stripe Checkout. Your bill flips to PAID once Stripe
-            confirms — usually a few seconds after you finish.
-          </CardDescription>
+          <CardTitle className="text-lg">{tDetail('payOnlineTitle')}</CardTitle>
+          <CardDescription>{tDetail('payOnlineDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <PayOnline billId={bill.id} billStatus={bill.status} />
@@ -121,6 +127,7 @@ async function fetchPayments(billId: string): Promise<Payment[]> {
 }
 
 function StatusBadge({ status }: { status: BillStatus }) {
+  const t = useTranslations('tenant.statuses.bills');
   const palette: Record<BillStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     ISSUED: 'bg-blue-100 text-blue-900',
@@ -131,7 +138,7 @@ function StatusBadge({ status }: { status: BillStatus }) {
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase().replace('_', ' ')}
+      {t(status)}
     </span>
   );
 }

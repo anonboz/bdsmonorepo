@@ -1,6 +1,6 @@
-# Spec: Tenant PWA localization — slice A (phase 11.3a)
+# Spec: Tenant PWA localization (phase 11.3)
 
-> Status: **shipped**
+> Status: **shipped** (both slices A + B)
 > Phase: 11
 > Owner: claude
 > Spec last updated: 2026-05-24
@@ -14,13 +14,19 @@ Vietnamese-default + English-opt-in — the highest-traffic surface
 goes first per BUILD_PLAN §5.3 so we catch translation-quality
 issues before they cascade to owner / partner.
 
-**Slice A** (this PR) covers the chrome + auth surface: layout
-metadata, login, landing tiles, account / language preference, the
-forbidden page, the offline page, the public undo-email page, and
-the locale-switcher placement. The "everything else" tenant pages
-(my-bills, my-leases, my-tickets, notifications, browse, applications,
-ratings) ship in slice B as a follow-up so reviewers see a
-focused diff per PR.
+**Slice A** covered the chrome + auth surface: layout metadata,
+login, landing tiles, account / language preference, the forbidden
+page, the offline page, the public undo-email page, and the
+locale-switcher placement.
+
+**Slice B** (this PR) covers everything else in `apps/tenant`:
+my-bills (list, detail, pay-online, payment-success/cancelled,
+vnpay return, download-receipt), my-leases (list, detail, ratings
+card), my-tickets (list, detail, new form, thread, reopen),
+notifications (inbox, preferences, push), browse (list, detail,
+apply form), me/applications (list, detail, withdraw), me/ratings.
+After slice B, every user-facing string in the tenant PWA renders
+through `useTranslations`.
 
 ## 2. User stories
 
@@ -35,21 +41,55 @@ focused diff per PR.
 
 ## 3. Surfaces
 
+### Slice A — chrome + auth
+
 | Surface              | App / file                                                        | Notes                                                                                     |
 | -------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Catalog              | `packages/i18n/src/messages/{en,vi}/tenant.json`                  | New namespace `tenant.*` keyed under sub-domains (`login`, `home`, `account`, …).         |
+| Catalog              | `packages/i18n/src/messages/{en,vi}/tenant.json`                  | Namespace `tenant.*` keyed under sub-domains (`login`, `home`, `account`, …).             |
 | i18n loader          | `packages/i18n/src/server.ts`                                     | Adds tenant to the bundled catalogs so `useTranslations('tenant.*')` resolves.            |
 | Entrypoint split     | `packages/i18n/package.json`, `packages/i18n/src/index.ts`        | `@repo/i18n` (client-safe) vs `@repo/i18n/server` (cookies/headers).                      |
 | Layout metadata      | `apps/tenant/app/layout.tsx`                                      | `generateMetadata()` uses `getTranslations('tenant')` for the description.                |
 | Login                | `apps/tenant/app/login/{page,login-form}.tsx`                     | All static text extracted; switcher placed in the page header.                            |
 | Landing              | `apps/tenant/app/(authed)/page.tsx`                               | Six tiles + "Coming soon" card extracted, `signedInAs` uses `t.rich` for the bolded name. |
-| Account              | `apps/tenant/app/(authed)/me/page.tsx` + `language-card.tsx`      | New `LanguageCard` wires the switcher to `PATCH /v1/me` via the 11.2 endpoint.            |
+| Account              | `apps/tenant/app/(authed)/me/page.tsx` + `language-card.tsx`      | `LanguageCard` wires the switcher to `PATCH /v1/me` via the 11.2 endpoint.                |
 | Delete-account card  | `apps/tenant/app/(authed)/me/_components/delete-account-card.tsx` | Three visual states + all error copy localized.                                           |
 | Notification bell    | `apps/tenant/app/(authed)/_components/notification-bell-link.tsx` | `aria-label` localized; takes a plural-ish split between "Notifications" / "…N unread".   |
 | Forbidden            | `apps/tenant/app/forbidden/page.tsx`                              | Role-mismatch copy localized; `{role}`+`{appName}` interpolated.                          |
 | Offline              | `apps/tenant/app/offline/page.tsx`                                | Client component (needs `window.location.reload`); single retry button.                   |
 | Erase-cancel landing | `apps/tenant/app/account/erase-cancel/page.tsx`                   | Public undo page (no auth); three shells localized.                                       |
-| Playwright           | `apps/e2e/tests/web/tenant-locale-switcher.spec.ts`               | New `tenant-web` project boots the tenant dev server + verifies the vi → en flip.         |
+| Playwright           | `apps/e2e/tests/web/tenant-locale-switcher.spec.ts`               | `tenant-web` project boots the tenant dev server + verifies the vi → en flip.             |
+
+### Slice B — feature pages
+
+| Surface             | App / file                                                                | Notes                                                                                 |
+| ------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Bills list          | `apps/tenant/app/(authed)/my-bills/page.tsx`                              | Status badges read from `tenant.statuses.bills.*`; ICU plural for the count summary.  |
+| Bills detail        | `apps/tenant/app/(authed)/my-bills/[billId]/page.tsx`                     | Period subtitle interpolated; line-kind labels via `tenant.statuses.billLineKinds.*`. |
+| Pay-online card     | `apps/tenant/app/(authed)/my-bills/[billId]/_components/pay-online.tsx`   | Stripe/VNPay disabled states + the "we never see your card" hint.                     |
+| Payment success     | `apps/tenant/app/(authed)/my-bills/[billId]/payment-success/page.tsx`     | Rich text for the bolded `PAID` token via `t.rich`.                                   |
+| Payment cancelled   | `apps/tenant/app/(authed)/my-bills/[billId]/payment-cancelled/page.tsx`   | Single banner.                                                                        |
+| VNPay return        | `apps/tenant/app/(authed)/my-bills/[billId]/vnpay/return/page.tsx`        | Success / fail branches; interpolates `{code}` into the failure copy.                 |
+| Download receipt    | `apps/tenant/app/(authed)/my-bills/_components/download-receipt.tsx`      | Anchor label only.                                                                    |
+| Leases list         | `apps/tenant/app/(authed)/my-leases/page.tsx`                             | Three section headings (active / draft / closed) + ICU rent-per-cycle.                |
+| Leases detail       | `apps/tenant/app/(authed)/my-leases/[leaseId]/page.tsx`                   | Money labels + termination card.                                                      |
+| Lease ratings card  | `apps/tenant/app/(authed)/my-leases/[leaseId]/ratings-card.tsx`           | Milestone titles + blurbs + pill labels + the "opens on X" copy.                      |
+| Tickets list        | `apps/tenant/app/(authed)/my-tickets/page.tsx`                            | Status badges via `tenant.statuses.tickets.*`; category labels.                       |
+| Tickets detail      | `apps/tenant/app/(authed)/my-tickets/[id]/page.tsx`                       | Conversation/Details cards + lock-reason fallback.                                    |
+| Ticket thread       | `apps/tenant/app/(authed)/my-tickets/[id]/ticket-thread.tsx`              | Empty state, placeholder, send button, role labels via `tenant.statuses.rolesLower`.  |
+| Reopen button       | `apps/tenant/app/(authed)/my-tickets/[id]/reopen-button.tsx`              | `window.confirm` localized; button label.                                             |
+| New ticket page     | `apps/tenant/app/(authed)/my-tickets/new/page.tsx`                        | No-active-lease empty state + back link.                                              |
+| New ticket form     | `apps/tenant/app/(authed)/my-tickets/new/new-ticket-form.tsx`             | All field labels + the lease-option template + cancel/raise buttons.                  |
+| Notifications page  | `apps/tenant/app/(authed)/notifications/page.tsx`                         | Header copy only — children own their own translators.                                |
+| Inbox client        | `apps/tenant/app/(authed)/notifications/_components/inbox-client.tsx`     | ICU plural for the unread count + mark-all button.                                    |
+| Preferences card    | `apps/tenant/app/(authed)/notifications/_components/preferences-card.tsx` | Topic labels + helps live under `tenant.notifications.prefs.topics.*`.                |
+| Push toggle         | `apps/tenant/app/(authed)/notifications/_components/push-toggle.tsx`      | All four error-code variants live under `tenant.notifications.push.errors.*`.         |
+| Browse list         | `apps/tenant/app/browse/page.tsx`                                         | Filter input placeholders + empty state + price-per-month template.                   |
+| Browse detail       | `apps/tenant/app/browse/[id]/page.tsx`                                    | Apply card description switches on role.                                              |
+| Apply form          | `apps/tenant/app/browse/[id]/apply-form.tsx`                              | Optional message placeholder + send button.                                           |
+| Applications list   | `apps/tenant/app/(authed)/me/applications/page.tsx`                       | Campaign-short label + ICU plural.                                                    |
+| Applications detail | `apps/tenant/app/(authed)/me/applications/[id]/page.tsx`                  | Rejected / accepted banners; the no-message italic placeholder.                       |
+| Withdraw button     | `apps/tenant/app/(authed)/me/applications/[id]/withdraw-button.tsx`       | `window.confirm` localized.                                                           |
+| Ratings page        | `apps/tenant/app/(authed)/me/ratings/page.tsx`                            | Reputation card + per-row milestone label + stars aria-label.                         |
 
 ## 4. Catalog layout
 
@@ -120,15 +160,14 @@ All strings translated by the author. Conventions:
 
 ## 8. Out of scope
 
-- **`my-bills`, `my-leases`, `my-tickets`, `notifications`, `browse`,
-  `applications`, `ratings`** — slice B. The relevant tenant
-  catalogs gain sub-namespaces (`tenant.bills.*`, etc.) when those
-  pages get extracted.
 - **Owner / partner / admin PWAs** — Phase 11.4.
 - **Email + push templates** — Phase 11.5.
 - **`Intl.NumberFormat` / locale-aware date helpers** — Phase 11.7.
-- **Persistent header-level switcher in (authed) layout** — slice B
-  or a layout-refresh follow-up.
+  Money + date strings continue to use `Intl.*` on the browser
+  locale, not the user-chosen locale.
+- **Persistent header-level switcher in the (authed) layout** —
+  future layout-refresh follow-up. The switcher lives on `/login`
+  and `/me` only.
 
 ## 9. Acceptance criteria
 

@@ -1,8 +1,12 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-export const metadata = { title: 'Payment cancelled' };
+export async function generateMetadata() {
+  const t = await getTranslations('tenant.bills.paymentCancelled');
+  return { title: t('metadataTitle') };
+}
 
 export default async function PaymentCancelledPage({
   params,
@@ -10,25 +14,21 @@ export default async function PaymentCancelledPage({
   params: Promise<{ billId: string }>;
 }) {
   const { billId } = await params;
+  const t = await getTranslations('tenant.bills.paymentCancelled');
 
   return (
     <main className="mx-auto max-w-xl space-y-6 px-6 py-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">No charge was made</CardTitle>
-          <CardDescription>
-            You cancelled the Stripe checkout before completing payment. Your bill is unchanged.
-          </CardDescription>
+          <CardTitle className="text-2xl">{t('title')}</CardTitle>
+          <CardDescription>{t('description')}</CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          You can try again whenever you&apos;re ready. We only charge after Stripe confirms the
-          payment.
-        </CardContent>
+        <CardContent className="text-sm text-muted-foreground">{t('body')}</CardContent>
       </Card>
 
       <div className="flex gap-2">
         <Button asChild>
-          <Link href={`/my-bills/${billId}`}>Back to bill</Link>
+          <Link href={`/my-bills/${billId}`}>{t('backToBill')}</Link>
         </Button>
       </div>
     </main>

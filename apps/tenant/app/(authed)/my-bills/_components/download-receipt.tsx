@@ -1,3 +1,7 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+
 import { Button } from '@repo/ui';
 
 import { API_URL } from '../../../../lib/app-config';
@@ -10,6 +14,7 @@ import { API_URL } from '../../../../lib/app-config';
  * forces save anyway.
  */
 export function DownloadReceipt({ billId }: { billId: string }) {
+  const t = useTranslations('tenant.bills.detail');
   return (
     <Button asChild variant="outline">
       <a
@@ -17,7 +22,7 @@ export function DownloadReceipt({ billId }: { billId: string }) {
         download={`bill-${billId}.pdf`}
         rel="noopener"
       >
-        Download receipt (PDF)
+        {t('receiptButton')}
       </a>
     </Button>
   );

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import type { BillStatus, CreateCheckoutSessionResponse } from '@repo/shared';
@@ -12,6 +13,7 @@ const PAYABLE_STATES: BillStatus[] = ['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'];
 type Provider = 'stripe' | 'vnpay';
 
 export function PayOnline({ billId, billStatus }: { billId: string; billStatus: BillStatus }) {
+  const t = useTranslations('tenant.bills.payOnline');
   const [busy, setBusy] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [disabled, setDisabled] = useState<Record<Provider, boolean>>({
@@ -22,9 +24,7 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
   if (!PAYABLE_STATES.includes(billStatus)) {
     return (
       <p className="text-sm text-muted-foreground">
-        {billStatus === 'PAID'
-          ? 'This bill is paid in full.'
-          : 'Online payment is not available for this bill yet.'}
+        {billStatus === 'PAID' ? t('alreadyPaid') : t('notAvailable')}
       </p>
     );
   }
@@ -43,7 +43,7 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
       if (err instanceof ApiError && err.problem.type === 'payments.provider_disabled') {
         setDisabled((d) => ({ ...d, [provider]: true }));
       } else {
-        setError(err instanceof ApiError ? err.problem.title : 'Could not start checkout');
+        setError(err instanceof ApiError ? err.problem.title : t('couldNotStart'));
       }
     } finally {
       setBusy(null);
@@ -54,11 +54,8 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
   if (bothDisabled) {
     return (
       <Alert>
-        <AlertTitle>Online payment not enabled</AlertTitle>
-        <AlertDescription>
-          Neither Stripe nor VNPay is configured on this deployment. Settle directly with your
-          landlord — they can record the payment for you.
-        </AlertDescription>
+        <AlertTitle>{t('neitherTitle')}</AlertTitle>
+        <AlertDescription>{t('neitherBody')}</AlertDescription>
       </Alert>
     );
   }
@@ -67,7 +64,7 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
     <div className="space-y-3">
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Could not start checkout</AlertTitle>
+          <AlertTitle>{t('couldNotStart')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -75,21 +72,20 @@ export function PayOnline({ billId, billStatus }: { billId: string; billStatus: 
         {!disabled.stripe && (
           <Button onClick={() => pay('stripe')} disabled={busy !== null}>
             {busy === 'stripe' && <Spinner />}
-            Pay with Stripe
+            {t('payStripe')}
           </Button>
         )}
         {!disabled.vnpay && (
           <Button onClick={() => pay('vnpay')} disabled={busy !== null} variant="outline">
             {busy === 'vnpay' && <Spinner />}
-            Pay with VNPay
+            {t('payVnpay')}
           </Button>
         )}
       </div>
       <p className="text-xs text-muted-foreground">
-        You will be redirected to the provider&apos;s secure checkout page. We never see your card
-        details.
-        {disabled.stripe && !disabled.vnpay && ' Stripe is not configured on this deployment.'}
-        {!disabled.stripe && disabled.vnpay && ' VNPay is not configured on this deployment.'}
+        {t('redirectNote')}
+        {disabled.stripe && !disabled.vnpay && t('stripeDisabledNote')}
+        {!disabled.stripe && disabled.vnpay && t('vnpayDisabledNote')}
       </p>
     </div>
   );

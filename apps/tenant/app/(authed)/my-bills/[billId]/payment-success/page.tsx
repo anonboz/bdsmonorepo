@@ -1,8 +1,12 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-export const metadata = { title: 'Payment received' };
+export async function generateMetadata() {
+  const t = await getTranslations('tenant.bills.paymentSuccess');
+  return { title: t('metadataTitle') };
+}
 
 export default async function PaymentSuccessPage({
   params,
@@ -13,37 +17,34 @@ export default async function PaymentSuccessPage({
 }) {
   const { billId } = await params;
   const { session_id } = await searchParams;
+  const t = await getTranslations('tenant.bills.paymentSuccess');
 
   return (
     <main className="mx-auto max-w-xl space-y-6 px-6 py-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Thanks for your payment</CardTitle>
+          <CardTitle className="text-2xl">{t('title')}</CardTitle>
           <CardDescription>
-            Stripe has confirmed the charge. Your bill will flip to <strong>PAID</strong> shortly
-            after our system receives the webhook — usually a few seconds.
+            {t.rich('description', { strong: (chunks) => <strong>{chunks}</strong> })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           {session_id && (
             <p>
-              <span className="font-medium text-foreground">Stripe reference:</span>{' '}
+              <span className="font-medium text-foreground">{t('stripeReferenceLabel')}</span>{' '}
               <code className="text-xs">{session_id}</code>
             </p>
           )}
-          <p>
-            If the bill is still shown as outstanding more than a minute from now, refresh the page
-            or contact your landlord.
-          </p>
+          <p>{t('stillOutstanding')}</p>
         </CardContent>
       </Card>
 
       <div className="flex gap-2">
         <Button asChild>
-          <Link href={`/my-bills/${billId}`}>Back to bill</Link>
+          <Link href={`/my-bills/${billId}`}>{t('backToBill')}</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/my-bills">All bills</Link>
+          <Link href="/my-bills">{t('allBills')}</Link>
         </Button>
       </div>
     </main>

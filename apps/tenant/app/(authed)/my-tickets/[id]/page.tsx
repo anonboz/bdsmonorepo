@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Page, Ticket, TicketMessage, TicketStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -27,18 +29,22 @@ export default async function MyTicketDetailPage({ params }: { params: Promise<{
   const canReopen = (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') && inReopenWindow;
   const threadOpen = ticket.status !== 'CLOSED' || inReopenWindow;
 
+  const t = await getTranslations('tenant.tickets');
+  const tDetail = await getTranslations('tenant.tickets.detail');
+  const tCat = await getTranslations('tenant.statuses.ticketCategories');
+
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/my-tickets">← Back to my tickets</Link>
+          <Link href="/my-tickets">{t('back')}</Link>
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">{ticket.title}</h1>
             <p className="text-sm text-muted-foreground">
-              <StatusBadge status={ticket.status} /> · {ticket.category.toLowerCase()} · raised{' '}
-              {formatDate(ticket.createdAt)}
+              <StatusBadge status={ticket.status} /> · {tCat(ticket.category)} ·{' '}
+              {t('raisedAt', { date: formatDate(ticket.createdAt) })}
             </p>
           </div>
           {canReopen && <ReopenButton ticketId={ticket.id} />}
@@ -47,7 +53,7 @@ export default async function MyTicketDetailPage({ params }: { params: Promise<{
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Details</CardTitle>
+          <CardTitle className="text-lg">{tDetail('detailsTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{ticket.body}</p>
@@ -56,10 +62,8 @@ export default async function MyTicketDetailPage({ params }: { params: Promise<{
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Conversation</CardTitle>
-          <CardDescription>
-            Messages between you and the owner. Stays open for 7 days after closure.
-          </CardDescription>
+          <CardTitle className="text-lg">{tDetail('conversationTitle')}</CardTitle>
+          <CardDescription>{tDetail('conversationDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <TicketThread
@@ -68,7 +72,7 @@ export default async function MyTicketDetailPage({ params }: { params: Promise<{
             viewerRole="TENANT"
             viewerId={session.user.id}
             canPost={threadOpen}
-            lockedReason="This ticket is closed and past the 7-day reopen window."
+            lockedReason={tDetail('lockedDefault')}
             initialItems={messages}
           />
         </CardContent>
@@ -78,6 +82,7 @@ export default async function MyTicketDetailPage({ params }: { params: Promise<{
 }
 
 function StatusBadge({ status }: { status: TicketStatus }) {
+  const t = useTranslations('tenant.statuses.tickets');
   const palette: Record<TicketStatus, string> = {
     OPEN: 'bg-blue-100 text-blue-900',
     ACKNOWLEDGED: 'bg-sky-100 text-sky-900',
@@ -88,7 +93,7 @@ function StatusBadge({ status }: { status: TicketStatus }) {
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase().replace('_', ' ')}
+      {t(status)}
     </span>
   );
 }

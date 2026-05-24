@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import type { TicketMessage } from '@repo/shared';
@@ -31,6 +32,7 @@ export function TicketThread({
   lockedReason?: string;
   initialItems: TicketMessage[];
 }) {
+  const t = useTranslations('tenant.tickets.thread');
   const [items, setItems] = useState(initialItems);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -56,7 +58,7 @@ export function TicketThread({
       setItems((prev) => [...prev, created]);
       setBody('');
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Could not send');
+      setError(err instanceof ApiError ? err.problem.title : t('sendFailed'));
     } finally {
       setBusy(false);
     }
@@ -67,12 +69,10 @@ export function TicketThread({
       <div
         ref={listRef}
         className="max-h-[26rem] overflow-y-auto rounded-md border bg-muted/30 p-3"
-        aria-label="Conversation"
+        aria-label={t('convoAria')}
       >
         {items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            No messages yet. Start the conversation below.
-          </p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{t('empty')}</p>
         ) : (
           <ul className="space-y-3">
             {items.map((m) => (
@@ -92,11 +92,11 @@ export function TicketThread({
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Write a message…"
+            placeholder={t('placeholder')}
             rows={3}
             maxLength={4000}
             disabled={busy}
-            aria-label="Message"
+            aria-label={t('messageAria')}
           />
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-destructive" role="alert" aria-live="polite">
@@ -104,13 +104,13 @@ export function TicketThread({
             </p>
             <Button type="submit" disabled={busy || !body.trim()}>
               {busy && <Spinner />}
-              Send
+              {t('send')}
             </Button>
           </div>
         </form>
       ) : (
         <p className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-          {lockedReason ?? 'This thread is locked.'}
+          {lockedReason ?? t('lockedDefault')}
         </p>
       )}
     </div>
@@ -126,12 +126,10 @@ function MessageBubble({
   mine: boolean;
   viewerRole: 'TENANT' | 'OWNER';
 }) {
+  const tRole = useTranslations('tenant.statuses.rolesLower');
   // "mine" handles the common case (own messages right-aligned). If
   // someone else on my side ever posts, we still show it as theirs.
-  const theirRoleLabel =
-    message.authorRole === viewerRole
-      ? viewerRole.toLowerCase()
-      : otherSideLabel(message.authorRole);
+  const theirRoleLabel = tRole(message.authorRole === viewerRole ? viewerRole : message.authorRole);
   return (
     <li className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -154,15 +152,4 @@ function MessageBubble({
       </div>
     </li>
   );
-}
-
-function otherSideLabel(role: TicketMessage['authorRole']): string {
-  switch (role) {
-    case 'TENANT':
-      return 'tenant';
-    case 'OWNER':
-      return 'owner';
-    case 'ADMIN':
-      return 'admin';
-  }
 }

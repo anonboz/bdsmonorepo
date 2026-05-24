@@ -3,7 +3,9 @@
   "chrome": {
     "signedInAs": "Signed in as <strong>{name}</strong>.",
     "notificationsAria": "Notifications",
-    "notificationsAriaUnread": "Notifications, {count} unread"
+    "notificationsAriaUnread": "Notifications, {count} unread",
+    "back": "← Back",
+    "cancel": "Cancel"
   },
   "login": {
     "title": "Sign in",
@@ -79,5 +81,371 @@
     "okBody": "Your account deletion request has been cancelled. No further action is needed — you can close this tab.",
     "fail": "Could not cancel",
     "fallback": "We could not cancel the deletion. Try again or contact support."
+  },
+  "statuses": {
+    "bills": {
+      "DRAFT": "draft",
+      "ISSUED": "issued",
+      "PARTIALLY_PAID": "partially paid",
+      "PAID": "paid",
+      "OVERDUE": "overdue",
+      "VOID": "void"
+    },
+    "leases": {
+      "DRAFT": "draft",
+      "ACTIVE": "active",
+      "ENDED": "ended",
+      "TERMINATED": "terminated"
+    },
+    "tickets": {
+      "OPEN": "open",
+      "ACKNOWLEDGED": "acknowledged",
+      "IN_PROGRESS": "in progress",
+      "RESOLVED": "resolved",
+      "CLOSED": "closed",
+      "REOPENED": "reopened"
+    },
+    "ticketCategories": {
+      "REPAIR": "Repair",
+      "REPORT": "Report",
+      "COMPLAINT": "Complaint",
+      "REQUEST": "Request",
+      "OTHER": "Other"
+    },
+    "applications": {
+      "SUBMITTED": "submitted",
+      "REVIEWING": "reviewing",
+      "ACCEPTED": "accepted",
+      "REJECTED": "rejected",
+      "WITHDRAWN": "withdrawn"
+    },
+    "rentCycles": {
+      "WEEKLY": "weekly",
+      "MONTHLY": "monthly",
+      "QUARTERLY": "quarterly",
+      "YEARLY": "yearly"
+    },
+    "billLineKinds": {
+      "RENT": "rent",
+      "DEPOSIT": "deposit",
+      "UTILITY_ELECTRICITY": "utility electricity",
+      "UTILITY_WATER": "utility water",
+      "UTILITY_INTERNET": "utility internet",
+      "UTILITY_OTHER": "utility other",
+      "SERVICE_FEE": "service fee",
+      "LATE_FEE": "late fee",
+      "ADJUSTMENT": "adjustment",
+      "OTHER": "other"
+    },
+    "rolesLower": {
+      "TENANT": "tenant",
+      "OWNER": "owner",
+      "PARTNER": "partner",
+      "ADMIN": "admin"
+    }
+  },
+  "bills": {
+    "metadataTitle": "My bills",
+    "listTitle": "My bills",
+    "summaryEmpty": "No bills yet.",
+    "summaryCount": "{count, plural, =0 {No bills yet.} one {1 on record.} other {{count} on record.}}",
+    "sectionOpen": "Open",
+    "sectionHistory": "History",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "Bills appear here on the first of each month while your lease is active.",
+    "due": "due {date}",
+    "back": "← Back to my bills",
+    "detail": {
+      "subtitle": "for {periodStart} – {periodEnd} · due {dueDate}",
+      "linesTitle": "Lines",
+      "quantitySuffix": " · qty {qty}",
+      "paymentsTitle": "Payments",
+      "paymentsEmpty": "No payments recorded yet.",
+      "paymentsCount": "{count, plural, one {1 payment on file.} other {{count} payments on file.}}",
+      "receiptTitle": "Receipt",
+      "receiptDescription": "Download a PDF copy for your records.",
+      "receiptButton": "Download receipt (PDF)",
+      "payOnlineTitle": "Pay online",
+      "payOnlineDescription": "Pay this bill with a card via Stripe Checkout. Your bill flips to PAID once Stripe confirms — usually a few seconds after you finish."
+    },
+    "payOnline": {
+      "alreadyPaid": "This bill is paid in full.",
+      "notAvailable": "Online payment is not available for this bill yet.",
+      "couldNotStart": "Could not start checkout",
+      "neitherTitle": "Online payment not enabled",
+      "neitherBody": "Neither Stripe nor VNPay is configured on this deployment. Settle directly with your landlord — they can record the payment for you.",
+      "payStripe": "Pay with Stripe",
+      "payVnpay": "Pay with VNPay",
+      "redirectNote": "You will be redirected to the provider's secure checkout page. We never see your card details.",
+      "stripeDisabledNote": " Stripe is not configured on this deployment.",
+      "vnpayDisabledNote": " VNPay is not configured on this deployment."
+    },
+    "paymentSuccess": {
+      "metadataTitle": "Payment received",
+      "title": "Thanks for your payment",
+      "description": "Stripe has confirmed the charge. Your bill will flip to <strong>PAID</strong> shortly after our system receives the webhook — usually a few seconds.",
+      "stripeReferenceLabel": "Stripe reference:",
+      "stillOutstanding": "If the bill is still shown as outstanding more than a minute from now, refresh the page or contact your landlord.",
+      "backToBill": "Back to bill",
+      "allBills": "All bills"
+    },
+    "paymentCancelled": {
+      "metadataTitle": "Payment cancelled",
+      "title": "No charge was made",
+      "description": "You cancelled the Stripe checkout before completing payment. Your bill is unchanged.",
+      "body": "You can try again whenever you're ready. We only charge after Stripe confirms the payment.",
+      "backToBill": "Back to bill"
+    },
+    "vnpayReturn": {
+      "metadataTitle": "VNPay return",
+      "okTitle": "Thanks for your payment",
+      "failTitle": "Payment did not complete",
+      "okDescription": "VNPay confirmed the charge. Your bill flips to PAID once our server receives VNPay's IPN — usually within seconds.",
+      "failDescription": "VNPay returned code {code}. No money was taken; try again whenever you're ready.",
+      "unknownCode": "unknown",
+      "vnpayReferenceLabel": "VNPay reference:",
+      "ourReferenceLabel": "Our reference:",
+      "stillOutstanding": "If the bill is still shown as outstanding more than a minute from now, refresh the page or contact your landlord.",
+      "backToBill": "Back to bill",
+      "allBills": "All bills"
+    }
+  },
+  "leases": {
+    "metadataTitle": "My leases",
+    "listTitle": "My leases",
+    "summaryEmpty": "No leases yet.",
+    "summaryCount": "{count, plural, =0 {No leases yet.} one {1 on record.} other {{count} on record.}}",
+    "sectionCurrent": "Current",
+    "sectionDraft": "Draft (not yet active)",
+    "sectionHistory": "History",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "When your landlord creates a lease for you, it will appear here.",
+    "rentPerCycle": "{amount} / {cycle}",
+    "back": "← Back to my leases",
+    "detail": {
+      "title": "Lease details",
+      "moneyTitle": "Money",
+      "rentLabel": "Rent",
+      "depositLabel": "Deposit",
+      "terminationTitle": "Termination reason",
+      "terminationDescription": "Recorded by your landlord.",
+      "ratingsTitle": "Rate your owner",
+      "ratingsDescription": "Quick 1–5 star rating at each lease milestone. Comments are optional."
+    },
+    "ratings": {
+      "leadOwner": "Tell future owners what to expect. One rating per milestone.",
+      "leadTenant": "Tell future tenants what to expect. One rating per milestone.",
+      "milestones": {
+        "MOVE_IN": "Move-in",
+        "MID_LEASE": "Mid-lease check-in",
+        "MOVE_OUT": "Move-out"
+      },
+      "blurbs": {
+        "MOVE_IN": "How was the handover and the place on arrival?",
+        "MID_LEASE": "How is it going so far?",
+        "MOVE_OUT": "How was the overall stay and the deposit return?"
+      },
+      "alreadyRated": "Thanks — you've already rated this.",
+      "notAvailableDraft": "Available once the lease is activated.",
+      "notAvailableNotEnded": "Available when the lease ends or the move-out date passes.",
+      "opensAt": "Opens {date}.",
+      "notAvailableGeneric": "Not yet available.",
+      "pillRated": "rated",
+      "pillOpen": "open",
+      "pillNotYet": "not yet",
+      "commentPlaceholder": "Optional comment (≤ 2000 characters)",
+      "commentAria": "Comment",
+      "scoreAria": "Score",
+      "starsAria": "{n, plural, one {1 star} other {{n} stars}}",
+      "pickScoreError": "Pick a score from 1 to 5.",
+      "submitFailed": "Could not submit rating.",
+      "submit": "Submit"
+    }
+  },
+  "tickets": {
+    "metadataTitle": "My tickets",
+    "listTitle": "My tickets",
+    "summaryEmpty": "No tickets yet.",
+    "summaryCount": "{count, plural, =0 {No tickets yet.} one {1 on record.} other {{count} on record.}}",
+    "newButton": "New ticket",
+    "sectionOpen": "Open",
+    "sectionHistory": "History",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "Raise a ticket if something needs attention in your unit.",
+    "emptyButton": "Raise a ticket",
+    "raisedAt": "raised {date}",
+    "back": "← Back to my tickets",
+    "detail": {
+      "subtitleSeparator": " · ",
+      "detailsTitle": "Details",
+      "conversationTitle": "Conversation",
+      "conversationDescription": "Messages between you and the owner. Stays open for 7 days after closure.",
+      "lockedDefault": "This ticket is closed and past the 7-day reopen window.",
+      "reopenButton": "Reopen",
+      "reopenConfirm": "Reopen this ticket? The owner will be notified that it isn't actually resolved.",
+      "reopenFailed": "Reopen failed"
+    },
+    "thread": {
+      "convoAria": "Conversation",
+      "empty": "No messages yet. Start the conversation below.",
+      "messageAria": "Message",
+      "placeholder": "Write a message…",
+      "send": "Send",
+      "sendFailed": "Could not send",
+      "lockedDefault": "This thread is locked."
+    },
+    "new": {
+      "metadataTitle": "New ticket",
+      "title": "New ticket",
+      "noLeasesTitle": "No active leases",
+      "noLeasesDescription": "You need an active lease to raise a ticket. Talk to your landlord if this is unexpected.",
+      "viewLeasesButton": "View my leases",
+      "couldNotRaise": "Could not raise ticket.",
+      "couldNotRaiseTitle": "Could not raise ticket",
+      "leaseLabel": "Lease",
+      "leaseOption": "{cycle} · {currency} · started {startDate}",
+      "categoryLabel": "Category",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Brief summary",
+      "detailsLabel": "Details",
+      "detailsDescription": "What happened, when, and what should we do about it.",
+      "raiseButton": "Raise ticket",
+      "cancelButton": "Cancel"
+    }
+  },
+  "notifications": {
+    "metadataTitle": "Notifications",
+    "title": "Notifications",
+    "subtitle": "Updates about your bills, tickets, and account.",
+    "unreadCount": "{count, plural, =0 {All caught up} one {1 unread} other {{count} unread}}",
+    "allCaughtUp": "All caught up",
+    "markAll": "Mark all as read",
+    "prefs": {
+      "title": "Notification preferences",
+      "muted": "Muted",
+      "on": "On",
+      "updateFailed": "Could not update \"{topic}\". Try again.",
+      "topics": {
+        "bill.issued": {
+          "label": "New bill issued",
+          "help": "Email when your landlord generates a new bill."
+        },
+        "bill.paid": {
+          "label": "Payment confirmed",
+          "help": "Email when a payment clears (manual, Stripe, or VNPay)."
+        },
+        "bill.refunded": {
+          "label": "Refund issued",
+          "help": "Email when your landlord refunds a payment."
+        },
+        "ticket.resolved": {
+          "label": "Ticket resolved",
+          "help": "Email when your landlord marks a ticket resolved."
+        }
+      }
+    },
+    "push": {
+      "title": "Push notifications",
+      "description": "Get system notifications on this device when a bill drops or a ticket updates. You can mute by topic in the preferences panel above.",
+      "loading": "Loading subscriptions…",
+      "unknownDevice": "Unknown device",
+      "addedAt": "Added {date}",
+      "remove": "Remove",
+      "addThisDevice": "Add this device",
+      "enable": "Enable push on this device",
+      "disableFailed": "Could not disable. Try again.",
+      "enableFailed": "Could not enable push notifications. Try again.",
+      "errors": {
+        "permissionDenied": "Browser blocked notification permission. Re-enable it in site settings, then try again.",
+        "vapidMissing": "Push isn't configured on the server.",
+        "unsupported": "This browser doesn't support web push.",
+        "noServiceWorker": "The app's service worker hasn't loaded yet — reload the page and try again."
+      }
+    }
+  },
+  "browse": {
+    "metadataTitle": "Browse listings",
+    "title": "Browse listings",
+    "summaryEmpty": "No listings match.",
+    "summaryCount": "{count, plural, one {1 listing.} other {{count} listings.}}",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescription": "Try widening your filters or checking back later.",
+    "filters": {
+      "search": "Search title",
+      "city": "City",
+      "country": "Country (ISO)",
+      "minPrice": "Min price (minor units)",
+      "maxPrice": "Max price (minor units)"
+    },
+    "noPhoto": "No photo",
+    "pricePerMonth": "{amount} / month",
+    "sqmSuffix": " · {n} m²",
+    "brSuffix": " · {n} BR",
+    "baSuffix": " · {n} BA",
+    "back": "← Back to listings",
+    "detail": {
+      "subtitle": "{city}, {country} · {price} / month · published {date}",
+      "aboutTitle": "About this place",
+      "applyTitle": "Apply",
+      "applyOwner": "You own this listing — applications are not available on your own campaigns.",
+      "applyTenant": "Send the owner a short note and they will get back to you.",
+      "applyOtherRole": "Switch to a tenant account to apply.",
+      "applyAnon": "Sign in to apply for this listing.",
+      "signInToApply": "Sign in to apply"
+    },
+    "apply": {
+      "couldNotSubmitTitle": "Could not submit",
+      "couldNotSubmit": "Could not submit application.",
+      "placeholder": "Optional message to the owner — why you're a good fit.",
+      "messageAria": "Message",
+      "send": "Send application"
+    }
+  },
+  "applications": {
+    "metadataTitle": "My applications",
+    "title": "My applications",
+    "summaryEmpty": "No applications yet.",
+    "summaryCount": "{count, plural, one {1 on record.} other {{count} on record.}}",
+    "back": "← Back",
+    "emptyTitle": "Nothing here yet",
+    "emptyDescriptionPrefix": "",
+    "emptyDescriptionSuffix": " to find a place worth applying to.",
+    "browseLink": "Browse listings",
+    "campaignLabel": "Campaign · {short}",
+    "submittedAt": "Submitted {date}",
+    "detail": {
+      "backToList": "← Back to applications",
+      "title": "Application",
+      "metaSubmitted": "submitted {date}",
+      "withdrawButton": "Withdraw",
+      "withdrawConfirm": "Withdraw this application? You can re-apply later.",
+      "withdrawFailed": "Withdraw failed",
+      "rejectedTitle": "Rejected by the owner",
+      "rejectedReasonPrefix": "Reason: {reason}",
+      "acceptedTitle": "Accepted",
+      "acceptedBody": "The owner accepted your application and started a lease draft. They will finalize the terms and reach out.",
+      "messageTitle": "Your message",
+      "messageDescription": "What you sent to the owner.",
+      "noMessage": "No message.",
+      "listingTitle": "Listing",
+      "viewCampaign": "View campaign"
+    }
+  },
+  "ratings": {
+    "metadataTitle": "My ratings",
+    "title": "My ratings",
+    "subtitle": "What your landlords have said about you.",
+    "back": "← Back",
+    "reputationTitle": "Reputation",
+    "noRatings": "No ratings yet — your reputation will appear here as owners rate you.",
+    "ratingsCount": "{count, plural, one {1 rating on record.} other {{count} ratings on record.}}",
+    "perFive": "/ 5",
+    "scoreAria": "{score} of 5",
+    "fromLabel": "{milestone} · from {name}",
+    "milestones": {
+      "MOVE_IN": "Move-in",
+      "MID_LEASE": "Mid-lease",
+      "MOVE_OUT": "Move-out"
+    }
   }
 }

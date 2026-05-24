@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
@@ -25,6 +26,9 @@ type FormValues = z.infer<typeof createTicketSchema>;
 const CATEGORY_OPTIONS = ['REPAIR', 'REPORT', 'COMPLAINT', 'REQUEST', 'OTHER'] as const;
 
 export function NewTicketForm({ leases }: { leases: Lease[] }) {
+  const t = useTranslations('tenant.tickets.new');
+  const tCat = useTranslations('tenant.statuses.ticketCategories');
+  const tCycle = useTranslations('tenant.statuses.rentCycles');
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +45,11 @@ export function NewTicketForm({ leases }: { leases: Lease[] }) {
   const onSubmit = form.handleSubmit(async (values) => {
     setError(null);
     try {
-      const t = await api.post<Ticket>('/v1/me/tickets', values);
-      router.push(`/my-tickets/${t.id}`);
+      const tk = await api.post<Ticket>('/v1/me/tickets', values);
+      router.push(`/my-tickets/${tk.id}`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.problem.title : 'Could not raise ticket.');
+      setError(err instanceof ApiError ? err.problem.title : t('couldNotRaise'));
     }
   });
 
@@ -53,12 +57,12 @@ export function NewTicketForm({ leases }: { leases: Lease[] }) {
     <form className="space-y-6" onSubmit={onSubmit}>
       {error && (
         <Alert variant="destructive">
-          <AlertTitle>Could not raise ticket</AlertTitle>
+          <AlertTitle>{t('couldNotRaiseTitle')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      <FormField label="Lease" htmlFor="leaseId" error={form.formState.errors.leaseId}>
+      <FormField label={t('leaseLabel')} htmlFor="leaseId" error={form.formState.errors.leaseId}>
         <select
           id="leaseId"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -66,13 +70,21 @@ export function NewTicketForm({ leases }: { leases: Lease[] }) {
         >
           {leases.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.rentCycle.toLowerCase()} · {l.currency} · started {l.startDate}
+              {t('leaseOption', {
+                cycle: tCycle(l.rentCycle),
+                currency: l.currency,
+                startDate: l.startDate,
+              })}
             </option>
           ))}
         </select>
       </FormField>
 
-      <FormField label="Category" htmlFor="category" error={form.formState.errors.category}>
+      <FormField
+        label={t('categoryLabel')}
+        htmlFor="category"
+        error={form.formState.errors.category}
+      >
         <select
           id="category"
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -80,21 +92,21 @@ export function NewTicketForm({ leases }: { leases: Lease[] }) {
         >
           {CATEGORY_OPTIONS.map((c) => (
             <option key={c} value={c}>
-              {c[0] + c.slice(1).toLowerCase()}
+              {tCat(c)}
             </option>
           ))}
         </select>
       </FormField>
 
-      <FormField label="Title" htmlFor="title" error={form.formState.errors.title}>
-        <Input id="title" {...form.register('title')} placeholder="Brief summary" />
+      <FormField label={t('titleLabel')} htmlFor="title" error={form.formState.errors.title}>
+        <Input id="title" {...form.register('title')} placeholder={t('titlePlaceholder')} />
       </FormField>
 
       <FormField
-        label="Details"
+        label={t('detailsLabel')}
         htmlFor="body"
         error={form.formState.errors.body}
-        description="What happened, when, and what should we do about it."
+        description={t('detailsDescription')}
       >
         <Textarea id="body" rows={6} {...form.register('body')} />
       </FormField>
@@ -102,7 +114,7 @@ export function NewTicketForm({ leases }: { leases: Lease[] }) {
       <div className="flex gap-3">
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting && <Spinner />}
-          Raise ticket
+          {t('raiseButton')}
         </Button>
         <Button
           type="button"
@@ -110,7 +122,7 @@ export function NewTicketForm({ leases }: { leases: Lease[] }) {
           onClick={() => router.back()}
           disabled={form.formState.isSubmitting}
         >
-          Cancel
+          {t('cancelButton')}
         </Button>
       </div>
     </form>

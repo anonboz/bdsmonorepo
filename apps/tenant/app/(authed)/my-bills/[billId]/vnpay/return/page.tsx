@@ -1,8 +1,12 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
-export const metadata = { title: 'VNPay return' };
+export async function generateMetadata() {
+  const t = await getTranslations('tenant.bills.vnpayReturn');
+  return { title: t('metadataTitle') };
+}
 
 /**
  * Browser landing page after VNPay's hosted checkout. VNPay also
@@ -26,48 +30,42 @@ export default async function VnpayReturnPage({
   const { billId } = await params;
   const sp = await searchParams;
   const success = sp.vnp_ResponseCode === '00';
+  const t = await getTranslations('tenant.bills.vnpayReturn');
 
   return (
     <main className="mx-auto max-w-xl space-y-6 px-6 py-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">
-            {success ? 'Thanks for your payment' : 'Payment did not complete'}
-          </CardTitle>
+          <CardTitle className="text-2xl">{success ? t('okTitle') : t('failTitle')}</CardTitle>
           <CardDescription>
             {success
-              ? 'VNPay confirmed the charge. Your bill flips to PAID once our server receives VNPay’s IPN — usually within seconds.'
-              : `VNPay returned code ${sp.vnp_ResponseCode ?? 'unknown'}. No money was taken; try again whenever you’re ready.`}
+              ? t('okDescription')
+              : t('failDescription', { code: sp.vnp_ResponseCode ?? t('unknownCode') })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           {sp.vnp_TransactionNo && (
             <p>
-              <span className="font-medium text-foreground">VNPay reference:</span>{' '}
+              <span className="font-medium text-foreground">{t('vnpayReferenceLabel')}</span>{' '}
               <code className="text-xs">{sp.vnp_TransactionNo}</code>
             </p>
           )}
           {sp.vnp_TxnRef && (
             <p>
-              <span className="font-medium text-foreground">Our reference:</span>{' '}
+              <span className="font-medium text-foreground">{t('ourReferenceLabel')}</span>{' '}
               <code className="text-xs">{sp.vnp_TxnRef}</code>
             </p>
           )}
-          {success && (
-            <p>
-              If the bill is still shown as outstanding more than a minute from now, refresh the
-              page or contact your landlord.
-            </p>
-          )}
+          {success && <p>{t('stillOutstanding')}</p>}
         </CardContent>
       </Card>
 
       <div className="flex gap-2">
         <Button asChild>
-          <Link href={`/my-bills/${billId}`}>Back to bill</Link>
+          <Link href={`/my-bills/${billId}`}>{t('backToBill')}</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/my-bills">All bills</Link>
+          <Link href="/my-bills">{t('allBills')}</Link>
         </Button>
       </div>
     </main>

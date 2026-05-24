@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Lease, LeaseRatingState, LeaseStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -19,13 +21,17 @@ export default async function MyLeaseDetailPage({
   if (!lease) notFound();
   const ratingState = await fetchRatingState(leaseId);
 
+  const t = await getTranslations('tenant.leases');
+  const tDetail = await getTranslations('tenant.leases.detail');
+  const tCycle = await getTranslations('tenant.statuses.rentCycles');
+
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/my-leases">← Back to my leases</Link>
+          <Link href="/my-leases">{t('back')}</Link>
         </Button>
-        <h1 className="text-2xl font-semibold">Lease details</h1>
+        <h1 className="text-2xl font-semibold">{tDetail('title')}</h1>
         <p className="text-sm text-muted-foreground">
           <StatusBadge status={lease.status} /> · {formatDate(lease.startDate)} –{' '}
           {formatDate(lease.endDate)}
@@ -34,15 +40,18 @@ export default async function MyLeaseDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Money</CardTitle>
+          <CardTitle className="text-lg">{tDetail('moneyTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <Stat
-              label="Rent"
-              value={`${formatMoney(lease.rentAmount, lease.currency)} / ${lease.rentCycle.toLowerCase()}`}
+              label={tDetail('rentLabel')}
+              value={`${formatMoney(lease.rentAmount, lease.currency)} / ${tCycle(lease.rentCycle)}`}
             />
-            <Stat label="Deposit" value={formatMoney(lease.depositAmount, lease.currency)} />
+            <Stat
+              label={tDetail('depositLabel')}
+              value={formatMoney(lease.depositAmount, lease.currency)}
+            />
           </dl>
         </CardContent>
       </Card>
@@ -50,8 +59,8 @@ export default async function MyLeaseDetailPage({
       {lease.terminationReason && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Termination reason</CardTitle>
-            <CardDescription>Recorded by your landlord.</CardDescription>
+            <CardTitle className="text-lg">{tDetail('terminationTitle')}</CardTitle>
+            <CardDescription>{tDetail('terminationDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{lease.terminationReason}</p>
@@ -62,10 +71,8 @@ export default async function MyLeaseDetailPage({
       {ratingState && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Rate your owner</CardTitle>
-            <CardDescription>
-              Quick 1–5 star rating at each lease milestone. Comments are optional.
-            </CardDescription>
+            <CardTitle className="text-lg">{tDetail('ratingsTitle')}</CardTitle>
+            <CardDescription>{tDetail('ratingsDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <RatingsCard
@@ -99,6 +106,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function StatusBadge({ status }: { status: LeaseStatus }) {
+  const t = useTranslations('tenant.statuses.leases');
   const palette: Record<LeaseStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-700',
     ACTIVE: 'bg-emerald-100 text-emerald-900',
@@ -107,7 +115,7 @@ function StatusBadge({ status }: { status: LeaseStatus }) {
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase()}
+      {t(status)}
     </span>
   );
 }

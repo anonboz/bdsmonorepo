@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { PublicCampaign } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -18,18 +20,31 @@ export default async function BrowseDetailPage({ params }: { params: Promise<{ i
 
   const isTenant = Boolean(session?.user.roles.includes('TENANT'));
   const isOwnerOfCampaign = session?.user.id === campaign.ownerId;
+  const t = await getTranslations('tenant.browse');
+  const tDetail = await getTranslations('tenant.browse.detail');
+
+  const applyDescription = isOwnerOfCampaign
+    ? tDetail('applyOwner')
+    : isTenant
+      ? tDetail('applyTenant')
+      : session
+        ? tDetail('applyOtherRole')
+        : tDetail('applyAnon');
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-8">
       <div className="space-y-1">
         <Button asChild variant="link" className="-mx-3 h-auto px-3 text-muted-foreground">
-          <Link href="/browse">← Back to listings</Link>
+          <Link href="/browse">{t('back')}</Link>
         </Button>
         <h1 className="text-2xl font-semibold">{campaign.title}</h1>
         <p className="text-sm text-muted-foreground">
-          {campaign.house.city}, {campaign.house.country} ·{' '}
-          {formatMoney(campaign.price, campaign.currency)} / month · published{' '}
-          {formatDate(campaign.publishedAt)}
+          {tDetail('subtitle', {
+            city: campaign.house.city,
+            country: campaign.house.country,
+            price: formatMoney(campaign.price, campaign.currency),
+            date: formatDate(campaign.publishedAt),
+          })}
         </p>
       </div>
 
@@ -44,12 +59,14 @@ export default async function BrowseDetailPage({ params }: { params: Promise<{ i
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">About this place</CardTitle>
+          <CardTitle className="text-lg">{tDetail('aboutTitle')}</CardTitle>
           <CardDescription>
-            {campaign.unit.label}
-            {campaign.unit.sqm ? ` · ${campaign.unit.sqm} m²` : ''}
-            {campaign.unit.bedrooms != null ? ` · ${campaign.unit.bedrooms} BR` : ''}
-            {campaign.unit.bathrooms != null ? ` · ${campaign.unit.bathrooms} BA` : ''}
+            <AboutLine
+              label={campaign.unit.label}
+              sqm={campaign.unit.sqm ?? null}
+              bedrooms={campaign.unit.bedrooms ?? null}
+              bathrooms={campaign.unit.bathrooms ?? null}
+            />
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -59,16 +76,8 @@ export default async function BrowseDetailPage({ params }: { params: Promise<{ i
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Apply</CardTitle>
-          <CardDescription>
-            {isOwnerOfCampaign
-              ? 'You own this listing — applications are not available on your own campaigns.'
-              : isTenant
-                ? 'Send the owner a short note and they will get back to you.'
-                : session
-                  ? 'Switch to a tenant account to apply.'
-                  : 'Sign in to apply for this listing.'}
-          </CardDescription>
+          <CardTitle className="text-lg">{tDetail('applyTitle')}</CardTitle>
+          <CardDescription>{applyDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           {isTenant && !isOwnerOfCampaign ? (
@@ -77,7 +86,7 @@ export default async function BrowseDetailPage({ params }: { params: Promise<{ i
             !session && (
               <Button asChild>
                 <Link href={`/login?next=${encodeURIComponent(`/browse/${id}`)}`}>
-                  Sign in to apply
+                  {tDetail('signInToApply')}
                 </Link>
               </Button>
             )
@@ -85,6 +94,28 @@ export default async function BrowseDetailPage({ params }: { params: Promise<{ i
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function AboutLine({
+  label,
+  sqm,
+  bedrooms,
+  bathrooms,
+}: {
+  label: string;
+  sqm: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+}) {
+  const t = useTranslations('tenant.browse');
+  return (
+    <>
+      {label}
+      {sqm != null ? t('sqmSuffix', { n: sqm }) : ''}
+      {bedrooms != null ? t('brSuffix', { n: bedrooms }) : ''}
+      {bathrooms != null ? t('baSuffix', { n: bathrooms }) : ''}
+    </>
   );
 }
 

@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 import type { Page, Ticket, TicketStatus } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
@@ -6,37 +8,41 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 import { formatDate } from '../../../lib/format';
 import { serverApi } from '../../../lib/session';
 
-export const metadata = { title: 'My tickets' };
+export async function generateMetadata() {
+  const t = await getTranslations('tenant.tickets');
+  return { title: t('metadataTitle') };
+}
 
 export default async function MyTicketsPage() {
   const page = await serverApi<Page<Ticket>>('/v1/me/tickets?limit=20');
   const grouped = groupByOpenFirst(page.items);
+  const t = await getTranslations('tenant.tickets');
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-6 py-8">
       <header className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">My tickets</h1>
+          <h1 className="text-2xl font-semibold">{t('listTitle')}</h1>
           <p className="text-sm text-muted-foreground">
-            {page.items.length === 0 ? 'No tickets yet.' : `${page.items.length} on record.`}
+            {t('summaryCount', { count: page.items.length })}
           </p>
         </div>
         <Button asChild>
-          <Link href="/my-tickets/new">New ticket</Link>
+          <Link href="/my-tickets/new">{t('newButton')}</Link>
         </Button>
       </header>
 
       {grouped.open.length > 0 && (
-        <Section title="Open">
-          {grouped.open.map((t) => (
-            <TicketCard key={t.id} ticket={t} />
+        <Section title={t('sectionOpen')}>
+          {grouped.open.map((tk) => (
+            <TicketCard key={tk.id} ticket={tk} />
           ))}
         </Section>
       )}
       {grouped.closed.length > 0 && (
-        <Section title="History">
-          {grouped.closed.map((t) => (
-            <TicketCard key={t.id} ticket={t} />
+        <Section title={t('sectionHistory')}>
+          {grouped.closed.map((tk) => (
+            <TicketCard key={tk.id} ticket={tk} />
           ))}
         </Section>
       )}
@@ -44,14 +50,12 @@ export default async function MyTicketsPage() {
       {page.items.length === 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Nothing here yet</CardTitle>
-            <CardDescription>
-              Raise a ticket if something needs attention in your unit.
-            </CardDescription>
+            <CardTitle>{t('emptyTitle')}</CardTitle>
+            <CardDescription>{t('emptyDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link href="/my-tickets/new">Raise a ticket</Link>
+              <Link href="/my-tickets/new">{t('emptyButton')}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -72,6 +76,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function TicketCard({ ticket }: { ticket: Ticket }) {
+  const t = useTranslations('tenant.tickets');
+  const tCat = useTranslations('tenant.statuses.ticketCategories');
   return (
     <li>
       <Link
@@ -84,7 +90,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
             <StatusBadge status={ticket.status} />
           </div>
           <p className="text-xs text-muted-foreground">
-            {ticket.category.toLowerCase()} · raised {formatDate(ticket.createdAt)}
+            {tCat(ticket.category)} · {t('raisedAt', { date: formatDate(ticket.createdAt) })}
           </p>
         </div>
       </Link>
@@ -93,6 +99,7 @@ function TicketCard({ ticket }: { ticket: Ticket }) {
 }
 
 function StatusBadge({ status }: { status: TicketStatus }) {
+  const t = useTranslations('tenant.statuses.tickets');
   const palette: Record<TicketStatus, string> = {
     OPEN: 'bg-blue-100 text-blue-900',
     ACKNOWLEDGED: 'bg-sky-100 text-sky-900',
@@ -103,7 +110,7 @@ function StatusBadge({ status }: { status: TicketStatus }) {
   };
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${palette[status]}`}>
-      {status.toLowerCase().replace('_', ' ')}
+      {t(status)}
     </span>
   );
 }
