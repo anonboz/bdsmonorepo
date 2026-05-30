@@ -18,7 +18,7 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,

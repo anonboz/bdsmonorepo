@@ -63,11 +63,11 @@ to sign session cookies + verify them on every request.
 
 ```sh
 # Pre-existing session cookie should now 401.
-curl -b old-session.txt -i http://localhost:3001/v1/me
+curl -b old-session.txt -i http://localhost:4001/v1/me
 # → 401 auth.unauthenticated
 
 # Fresh OTP login should succeed.
-curl -X POST http://localhost:3001/v1/auth/email-otp/send-verification-otp \
+curl -X POST http://localhost:4001/v1/auth/email-otp/send-verification-otp \
   -H 'content-type: application/json' \
   -d '{"email":"<your-email>","type":"sign-in"}'
 ```
@@ -101,9 +101,9 @@ re-login — the platform stays up.
 
 ```sh
 # /readyz returns checks.db: 'ok'
-curl http://localhost:3001/readyz
+curl http://localhost:4001/readyz
 # A simple authed call exercises the connection.
-curl -b cookie.txt http://localhost:3001/v1/me
+curl -b cookie.txt http://localhost:4001/v1/me
 ```
 
 **Rollback:**
@@ -130,12 +130,12 @@ errors on every DB call.
 **Verify:**
 
 ```sh
-curl http://localhost:3001/readyz
+curl http://localhost:4001/readyz
 # checks.redis: 'ok', pingMs < 50ms typically.
 
 # Sweeper liveness: /v1/admin/metrics queues count should be
 # non-stale (`generatedAt` is now-ish).
-curl -b admin-cookie.txt http://localhost:3001/v1/admin/metrics
+curl -b admin-cookie.txt http://localhost:4001/v1/admin/metrics
 ```
 
 **Rollback:**
@@ -225,7 +225,7 @@ needs to be retired.
 ```sh
 # A 5xx triggers a Sentry capture. Use the admin metrics endpoint
 # to confirm Sentry is enabled in the running API.
-curl -b admin-cookie.txt http://localhost:3001/v1/admin/metrics \
+curl -b admin-cookie.txt http://localhost:4001/v1/admin/metrics \
   | jq .sentry
 # → { enabled: true, environment: 'production' }
 ```

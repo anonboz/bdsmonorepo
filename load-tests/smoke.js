@@ -5,7 +5,7 @@ import http from 'k6/http';
 // before running the heavier scenarios. If this red-fails, the
 // public-reads + auth-flow runs are pointless.
 
-const BASE_URL = __ENV.API_BASE_URL || 'http://localhost:3001';
+const BASE_URL = __ENV.API_BASE_URL || 'http://localhost:4001';
 
 export const options = {
   vus: 1,

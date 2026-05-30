@@ -8,8 +8,8 @@ import { databaseUrl, loadEnv, nodeEnv, port, redisUrl, url } from '@repo/config
 
 const envSchema = z.object({
   NODE_ENV: nodeEnv,
-  API_PORT: port.default(3001),
-  API_PUBLIC_URL: url().default('http://localhost:3001'),
+  API_PORT: port.default(4001),
+  API_PUBLIC_URL: url().default('http://localhost:4001'),
   /**
    * Comma-separated list of origins allowed to call the API with
    * credentials. Local dev defaults to the four PWA ports; production
@@ -19,7 +19,7 @@ const envSchema = z.object({
   API_CORS_ORIGINS: z
     .string()
     .default(
-      'http://localhost:3000,http://localhost:3010,http://localhost:3020,http://localhost:3030',
+      'http://localhost:4000,http://localhost:4010,http://localhost:4020,http://localhost:4030',
     )
     .transform((s) =>
       s
@@ -121,27 +121,27 @@ const envSchema = z.object({
    * Defaults to the local dev port. Production: per ADR-0001 this is
    * a subdomain of the platform domain (e.g. `https://tenant.bdsmonorepo.vn`).
    */
-  TENANT_APP_URL: url().default('http://localhost:3020'),
+  TENANT_APP_URL: url().default('http://localhost:4020'),
   /**
    * Origin of the owner app — same shape as `TENANT_APP_URL`.
    * Surfaces in any server-rendered link the API hands to owners
    * (e.g. notification CTA URLs). Phase 12.2 added; defaults to the
-   * local dev port (3010).
+   * local dev port (4010).
    */
-  OWNER_APP_URL: url().default('http://localhost:3010'),
+  OWNER_APP_URL: url().default('http://localhost:4010'),
   /**
    * Origin of the partner app — surfaces in Stripe Connect onboarding
    * URLs (refresh + return paths). Defaults to the local dev port.
    */
-  PARTNER_APP_URL: url().default('http://localhost:3030'),
+  PARTNER_APP_URL: url().default('http://localhost:4030'),
   /**
    * Origin of the admin app. Phase 12.2 added; admin is the most
    * sensitive surface so it gets its own env var even though no
    * server-side code currently composes admin links — keeping the
    * shape symmetric across the four PWAs makes per-environment
-   * config diffs easier to read. Defaults to the local dev port (3000).
+   * config diffs easier to read. Defaults to the local dev port (4000).
    */
-  ADMIN_APP_URL: url().default('http://localhost:3000'),
+  ADMIN_APP_URL: url().default('http://localhost:4000'),
 
   /**
    * VNPay merchant code from the VNPay dashboard. When unset, the

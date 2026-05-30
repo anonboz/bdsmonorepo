@@ -13,7 +13,7 @@ import {
 const HASH_SECRET = 'TEST_HASH_SECRET_DO_NOT_USE_IN_PROD';
 const TMN_CODE = 'TESTSHOP';
 const PAYMENT_URL = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
-const RETURN_URL = 'http://localhost:3020/my-bills/bill_1/vnpay/return';
+const RETURN_URL = 'http://localhost:4020/my-bills/bill_1/vnpay/return';
 
 describe('formatVnpayDate', () => {
   it('formats GMT+7 as YYYYMMDDHHMMSS', () => {

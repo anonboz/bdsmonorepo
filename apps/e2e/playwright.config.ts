@@ -2,8 +2,8 @@ import { fileURLToPath } from 'node:url';
 
 import { defineConfig, devices } from '@playwright/test';
 
-const apiBaseURL = process.env.API_BASE_URL ?? 'http://localhost:3001';
-const tenantBaseURL = process.env.TENANT_BASE_URL ?? 'http://localhost:3020';
+const apiBaseURL = process.env.API_BASE_URL ?? 'http://localhost:4001';
+const tenantBaseURL = process.env.TENANT_BASE_URL ?? 'http://localhost:4020';
 
 export default defineConfig({
   testDir: './tests',

@@ -244,7 +244,7 @@ audit rows (see `payout.release` in 5.4).
 
 1. With `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` configured,
    start the API and run `stripe listen --forward-to
-localhost:3001/v1/webhooks/stripe`.
+localhost:4001/v1/webhooks/stripe`.
 2. Pay a bill via the tenant flow (7.2).
 3. Watch `stripe listen` print `checkout.session.completed →
 POST 200` within ~5s.

@@ -44,12 +44,12 @@ docs/
 
 | Service       | URL                        |
 | ------------- | -------------------------- |
-| Admin         | http://localhost:3000      |
-| Owner         | http://localhost:3010      |
-| Tenant        | http://localhost:3020      |
-| Partner       | http://localhost:3030      |
-| API           | http://localhost:3001      |
-| API Swagger   | http://localhost:3001/docs |
+| Admin         | http://localhost:4000      |
+| Owner         | http://localhost:4010      |
+| Tenant        | http://localhost:4020      |
+| Partner       | http://localhost:4030      |
+| API           | http://localhost:4001      |
+| API Swagger   | http://localhost:4001/docs |
 | MinIO console | http://localhost:9001      |
 | MailHog       | http://localhost:8025      |
 

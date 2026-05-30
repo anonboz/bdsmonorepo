@@ -149,8 +149,8 @@ Domain-specific glossary (additions to the partner glossary):
 
 ## 9. Manual test plan
 
-1. `pnpm turbo dev` — API + owner on port 3010.
-2. Clear cookies. Open `http://localhost:3010/login` with the
+1. `pnpm turbo dev` — API + owner on port 4010.
+2. Clear cookies. Open `http://localhost:4010/login` with the
    browser language set to Vietnamese (or any unknown locale): all
    strings localized.
 3. Pick "English" in the top-right switcher — page reloads in

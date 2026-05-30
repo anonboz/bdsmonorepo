@@ -265,7 +265,7 @@ Tests reset to a smaller seed via `apps/e2e/global-setup.ts`.
 The admin app has an audit log viewer at `/audit`. Programmatic:
 
 ```sh
-curl -b cookie.txt http://localhost:3001/v1/admin/audit?limit=50
+curl -b cookie.txt http://localhost:4001/v1/admin/audit?limit=50
 ```
 
 Search by `actorId`, `action` (e.g. `auth.login`, `job.complete`),
@@ -278,7 +278,7 @@ Admin app: `/users/<id>` → "Suspend". Programmatic:
 ```sh
 curl -b cookie.txt -X POST -H 'content-type: application/json' \
   -d '{"reason":"<why>"}' \
-  http://localhost:3001/v1/admin/users/<id>/suspend
+  http://localhost:4001/v1/admin/users/<id>/suspend
 ```
 
 Suspension invalidates the next request — the auth guard rejects

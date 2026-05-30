@@ -9,7 +9,7 @@ import http from 'k6/http';
 // Payment + webhook scripts will follow this template when those
 // endpoints ship in Phase 7+.
 
-const BASE_URL = __ENV.API_BASE_URL || 'http://localhost:3001';
+const BASE_URL = __ENV.API_BASE_URL || 'http://localhost:4001';
 
 export const options = {
   scenarios: {

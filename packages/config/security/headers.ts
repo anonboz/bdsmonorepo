@@ -21,7 +21,7 @@
  *     reach `/v1/*`.
  */
 export interface SecurityHeadersOptions {
-  /** Absolute origin of the API (e.g. `http://localhost:3001`). */
+  /** Absolute origin of the API (e.g. `http://localhost:4001`). */
   apiOrigin: string;
   /** Loosen CSP for HMR + React DevTools when running `next dev`. */
   isDev: boolean;

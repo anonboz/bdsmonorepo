@@ -15,7 +15,7 @@ import http from 'k6/http';
 // Requires API_DISABLE_RATE_LIMIT=true — 10 rps blows through
 // the send-otp per-route limit (5/min) in ~30s.
 
-const BASE_URL = __ENV.API_BASE_URL || 'http://localhost:3001';
+const BASE_URL = __ENV.API_BASE_URL || 'http://localhost:4001';
 
 export const options = {
   scenarios: {

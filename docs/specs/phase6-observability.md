@@ -234,9 +234,9 @@ setting them.
    the global filter via a hand-written throw) — confirm a
    Sentry breadcrumb shows up in logs (or in Sentry if DSN is
    real).
-3. As admin: `curl http://localhost:3001/v1/admin/metrics -b session-cookie`
+3. As admin: `curl http://localhost:4001/v1/admin/metrics -b session-cookie`
    → assert four queue rows + `redis.connected: true`.
-4. `curl http://localhost:3001/readyz` → assert
+4. `curl http://localhost:4001/readyz` → assert
    `checks: { db: 'ok', redis: 'ok' }`.
 5. Stop Redis: `docker compose stop redis`. `readyz` returns
    `checks.redis: 'fail'`, status `degraded`.

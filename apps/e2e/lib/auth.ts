@@ -4,7 +4,7 @@ import { prisma } from '@repo/db';
 
 import { TEST_USERS, type TestUserKey } from './users.js';
 
-const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3001';
+const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:4001';
 
 /**
  * Issues the better-auth OTP flow against the API and returns an

@@ -78,7 +78,7 @@ e2e asserts `/v1/me.roles` contains the expected role.
 ### 8.2 `playwright.config.ts`
 
 - One project, Chromium only — UI testing comes in 6.2.
-- `webServer.command = 'pnpm --filter @repo/api dev'`, `url = http://localhost:3001/healthz`.
+- `webServer.command = 'pnpm --filter @repo/api dev'`, `url = http://localhost:4001/healthz`.
 - `reuseExistingServer = !process.env.CI` so devs can keep `pnpm dev` running.
 - `globalSetup = './global-setup.ts'`.
 - `workers = 1` — tests share a single DB; parallel cleanup would

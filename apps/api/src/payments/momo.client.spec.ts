@@ -12,8 +12,8 @@ import {
 const PARTNER_CODE = 'MOMO_TEST';
 const ACCESS_KEY = 'F8BBA842ECF85';
 const SECRET_KEY = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
-const REDIRECT_URL = 'http://localhost:3020/my-bills/bill_1/momo/return';
-const IPN_URL = 'http://localhost:3001/v1/webhooks/momo/ipn';
+const REDIRECT_URL = 'http://localhost:4020/my-bills/bill_1/momo/return';
+const IPN_URL = 'http://localhost:4001/v1/webhooks/momo/ipn';
 
 describe('buildCreateRequest', () => {
   const base = {

@@ -15,7 +15,7 @@ const withSerwist = withSerwistInit({
   disable: process.env.NODE_ENV === 'development',
 });
 
-const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 const isDev = process.env.NODE_ENV !== 'production';
 
 const config: NextConfig = {

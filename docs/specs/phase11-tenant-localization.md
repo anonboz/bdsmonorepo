@@ -186,7 +186,7 @@ All strings translated by the author. Conventions:
 ## 10. Manual test plan
 
 1. `pnpm turbo dev` — API + tenant.
-2. Clear cookies. Open `http://localhost:3020/login` with the
+2. Clear cookies. Open `http://localhost:4020/login` with the
    browser language set to Vietnamese (or any unknown locale): the
    default locale should be Vietnamese, all strings localized.
 3. Pick "English" in the top-right switcher — page reloads in

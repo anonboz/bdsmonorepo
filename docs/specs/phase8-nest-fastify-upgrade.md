@@ -125,9 +125,9 @@ this spec.
 
 1. `pnpm install` clean.
 2. `pnpm --filter @repo/api dev` — wait for the listen log.
-3. `curl http://localhost:3001/healthz` → 200 with the health JSON.
-4. `curl http://localhost:3001/v1/me` without cookie → 401 problem+json.
-5. Open `http://localhost:3001/docs` → Swagger UI renders, every tag
+3. `curl http://localhost:4001/healthz` → 200 with the health JSON.
+4. `curl http://localhost:4001/v1/me` without cookie → 401 problem+json.
+5. Open `http://localhost:4001/docs` → Swagger UI renders, every tag
    still listed.
 
 ## 10. Rollout

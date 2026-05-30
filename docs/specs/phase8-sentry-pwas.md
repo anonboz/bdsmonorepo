@@ -182,7 +182,7 @@ export default withSentryConfig(withSerwist(config), {
 
 1. Set `NEXT_PUBLIC_SENTRY_DSN` to a Sentry test project DSN in
    `apps/tenant/.env.local`.
-2. `pnpm --filter @repo/tenant dev`, open `http://localhost:3020`,
+2. `pnpm --filter @repo/tenant dev`, open `http://localhost:4020`,
    add `throw new Error('phase8.6 sentry smoke');` to the homepage,
    refresh.
 3. Check the Sentry test project: event appears with tag

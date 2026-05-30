@@ -131,7 +131,7 @@ Each app's `next.config.ts` wraps `withSerwist(...)` with the
 preset:
 
 ```ts
-const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 const isDev = process.env.NODE_ENV !== 'production';
 config.headers = async () => securityHeaders({ apiOrigin, isDev });
 ```
@@ -207,7 +207,7 @@ fix #1-#4 we can flip the job to fail on new critical findings.
 1. `pnpm dev`, hit `/v1/auth/email-otp/send-verification-otp` 6
    times — assert sixth returns 429 with
    `application/problem+json`.
-2. `curl -I http://localhost:3010` (owner) — assert HSTS, X-Frame,
+2. `curl -I http://localhost:4010` (owner) — assert HSTS, X-Frame,
    CSP, etc. in the response.
 3. Open browser devtools → network tab → confirm CSP doesn't
    break the app (no console violations after a normal flow).

@@ -144,7 +144,7 @@ every merge on; the unit + e2e jobs catch most regressions.
 
 - **API not running** — k6 fails fast on connection refused.
   The workflow's "boot the API" step uses
-  `wait-on http://localhost:3001/healthz` so we don't race.
+  `wait-on http://localhost:4001/healthz` so we don't race.
 - **Rate-limit collision** — `auth-flow.js` requires
   `API_DISABLE_RATE_LIMIT=true`. The workflow sets it; running
   locally needs the same env.

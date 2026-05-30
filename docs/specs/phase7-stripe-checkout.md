@@ -138,7 +138,7 @@ Audit row written in the same transaction:
 | Var                     | Required | Default                 | Notes                                         |
 | ----------------------- | -------- | ----------------------- | --------------------------------------------- |
 | `STRIPE_SECRET_KEY`     | no       | unset                   | When unset, endpoint returns 503 / disabled   |
-| `TENANT_APP_URL`        | no       | `http://localhost:3020` | Origin used in success / cancel URLs          |
+| `TENANT_APP_URL`        | no       | `http://localhost:4020` | Origin used in success / cancel URLs          |
 | `STRIPE_WEBHOOK_SECRET` | no       | unset                   | Used by 7.3; documented here for the full set |
 
 Endpoint refuses to run (`503 payments.provider_disabled`) when
