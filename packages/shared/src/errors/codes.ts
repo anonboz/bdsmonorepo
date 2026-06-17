@@ -19,6 +19,9 @@ export const ErrorCodes = {
   AUTH_INVALID_OTP: 'auth.invalid_otp',
   AUTH_INVALID_MAGIC_LINK: 'auth.invalid_magic_link',
   AUTH_OTP_EXPIRED: 'auth.otp_expired',
+  // Phase 12.6 — phone + password sign-in. Returned for both "no such
+  // phone" and "wrong password" so the response can't enumerate accounts.
+  AUTH_INVALID_CREDENTIALS: 'auth.invalid_credentials',
   AUTH_ACCOUNT_SUSPENDED: 'auth.account_suspended',
   AUTH_ROLE_MISMATCH: 'auth.role_mismatch',
 

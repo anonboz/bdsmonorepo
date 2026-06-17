@@ -4,6 +4,7 @@ import { Locale } from '@repo/shared';
 
 import type { AuthenticatedUser } from './auth.types.js';
 import { MeController } from './me.controller.js';
+import type { PasswordService } from './password.service.js';
 import type { AuditLogger } from '../common/audit/audit-logger.service.js';
 import type { PrismaInstance } from '../common/prisma/prisma.token.js';
 
@@ -30,19 +31,32 @@ function makePrismaStub(initial: UserRow) {
 
 function makeAuditStub() {
   const writes: { action: string; target: string | null | undefined; meta: unknown }[] = [];
+  const record = (entry: {
+    action: string;
+    target?: string | null;
+    meta?: Record<string, unknown> | null;
+  }) => {
+    writes.push({ action: entry.action, target: entry.target, meta: entry.meta });
+    return Promise.resolve();
+  };
   const audit = {
-    write: vi.fn(
-      (
-        _tx: unknown,
-        entry: { action: string; target?: string | null; meta?: Record<string, unknown> | null },
-      ) => {
-        writes.push({ action: entry.action, target: entry.target, meta: entry.meta });
-        return Promise.resolve();
-      },
-    ),
-    writeOnce: vi.fn(),
+    write: vi.fn((_tx: unknown, entry: Parameters<typeof record>[0]) => record(entry)),
+    // Mirrors the real AuditLogger.writeOnce, which is write() without a tx.
+    writeOnce: vi.fn((entry: Parameters<typeof record>[0]) => record(entry)),
   } as unknown as AuditLogger;
   return { audit, writes };
+}
+
+function makePasswordStub(hasPassword = false) {
+  const setCalls: { newPassword: string }[] = [];
+  const service = {
+    hasPassword: vi.fn(() => Promise.resolve(hasPassword)),
+    setPassword: vi.fn((_headers: Headers, newPassword: string) => {
+      setCalls.push({ newPassword });
+      return Promise.resolve();
+    }),
+  } as unknown as PasswordService;
+  return { service, setCalls };
 }
 
 function makeReply() {
@@ -79,7 +93,7 @@ describe('MeController.update', () => {
   beforeEach(() => {
     prisma = makePrismaStub({ id: baseUser.id, locale: baseUser.locale });
     audit = makeAuditStub();
-    controller = new MeController(prisma.stub, audit.audit);
+    controller = new MeController(prisma.stub, audit.audit, makePasswordStub().service);
   });
 
   it('updates the locale, writes an audit row, and sets the cookie on the response', async () => {
@@ -110,5 +124,34 @@ describe('MeController.update', () => {
     expect(audit.writes).toHaveLength(0);
     // Cookie still set so a stale cookie value gets corrected.
     expect(cookies.find((c) => c.name === 'bds-locale')?.value).toBe(Locale.vi);
+  });
+});
+
+describe('MeController.me', () => {
+  it('reflects whether the user has a password', async () => {
+    const prisma = makePrismaStub({ id: baseUser.id, locale: baseUser.locale });
+    const audit = makeAuditStub();
+
+    const withPw = new MeController(prisma.stub, audit.audit, makePasswordStub(true).service);
+    expect((await withPw.me(baseUser)).hasPassword).toBe(true);
+
+    const withoutPw = new MeController(prisma.stub, audit.audit, makePasswordStub(false).service);
+    expect((await withoutPw.me(baseUser)).hasPassword).toBe(false);
+  });
+});
+
+describe('MeController.setPassword', () => {
+  it('forwards the new password to the service and writes an audit row', async () => {
+    const prisma = makePrismaStub({ id: baseUser.id, locale: baseUser.locale });
+    const audit = makeAuditStub();
+    const password = makePasswordStub();
+    const controller = new MeController(prisma.stub, audit.audit, password.service);
+
+    await controller.setPassword(baseUser, { newPassword: 'Passw0rd!23' }, req);
+
+    expect(password.setCalls).toEqual([{ newPassword: 'Passw0rd!23' }]);
+    expect(audit.writes).toHaveLength(1);
+    expect(audit.writes[0]?.action).toBe('auth.password.set');
+    expect(audit.writes[0]?.target).toBe(`User:${baseUser.id}`);
   });
 });

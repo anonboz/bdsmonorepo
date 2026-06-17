@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthGuard } from './guards/auth.guard.js';
 import { RolesGuard } from './guards/roles.guard.js';
 import { MeController } from './me.controller.js';
+import { PasswordService } from './password.service.js';
 import { AuditModule } from '../common/audit/audit.module.js';
 
 /**
@@ -16,6 +17,7 @@ import { AuditModule } from '../common/audit/audit.module.js';
   imports: [AuditModule],
   controllers: [AuthController, MeController],
   providers: [
+    PasswordService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

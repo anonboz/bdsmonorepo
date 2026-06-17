@@ -4,6 +4,7 @@ import { emailOTP, magicLink, phoneNumber } from 'better-auth/plugins';
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '@repo/db';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@repo/shared';
 
 import { getPostHog } from '../common/analytics/analytics.client.js';
 import { getMailer } from '../common/mailer/mailer.client.js';
@@ -59,6 +60,24 @@ export const auth = betterAuth({
   basePath: '/v1/auth',
   trustedOrigins: env.API_CORS_ORIGINS,
 
+  /**
+   * Phase 12.6 — the credential (password) provider. Required for
+   * phone + password sign-in via the phoneNumber plugin's
+   * `/sign-in/phone-number` route and for `auth.api.setPassword`.
+   *
+   * `disableSignUp: true` keeps the public `/sign-up/email` route
+   * closed — accounts are still created only via OTP / phone
+   * verification; a password is added afterwards through the
+   * authenticated `POST /v1/me/set-password` flow. Length bounds mirror
+   * `@repo/shared`'s password schema so client and server agree.
+   */
+  emailAndPassword: {
+    enabled: true,
+    disableSignUp: true,
+    minPasswordLength: PASSWORD_MIN_LENGTH,
+    maxPasswordLength: PASSWORD_MAX_LENGTH,
+  },
+
   session: {
     expiresIn: env.AUTH_JWT_REFRESH_TTL,
     updateAge: 60 * 60 * 24, // refresh sliding window once per day
@@ -72,12 +91,6 @@ export const auth = betterAuth({
     fields: {
       // map better-auth's `name` field to our column
       name: 'displayName',
-      // Phase 11.6 — the phone-number plugin's schema declares
-      // `phoneNumber` + `phoneNumberVerified`; map them onto our
-      // existing `phone` + `phoneVerified` columns (added back in
-      // Phase 1.1) so we don't duplicate the surface or migrate.
-      phoneNumber: 'phone',
-      phoneNumberVerified: 'phoneVerified',
     },
   },
 
@@ -216,6 +229,25 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 60 * 10,
       allowedAttempts: 3,
+      // Phase 12.6 — only a verified phone can sign in with a password.
+      // Phone verification happens via the SMS-OTP flow; until then the
+      // user falls back to OTP login. Blocks password sign-in against an
+      // unverified (e.g. email-OTP-seeded) phone.
+      requireVerification: true,
+      // The plugin declares its own `phoneNumber` / `phoneNumberVerified`
+      // user fields; remap them onto our existing `phone` / `phoneVerified`
+      // columns HERE (the plugin's own schema), not the top-level
+      // `user.fields` — the adapter resolves plugin field names from the
+      // plugin schema, so the top-level map never reaches the plugin's
+      // `findOne({ where: { phoneNumber } })` in `/sign-in/phone-number`.
+      schema: {
+        user: {
+          fields: {
+            phoneNumber: 'phone',
+            phoneNumberVerified: 'phoneVerified',
+          },
+        },
+      },
       phoneNumberValidator: (raw) => /^\+?[1-9]\d{6,14}$/.test(raw),
       async sendOTP({ phoneNumber: to, code }) {
         const send = getSmsSender();

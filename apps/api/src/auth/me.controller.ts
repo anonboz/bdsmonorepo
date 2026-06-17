@@ -1,12 +1,29 @@
-import { Body, Controller, Get, Inject, Patch, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Inject,
+  Patch,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { LOCALE_COOKIE, type MeResponse, meUpdateInputSchema } from '@repo/shared';
+import {
+  LOCALE_COOKIE,
+  type MeResponse,
+  meUpdateInputSchema,
+  setPasswordSchema,
+} from '@repo/shared';
 
 import type { AuthenticatedUser } from './auth.types.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { AuthGuard } from './guards/auth.guard.js';
+import { PasswordService } from './password.service.js';
 import { AuditLogger } from '../common/audit/audit-logger.service.js';
 import { createZodDto } from '../common/dto/zod-dto.js';
 import { PRISMA, type PrismaInstance } from '../common/prisma/prisma.token.js';
@@ -14,6 +31,9 @@ import { env } from '../env.js';
 
 export const MeUpdateDto = createZodDto(meUpdateInputSchema);
 export type MeUpdateDto = typeof meUpdateInputSchema._type;
+
+export const SetPasswordDto = createZodDto(setPasswordSchema);
+export type SetPasswordDto = typeof setPasswordSchema._type;
 
 const LOCALE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365; // 1 year
 
@@ -25,24 +45,37 @@ export class MeController {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaInstance,
     private readonly audit: AuditLogger,
+    private readonly password: PasswordService,
   ) {}
 
   @Get()
-  me(@CurrentUser() user: AuthenticatedUser): MeResponse {
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        phone: user.phone,
-        displayName: user.displayName,
-        roles: user.roles,
-        isSuspended: user.isSuspended,
-        locale: user.locale,
-      },
-      // Session expiry is enforced by better-auth's cookie; this echoes a
-      // reasonable client hint. The cookie is the source of truth.
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    };
+  async me(@CurrentUser() user: AuthenticatedUser): Promise<MeResponse> {
+    const hasPassword = await this.password.hasPassword(user.id);
+    return this.buildMeResponse(user, user.locale, hasPassword);
+  }
+
+  /**
+   * Phase 12.6 — set a login password for the session user (OTP-first
+   * users opting into phone + password login). Delegates to better-auth,
+   * which creates the credential account; we forward the request headers
+   * so it resolves the same session AuthGuard validated. Audited.
+   */
+  @Post('set-password')
+  @HttpCode(204)
+  async setPassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: SetPasswordDto,
+    @Req() req: FastifyRequest,
+  ): Promise<void> {
+    await this.password.setPassword(toWebHeaders(req), body.newPassword);
+    await this.audit.writeOnce({
+      actorId: user.id,
+      action: 'auth.password.set',
+      target: `User:${user.id}`,
+      meta: {},
+      ip: req.ip ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
   }
 
   /**
@@ -89,6 +122,15 @@ export class MeController {
       });
     }
 
+    const hasPassword = await this.password.hasPassword(user.id);
+    return this.buildMeResponse(user, updatedLocale, hasPassword);
+  }
+
+  private buildMeResponse(
+    user: AuthenticatedUser,
+    locale: AuthenticatedUser['locale'],
+    hasPassword: boolean,
+  ): MeResponse {
     return {
       user: {
         id: user.id,
@@ -97,9 +139,22 @@ export class MeController {
         displayName: user.displayName,
         roles: user.roles,
         isSuspended: user.isSuspended,
-        locale: updatedLocale,
+        locale,
       },
+      // Session expiry is enforced by better-auth's cookie; this echoes a
+      // reasonable client hint. The cookie is the source of truth.
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      hasPassword,
     };
   }
+}
+
+/** Convert Fastify's incoming headers into a Web `Headers` for better-auth. */
+function toWebHeaders(req: FastifyRequest): Headers {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (value === undefined) continue;
+    headers.append(key, Array.isArray(value) ? value.join(', ') : String(value));
+  }
+  return headers;
 }

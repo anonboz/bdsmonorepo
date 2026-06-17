@@ -7,13 +7,31 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 
-import { ErrorCodes, PROBLEM_CONTENT_TYPE } from '@repo/shared';
+import { ErrorCodes } from '@repo/shared';
 
 import { AppModule } from './app.module.js';
+import { ProblemError } from './common/errors/problem.error.js';
 import { ProblemFilter } from './common/filters/problem.filter.js';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe.js';
 import { env } from './env.js';
 import { initSentry } from './observability/sentry.js';
+
+// @fastify/rate-limit invokes errorResponseBuilder and THROWS the result
+// (see @fastify/rate-limit/index.js: `throw params.errorResponseBuilder(...)`).
+// Returning a plain object causes ProblemFilter to fall through to its
+// catch-all "Unknown error" 500 branch. Returning a ProblemError makes
+// ProblemFilter emit the proper 429 application/problem+json body, and the
+// rate-limit headers the plugin already set on `reply` are preserved.
+function buildRateLimitProblem(_req: unknown, ctx: { ttl: number }) {
+  const retryAfter = Math.ceil(ctx.ttl / 1000);
+  return new ProblemError({
+    status: 429,
+    type: ErrorCodes.RATE_LIMITED,
+    title: 'Too many requests',
+    detail: `Rate limit exceeded. Retry after ${retryAfter}s.`,
+    retryAfter,
+  });
+}
 
 async function bootstrap() {
   // Init Sentry before NestFactory.create so Sentry can patch Node
@@ -79,21 +97,7 @@ async function bootstrap() {
       // Trusted proxy (set on the adapter above) means we honor X-Forwarded-For.
       // Falls back to the socket address when no header is present.
       keyGenerator: (req) => req.ip,
-      // Return a Problem (RFC 7807) body that matches our ProblemFilter
-      // shape — fastify-rate-limit short-circuits Nest's filter chain so we
-      // build the body ourselves here.
-      errorResponseBuilder: (req, ctx) => ({
-        type: ErrorCodes.RATE_LIMITED,
-        title: 'Too many requests',
-        status: 429,
-        detail: `Rate limit exceeded. Retry after ${Math.ceil(ctx.ttl / 1000)}s.`,
-        instance: req.url,
-        traceId: (req.headers['x-trace-id'] as string | undefined) ?? req.id,
-      }),
-      // Helmet sends application/json by default for 429; force the problem
-      // content-type so clients can branch on it like any other error.
-      onExceeding: () => undefined,
-      onExceeded: () => undefined,
+      errorResponseBuilder: buildRateLimitProblem,
     });
 
     // Tighter per-route ceilings. Attached via a preHandler hook because
@@ -103,12 +107,20 @@ async function bootstrap() {
       {
         match: (url: string, method: string) =>
           method === 'POST' && url.startsWith('/v1/auth/email-otp/send-verification-otp'),
-        handler: fastify.rateLimit({ max: 5, timeWindow: '1 minute' }),
+        handler: fastify.rateLimit({
+          max: 5,
+          timeWindow: '1 minute',
+          errorResponseBuilder: buildRateLimitProblem,
+        }),
       },
       {
         match: (url: string, method: string) =>
           method === 'POST' && url.startsWith('/v1/auth/sign-in/email-otp'),
-        handler: fastify.rateLimit({ max: 10, timeWindow: '1 minute' }),
+        handler: fastify.rateLimit({
+          max: 10,
+          timeWindow: '1 minute',
+          errorResponseBuilder: buildRateLimitProblem,
+        }),
       },
       // Phase 11.6 — mirror the email-otp limits on the SMS path so a
       // bad actor can't pivot from email-rate-limited to phone-flood.
@@ -117,20 +129,47 @@ async function bootstrap() {
       {
         match: (url: string, method: string) =>
           method === 'POST' && url.startsWith('/v1/auth/phone-number/send-otp'),
-        handler: fastify.rateLimit({ max: 5, timeWindow: '1 minute' }),
+        handler: fastify.rateLimit({
+          max: 5,
+          timeWindow: '1 minute',
+          errorResponseBuilder: buildRateLimitProblem,
+        }),
       },
       {
         match: (url: string, method: string) =>
           method === 'POST' && url.startsWith('/v1/auth/phone-number/verify'),
-        handler: fastify.rateLimit({ max: 10, timeWindow: '1 minute' }),
+        handler: fastify.rateLimit({
+          max: 10,
+          timeWindow: '1 minute',
+          errorResponseBuilder: buildRateLimitProblem,
+        }),
+      },
+      // Phase 12.6 — phone + password sign-in. Cap attempts per IP to
+      // deter password brute-forcing; mirrors the OTP sign-in ceiling.
+      {
+        match: (url: string, method: string) =>
+          method === 'POST' && url.startsWith('/v1/auth/sign-in/phone-number'),
+        handler: fastify.rateLimit({
+          max: 10,
+          timeWindow: '1 minute',
+          errorResponseBuilder: buildRateLimitProblem,
+        }),
       },
       {
         match: (url: string, method: string) => method === 'POST' && url === '/v1/me/applications',
-        handler: fastify.rateLimit({ max: 20, timeWindow: '1 hour' }),
+        handler: fastify.rateLimit({
+          max: 20,
+          timeWindow: '1 hour',
+          errorResponseBuilder: buildRateLimitProblem,
+        }),
       },
       {
         match: (url: string, method: string) => method === 'POST' && url === '/v1/me/tickets',
-        handler: fastify.rateLimit({ max: 10, timeWindow: '1 minute' }),
+        handler: fastify.rateLimit({
+          max: 10,
+          timeWindow: '1 minute',
+          errorResponseBuilder: buildRateLimitProblem,
+        }),
       },
     ];
 
@@ -143,16 +182,6 @@ async function bootstrap() {
           return;
         }
       }
-    });
-
-    // After the rate-limit plugin replies with 429 it sets content-type to
-    // 'application/json'. Patch the outgoing header before send so clients
-    // see the canonical problem+json type.
-    fastify.addHook('onSend', async (_req, reply, payload) => {
-      if (reply.statusCode === 429) {
-        reply.header('content-type', PROBLEM_CONTENT_TYPE);
-      }
-      return payload;
     });
   }
 
