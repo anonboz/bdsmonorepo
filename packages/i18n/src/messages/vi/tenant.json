@@ -17,6 +17,7 @@
     "form": {
       "tabEmail": "Email",
       "tabPhone": "Số điện thoại",
+      "tabPassword": "Mật khẩu",
       "emailLabel": "Email",
       "emailDescription": "Chúng tôi sẽ gửi mã 6 chữ số tới email của bạn.",
       "phoneLabel": "Số điện thoại",
@@ -28,6 +29,26 @@
       "codeLabel": "Mã 6 chữ số",
       "verify": "Xác minh & đăng nhập",
       "invalidCode": "Mã không hợp lệ."
+    },
+    "passwordForm": {
+      "phoneLabel": "Số điện thoại",
+      "phoneDescription": "Số điện thoại trên tài khoản của bạn, kèm mã quốc gia.",
+      "passwordLabel": "Mật khẩu",
+      "signIn": "Đăng nhập",
+      "invalidCredentials": "Số điện thoại hoặc mật khẩu không đúng."
+    }
+  },
+  "setPassword": {
+    "title": "Đặt mật khẩu",
+    "subtitle": "Thêm mật khẩu cho {phone} để đăng nhập mà không cần mã.",
+    "form": {
+      "failedTitle": "Không thể đặt mật khẩu",
+      "passwordLabel": "Mật khẩu mới",
+      "passwordDescription": "Ít nhất 8 ký tự.",
+      "confirmLabel": "Xác nhận mật khẩu",
+      "mismatch": "Mật khẩu không khớp.",
+      "submit": "Lưu mật khẩu",
+      "couldNotSet": "Không thể đặt mật khẩu. Vui lòng thử lại."
     }
   },
   "home": {
@@ -46,6 +67,11 @@
       "applicationsDescription": "Theo dõi các tin bạn đã đăng ký thuê.",
       "comingSoonTitle": "Sắp ra mắt",
       "comingSoonDescription": "Thanh toán trực tuyến sẽ có ở các giai đoạn tới."
+    },
+    "passwordNudge": {
+      "title": "Đặt mật khẩu",
+      "description": "Thêm mật khẩu để đăng nhập bằng số điện thoại — lần sau không cần mã.",
+      "cta": "Đặt mật khẩu"
     },
     "open": "Mở"
   },
@@ -361,21 +387,25 @@
       "on": "Bật",
       "updateFailed": "Không thể cập nhật \"{topic}\". Vui lòng thử lại.",
       "topics": {
-        "bill.issued": {
-          "label": "Hóa đơn mới được phát hành",
-          "help": "Email khi chủ nhà tạo hóa đơn mới."
+        "bill": {
+          "issued": {
+            "label": "Hóa đơn mới được phát hành",
+            "help": "Email khi chủ nhà tạo hóa đơn mới."
+          },
+          "paid": {
+            "label": "Thanh toán đã xác nhận",
+            "help": "Email khi một khoản thanh toán hoàn tất (thủ công, Stripe hoặc VNPay)."
+          },
+          "refunded": {
+            "label": "Đã hoàn tiền",
+            "help": "Email khi chủ nhà hoàn tiền một khoản thanh toán."
+          }
         },
-        "bill.paid": {
-          "label": "Thanh toán đã xác nhận",
-          "help": "Email khi một khoản thanh toán hoàn tất (thủ công, Stripe hoặc VNPay)."
-        },
-        "bill.refunded": {
-          "label": "Đã hoàn tiền",
-          "help": "Email khi chủ nhà hoàn tiền một khoản thanh toán."
-        },
-        "ticket.resolved": {
-          "label": "Yêu cầu đã giải quyết",
-          "help": "Email khi chủ nhà đánh dấu yêu cầu là đã giải quyết."
+        "ticket": {
+          "resolved": {
+            "label": "Yêu cầu đã giải quyết",
+            "help": "Email khi chủ nhà đánh dấu yêu cầu là đã giải quyết."
+          }
         }
       }
     },

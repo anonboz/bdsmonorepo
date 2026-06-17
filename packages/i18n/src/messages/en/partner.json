@@ -11,6 +11,11 @@
     "title": "Sign in",
     "subtitle": "Sign in to continue.",
     "failedTitle": "Sign-in failed",
+    "modes": {
+      "label": "Sign-in method",
+      "code": "Email code",
+      "password": "Password"
+    },
     "form": {
       "emailLabel": "Email",
       "emailDescription": "We'll email you a 6-digit code.",
@@ -21,6 +26,13 @@
       "codeLabel": "6-digit code",
       "verify": "Verify & sign in",
       "invalidCode": "Invalid code."
+    },
+    "passwordForm": {
+      "phoneLabel": "Phone number",
+      "phoneDescription": "The phone number on your account, including country code.",
+      "passwordLabel": "Password",
+      "signIn": "Sign in",
+      "invalidCredentials": "Incorrect phone number or password."
     }
   },
   "home": {
@@ -36,7 +48,25 @@
       "comingSoonTitle": "Coming soon",
       "comingSoonDescription": "Ratings land in the next Phase 5 slice."
     },
+    "passwordNudge": {
+      "title": "Set a password",
+      "description": "Add a password so you can sign in with your phone number — no code needed next time.",
+      "cta": "Set a password"
+    },
     "open": "Open"
+  },
+  "setPassword": {
+    "title": "Set a password",
+    "subtitle": "Add a password for {phone} so you can sign in without a code.",
+    "form": {
+      "failedTitle": "Couldn't set password",
+      "passwordLabel": "New password",
+      "passwordDescription": "At least 8 characters.",
+      "confirmLabel": "Confirm password",
+      "mismatch": "Passwords don't match.",
+      "submit": "Save password",
+      "couldNotSet": "Could not set the password. Please try again."
+    }
   },
   "forbidden": {
     "title": "Access denied",
@@ -237,9 +267,11 @@
       "on": "On",
       "updateFailed": "Could not update \"{topic}\". Try again.",
       "topics": {
-        "payout.disbursed": {
-          "label": "Payout disbursed",
-          "help": "Email when an admin disburses a payout to you."
+        "payout": {
+          "disbursed": {
+            "label": "Payout disbursed",
+            "help": "Email when an admin disburses a payout to you."
+          }
         }
       }
     }

@@ -17,6 +17,7 @@
     "form": {
       "tabEmail": "Email",
       "tabPhone": "Phone",
+      "tabPassword": "Password",
       "emailLabel": "Email",
       "emailDescription": "We'll email you a 6-digit code.",
       "phoneLabel": "Phone number",
@@ -28,6 +29,26 @@
       "codeLabel": "6-digit code",
       "verify": "Verify & sign in",
       "invalidCode": "Invalid code."
+    },
+    "passwordForm": {
+      "phoneLabel": "Phone number",
+      "phoneDescription": "The phone number on your account, including country code.",
+      "passwordLabel": "Password",
+      "signIn": "Sign in",
+      "invalidCredentials": "Incorrect phone number or password."
+    }
+  },
+  "setPassword": {
+    "title": "Set a password",
+    "subtitle": "Add a password for {phone} so you can sign in without a code.",
+    "form": {
+      "failedTitle": "Couldn't set password",
+      "passwordLabel": "New password",
+      "passwordDescription": "At least 8 characters.",
+      "confirmLabel": "Confirm password",
+      "mismatch": "Passwords don't match.",
+      "submit": "Save password",
+      "couldNotSet": "Could not set the password. Please try again."
     }
   },
   "home": {
@@ -46,6 +67,11 @@
       "applicationsDescription": "Track listings you've applied to.",
       "comingSoonTitle": "Coming soon",
       "comingSoonDescription": "Online payments land in upcoming phases."
+    },
+    "passwordNudge": {
+      "title": "Set a password",
+      "description": "Add a password so you can sign in with your phone number — no code needed next time.",
+      "cta": "Set a password"
     },
     "open": "Open"
   },
@@ -361,21 +387,25 @@
       "on": "On",
       "updateFailed": "Could not update \"{topic}\". Try again.",
       "topics": {
-        "bill.issued": {
-          "label": "New bill issued",
-          "help": "Email when your landlord generates a new bill."
+        "bill": {
+          "issued": {
+            "label": "New bill issued",
+            "help": "Email when your landlord generates a new bill."
+          },
+          "paid": {
+            "label": "Payment confirmed",
+            "help": "Email when a payment clears (manual, Stripe, or VNPay)."
+          },
+          "refunded": {
+            "label": "Refund issued",
+            "help": "Email when your landlord refunds a payment."
+          }
         },
-        "bill.paid": {
-          "label": "Payment confirmed",
-          "help": "Email when a payment clears (manual, Stripe, or VNPay)."
-        },
-        "bill.refunded": {
-          "label": "Refund issued",
-          "help": "Email when your landlord refunds a payment."
-        },
-        "ticket.resolved": {
-          "label": "Ticket resolved",
-          "help": "Email when your landlord marks a ticket resolved."
+        "ticket": {
+          "resolved": {
+            "label": "Ticket resolved",
+            "help": "Email when your landlord marks a ticket resolved."
+          }
         }
       }
     },

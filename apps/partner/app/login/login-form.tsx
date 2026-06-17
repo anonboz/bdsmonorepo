@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 
-import { requestOtpSchema, verifyOtpSchema } from '@repo/shared';
+import { phonePasswordSignInSchema, requestOtpSchema, verifyOtpSchema } from '@repo/shared';
 import {
   Alert,
   AlertDescription,
@@ -20,28 +20,40 @@ import {
 } from '@repo/ui';
 
 import { ApiError, api } from '../../lib/api';
-import { POST_LOGIN_PATH } from '../../lib/app-config';
+import { AUTH_PASSWORD_ENABLED, POST_LOGIN_PATH } from '../../lib/app-config';
 
 type RequestForm = z.infer<typeof requestOtpSchema>;
 type VerifyForm = z.infer<typeof verifyOtpSchema>;
+type PasswordForm = z.infer<typeof phonePasswordSignInSchema>;
 
 type Step = { kind: 'request' } | { kind: 'verify'; identifier: string };
+type Mode = 'code' | 'password';
 
 export function LoginForm() {
   const t = useTranslations('partner.login');
+  const [mode, setMode] = useState<Mode>('code');
   const [step, setStep] = useState<Step>({ kind: 'request' });
   const [error, setError] = useState<string | null>(null);
+
+  const switchMode = (next: Mode) => {
+    setError(null);
+    setStep({ kind: 'request' });
+    setMode(next);
+  };
 
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
+        {AUTH_PASSWORD_ENABLED && <ModeToggle mode={mode} onChange={switchMode} t={t} />}
         {error && (
           <Alert variant="destructive">
             <AlertTitle>{t('failedTitle')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        {step.kind === 'request' ? (
+        {AUTH_PASSWORD_ENABLED && mode === 'password' ? (
+          <PasswordStep onError={setError} />
+        ) : step.kind === 'request' ? (
           <RequestStep
             onSent={(identifier) => {
               setError(null);
@@ -61,6 +73,92 @@ export function LoginForm() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function ModeToggle({
+  mode,
+  onChange,
+  t,
+}: {
+  mode: Mode;
+  onChange: (next: Mode) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2" role="tablist" aria-label={t('modes.label')}>
+      {(['code', 'password'] as const).map((m) => (
+        <Button
+          key={m}
+          type="button"
+          role="tab"
+          aria-selected={mode === m}
+          variant={mode === m ? 'default' : 'outline'}
+          onClick={() => onChange(m)}
+        >
+          {t(`modes.${m}`)}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function PasswordStep({ onError }: { onError: (msg: string) => void }) {
+  const t = useTranslations('partner.login.passwordForm');
+  const form = useForm<PasswordForm>({
+    resolver: zodResolver(phonePasswordSignInSchema),
+    defaultValues: { phoneNumber: '', password: '' },
+  });
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={form.handleSubmit(async (values) => {
+        try {
+          await api.post('/v1/auth/sign-in/phone-number', {
+            phoneNumber: values.phoneNumber,
+            password: values.password,
+          });
+          window.location.assign(POST_LOGIN_PATH);
+        } catch {
+          // better-auth returns its own error body here, not our Problem
+          // shape — show a generic, enumeration-safe message either way.
+          onError(t('invalidCredentials'));
+        }
+      })}
+    >
+      <FormField
+        label={t('phoneLabel')}
+        htmlFor="phoneNumber"
+        error={form.formState.errors.phoneNumber}
+        description={t('phoneDescription')}
+      >
+        <Input
+          id="phoneNumber"
+          type="tel"
+          autoComplete="tel"
+          inputMode="tel"
+          placeholder="+84…"
+          {...form.register('phoneNumber')}
+        />
+      </FormField>
+      <FormField
+        label={t('passwordLabel')}
+        htmlFor="password"
+        error={form.formState.errors.password}
+      >
+        <Input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          {...form.register('password')}
+        />
+      </FormField>
+      <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+        {form.formState.isSubmitting && <Spinner />}
+        {t('signIn')}
+      </Button>
+    </form>
   );
 }
 

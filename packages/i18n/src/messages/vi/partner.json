@@ -11,6 +11,11 @@
     "title": "Đăng nhập",
     "subtitle": "Đăng nhập để tiếp tục.",
     "failedTitle": "Đăng nhập thất bại",
+    "modes": {
+      "label": "Phương thức đăng nhập",
+      "code": "Mã qua email",
+      "password": "Mật khẩu"
+    },
     "form": {
       "emailLabel": "Email",
       "emailDescription": "Chúng tôi sẽ gửi mã 6 chữ số tới email của bạn.",
@@ -21,6 +26,13 @@
       "codeLabel": "Mã 6 chữ số",
       "verify": "Xác minh & đăng nhập",
       "invalidCode": "Mã không hợp lệ."
+    },
+    "passwordForm": {
+      "phoneLabel": "Số điện thoại",
+      "phoneDescription": "Số điện thoại trên tài khoản của bạn, kèm mã quốc gia.",
+      "passwordLabel": "Mật khẩu",
+      "signIn": "Đăng nhập",
+      "invalidCredentials": "Số điện thoại hoặc mật khẩu không đúng."
     }
   },
   "home": {
@@ -36,7 +48,25 @@
       "comingSoonTitle": "Sắp ra mắt",
       "comingSoonDescription": "Đánh giá sẽ có ở slice Phase 5 tiếp theo."
     },
+    "passwordNudge": {
+      "title": "Đặt mật khẩu",
+      "description": "Thêm mật khẩu để đăng nhập bằng số điện thoại — lần sau không cần mã.",
+      "cta": "Đặt mật khẩu"
+    },
     "open": "Mở"
+  },
+  "setPassword": {
+    "title": "Đặt mật khẩu",
+    "subtitle": "Thêm mật khẩu cho {phone} để đăng nhập mà không cần mã.",
+    "form": {
+      "failedTitle": "Không thể đặt mật khẩu",
+      "passwordLabel": "Mật khẩu mới",
+      "passwordDescription": "Ít nhất 8 ký tự.",
+      "confirmLabel": "Xác nhận mật khẩu",
+      "mismatch": "Mật khẩu không khớp.",
+      "submit": "Lưu mật khẩu",
+      "couldNotSet": "Không thể đặt mật khẩu. Vui lòng thử lại."
+    }
   },
   "forbidden": {
     "title": "Truy cập bị từ chối",
@@ -237,9 +267,11 @@
       "on": "Bật",
       "updateFailed": "Không thể cập nhật \"{topic}\". Vui lòng thử lại.",
       "topics": {
-        "payout.disbursed": {
-          "label": "Đã chuyển khoản thanh toán",
-          "help": "Email khi quản trị chuyển khoản thanh toán cho bạn."
+        "payout": {
+          "disbursed": {
+            "label": "Đã chuyển khoản thanh toán",
+            "help": "Email khi quản trị chuyển khoản thanh toán cho bạn."
+          }
         }
       }
     }
