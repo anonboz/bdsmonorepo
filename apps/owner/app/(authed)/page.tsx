@@ -6,7 +6,7 @@ import type { UnreadCountResponse } from '@repo/shared';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui';
 
 import { NotificationBellLink } from './_components/notification-bell-link';
-import { APP_NAME } from '../../lib/app-config';
+import { APP_NAME, AUTH_PASSWORD_ENABLED } from '../../lib/app-config';
 import { getSession, serverApi } from '../../lib/session';
 
 export default async function HomePage() {
@@ -32,6 +32,20 @@ export default async function HomePage() {
         </div>
         <NotificationBellLink initialUnread={unread} />
       </header>
+
+      {AUTH_PASSWORD_ENABLED && !session.hasPassword && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">{t('passwordNudge.title')}</CardTitle>
+            <CardDescription>{t('passwordNudge.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/set-password">{t('passwordNudge.cta')}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Tile titleKey="dashboard" descKey="dashboard" href="/dashboard" />
