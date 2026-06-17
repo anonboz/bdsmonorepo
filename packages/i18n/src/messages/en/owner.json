@@ -16,6 +16,15 @@
     "actionFailedTitle": "Action failed",
     "signOut": "Sign out"
   },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "houses": "Houses",
+    "tickets": "Tickets",
+    "partners": "Partners",
+    "notifications": "Notifications",
+    "account": "Account"
+  },
   "login": {
     "title": "Sign in",
     "subtitle": "Sign in to continue.",

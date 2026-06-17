@@ -16,6 +16,15 @@
     "actionFailedTitle": "Hành động thất bại",
     "signOut": "Đăng xuất"
   },
+  "nav": {
+    "home": "Trang chủ",
+    "dashboard": "Bảng điều khiển",
+    "houses": "Nhà",
+    "tickets": "Yêu cầu",
+    "partners": "Đối tác",
+    "notifications": "Thông báo",
+    "account": "Tài khoản"
+  },
   "login": {
     "title": "Đăng nhập",
     "subtitle": "Đăng nhập để tiếp tục.",

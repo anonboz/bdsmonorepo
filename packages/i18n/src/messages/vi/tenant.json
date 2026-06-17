@@ -8,6 +8,16 @@
     "cancel": "Hủy",
     "signOut": "Đăng xuất"
   },
+  "nav": {
+    "home": "Trang chủ",
+    "leases": "Hợp đồng",
+    "bills": "Hóa đơn",
+    "tickets": "Yêu cầu",
+    "browse": "Tìm phòng",
+    "applications": "Đơn đăng ký",
+    "notifications": "Thông báo",
+    "account": "Tài khoản"
+  },
   "login": {
     "title": "Đăng nhập",
     "subtitle": "Đăng nhập để tiếp tục.",

@@ -8,6 +8,16 @@
     "cancel": "Cancel",
     "signOut": "Sign out"
   },
+  "nav": {
+    "home": "Home",
+    "leases": "Leases",
+    "bills": "Bills",
+    "tickets": "Tickets",
+    "browse": "Browse",
+    "applications": "Applications",
+    "notifications": "Notifications",
+    "account": "Account"
+  },
   "login": {
     "title": "Sign in",
     "subtitle": "Sign in to continue.",

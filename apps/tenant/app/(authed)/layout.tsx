@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { AnalyticsProvider } from './_components/analytics-provider';
+import { Sidebar } from './_components/sidebar';
 import { APP_ROLE } from '../../lib/app-config';
 import { getSession } from '../../lib/session';
 
@@ -21,9 +22,10 @@ export default async function AuthedLayout({ children }: { children: React.React
   if (!hasRole) redirect('/forbidden');
 
   return (
-    <>
+    <div className="min-h-dvh lg:pl-64">
       <AnalyticsProvider userId={session.user.id} roles={session.user.roles} />
-      {children}
-    </>
+      <Sidebar userName={session.user.displayName} />
+      <div className="pt-14 lg:pt-0">{children}</div>
+    </div>
   );
 }

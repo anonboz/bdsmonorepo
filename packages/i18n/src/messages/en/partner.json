@@ -8,6 +8,14 @@
     "cancel": "Cancel",
     "signOut": "Sign out"
   },
+  "nav": {
+    "home": "Home",
+    "jobs": "Jobs",
+    "services": "Services",
+    "payouts": "Payouts",
+    "notifications": "Notifications",
+    "profile": "Profile"
+  },
   "login": {
     "title": "Sign in",
     "subtitle": "Sign in to continue.",

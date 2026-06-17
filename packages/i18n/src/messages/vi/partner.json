@@ -8,6 +8,14 @@
     "cancel": "Hủy",
     "signOut": "Đăng xuất"
   },
+  "nav": {
+    "home": "Trang chủ",
+    "jobs": "Công việc",
+    "services": "Dịch vụ",
+    "payouts": "Thanh toán",
+    "notifications": "Thông báo",
+    "profile": "Hồ sơ"
+  },
   "login": {
     "title": "Đăng nhập",
     "subtitle": "Đăng nhập để tiếp tục.",
