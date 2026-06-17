@@ -5,7 +5,8 @@
     "notificationsAria": "Thông báo",
     "notificationsAriaUnread": "Thông báo, {count} chưa đọc",
     "back": "← Quay lại",
-    "cancel": "Hủy"
+    "cancel": "Hủy",
+    "signOut": "Đăng xuất"
   },
   "login": {
     "title": "Đăng nhập",

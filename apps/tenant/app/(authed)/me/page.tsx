@@ -4,6 +4,7 @@ import { defaultLocale, type Locale } from '@repo/i18n';
 
 import { DeleteAccountCard } from './_components/delete-account-card';
 import { LanguageCard } from './_components/language-card';
+import { SignOutButton } from './_components/sign-out-button';
 import { getSession } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -25,6 +26,7 @@ export default async function AccountPage() {
         <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </header>
       <LanguageCard current={currentLocale} />
+      <SignOutButton />
       <DeleteAccountCard />
     </main>
   );

@@ -7,6 +7,7 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } fro
 
 import { LanguageCard } from './language-card';
 import { ProfileForm } from './profile-form';
+import { SignOutButton } from './sign-out-button';
 import { StripeConnectCard } from './stripe-connect-card';
 import { ApiError } from '../../../lib/api';
 import { getSession, serverApi } from '../../../lib/session';
@@ -49,6 +50,8 @@ export default async function PartnerProfilePage() {
       <LanguageCard current={currentLocale} />
 
       {profile && <StripeConnectCard profile={profile} />}
+
+      <SignOutButton />
     </main>
   );
 }

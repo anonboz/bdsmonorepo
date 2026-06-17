@@ -5,6 +5,7 @@ import { defaultLocale, type Locale } from '@repo/i18n';
 import { Button } from '@repo/ui';
 
 import { LanguageCard } from './_components/language-card';
+import { SignOutButton } from './_components/sign-out-button';
 import { getSession } from '../../../lib/session';
 
 export async function generateMetadata() {
@@ -28,6 +29,7 @@ export default async function OwnerAccountPage() {
         <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
       <LanguageCard current={currentLocale} />
+      <SignOutButton />
     </main>
   );
 }

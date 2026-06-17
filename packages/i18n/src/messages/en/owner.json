@@ -13,7 +13,8 @@
     "saveFailed": "Save failed.",
     "saveFailedTitle": "Save failed",
     "deleteFailed": "Delete failed.",
-    "actionFailedTitle": "Action failed"
+    "actionFailedTitle": "Action failed",
+    "signOut": "Sign out"
   },
   "login": {
     "title": "Sign in",

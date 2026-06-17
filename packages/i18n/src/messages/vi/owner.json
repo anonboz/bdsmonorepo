@@ -13,7 +13,8 @@
     "saveFailed": "Lưu thất bại.",
     "saveFailedTitle": "Lưu thất bại",
     "deleteFailed": "Xóa thất bại.",
-    "actionFailedTitle": "Hành động thất bại"
+    "actionFailedTitle": "Hành động thất bại",
+    "signOut": "Đăng xuất"
   },
   "login": {
     "title": "Đăng nhập",

@@ -5,7 +5,8 @@
     "notificationsAria": "Notifications",
     "notificationsAriaUnread": "Notifications, {count} unread",
     "back": "← Back",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "signOut": "Sign out"
   },
   "login": {
     "title": "Sign in",
