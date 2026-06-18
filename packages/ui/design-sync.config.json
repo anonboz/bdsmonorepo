@@ -1,0 +1,9 @@
+{
+  "pkg": "@repo/ui",
+  "globalName": "BDSUI",
+  "shape": "package",
+  "srcDir": "src",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": ".design-sync/compiled.css",
+  "notes": "./.design-sync/NOTES.md"
+}

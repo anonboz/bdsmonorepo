@@ -1,0 +1,5 @@
+# claude.ai/design (design-sync) — regenerable build artifacts
+/ds-bundle/
+/.design-sync/compiled.css
+/.design-sync/serve.mjs
+/.design-sync/gallery.mjs

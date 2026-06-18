@@ -11,3 +11,7 @@ pnpm-lock.yaml
 *.min.js
 *.min.css
 packages/db/prisma/migrations
+
+# claude.ai/design (design-sync) — generated bundle + build artifacts
+ds-bundle
+packages/ui/.design-sync
