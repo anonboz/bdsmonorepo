@@ -45,7 +45,7 @@
   "devDependencies": {
     "@repo/config": "workspace:*",
     "@types/node": "^20.16.13",
-    "eslint": "^9.13.0",
+    "eslint": "^10.6.0",
     "prisma": "^5.21.1",
     "rimraf": "^6.0.1",
     "tsx": "^4.19.1",
