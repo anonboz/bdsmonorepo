@@ -18,7 +18,7 @@
   "devDependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
     "@playwright/test": "^1.48.0",
-    "@prisma/client": "^5.21.1",
+    "@prisma/client": "^7.8.0",
     "@repo/config": "workspace:*",
     "@types/node": "^20.16.13",
     "eslint": "^9.13.0",

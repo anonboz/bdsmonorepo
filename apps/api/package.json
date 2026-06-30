@@ -27,7 +27,7 @@
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-fastify": "^11.1.6",
     "@nestjs/swagger": "^11.2.0",
-    "@prisma/client": "^5.21.1",
+    "@prisma/client": "^7.8.0",
     "@repo/config": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/shared": "workspace:*",
