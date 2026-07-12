@@ -1,0 +1,588 @@
+// =============================================================================
+// House-Renting Platform — starter schema.prisma
+// =============================================================================
+// See the starter README.md for the full architecture. Drop this at
+// packages/db/prisma/schema.prisma in the new monorepo and evolve it.
+//
+// Conventions carried over from the reference monorepo:
+//   • Multi-tenant: every org-owned row carries `organizationId`. In services,
+//     take it ONLY from the session and assert ownership after findUnique.
+//     Platform-global models (User, Vendor marketplace, Listing search) are the
+//     explicit exceptions.
+//   • IDs are cuid strings; every model has createdAt/updatedAt.
+//   • Money is stored as INTEGER minor units (cents) to avoid float drift.
+//   • Index every foreign key + every `organizationId`.
+//   • Runtime uses the pg driver adapter with a singleton pool (see @repo/db).
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
+}
+
+// Prisma 7: connection URLs live in prisma.config.ts, NOT here. The runtime
+// PrismaClient gets a pg driver adapter (DATABASE_URL, pooled); migrations use
+// the direct URL (DIRECT_URL) configured in prisma.config.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum OrgRole {
+  owner // org creator / super-landlord
+  landlord
+  agent // leasing agent / property manager
+  vendor // maintenance contractor
+  admin // platform staff
+}
+
+enum PropertyType {
+  apartment
+  house
+  condo
+  townhouse
+  room
+  commercial
+}
+
+enum UnitStatus {
+  available
+  occupied
+  maintenance
+  offline
+}
+
+enum ListingStatus {
+  draft
+  published
+  paused
+  rented
+  archived
+}
+
+enum ApplicationStatus {
+  submitted
+  screening
+  approved
+  rejected
+  withdrawn
+}
+
+enum ScreeningStatus {
+  pending
+  passed
+  failed
+  error
+}
+
+enum LeaseStatus {
+  draft
+  active
+  ended
+  terminated
+  renewed
+}
+
+enum InvoiceStatus {
+  draft
+  open
+  partially_paid
+  paid
+  overdue
+  void
+}
+
+enum PaymentMethod {
+  card
+  bank_transfer
+  ach
+  cash
+  other
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
+enum DepositStatus {
+  held
+  partially_refunded
+  refunded
+  forfeited
+}
+
+enum MaintenancePriority {
+  low
+  medium
+  high
+  emergency
+}
+
+enum MaintenanceStatus {
+  open
+  triaged
+  assigned
+  in_progress
+  completed
+  cancelled
+}
+
+enum WorkOrderStatus {
+  pending
+  scheduled
+  in_progress
+  completed
+  cancelled
+}
+
+enum InspectionType {
+  move_in
+  move_out
+  routine
+  maintenance
+}
+
+enum DocumentType {
+  lease_agreement
+  government_id
+  proof_of_income
+  inspection_photo
+  invoice_pdf
+  other
+}
+
+enum FeatureFlagMode {
+  global_on
+  global_off
+  allowlist
+}
+
+// =============================================================================
+// IDENTITY (platform-global)
+// =============================================================================
+
+/// A person. Global: the same tenant can rent across organizations, and a
+/// vendor can serve several orgs. Org-side roles come from OrgMembership.
+model User {
+  id           String    @id @default(cuid())
+  email        String?   @unique
+  phone        String?   @unique
+  name         String
+  passwordHash String?
+  emailVerified DateTime?
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  memberships        OrgMembership[]
+  applications       Application[]        @relation("ApplicantUser")
+  tenancies          Tenancy[]
+  reportedMaintenance MaintenanceRequest[] @relation("ReportedByUser")
+  uploadedDocuments  Document[]           @relation("UploadedByUser")
+  notifications      Notification[]
+  auditLogs          AuditLog[]           @relation("ActorUser")
+}
+
+/// A landlord company / property-management org — the multi-tenant boundary.
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships         OrgMembership[]
+  properties          Property[]
+  listings            Listing[]
+  applications        Application[]
+  leases              Lease[]
+  invoices            RentInvoice[]
+  vendors             Vendor[]
+  maintenanceRequests MaintenanceRequest[]
+  documents           Document[]
+}
+
+/// Which users belong to which org, and in what role. Staff-side membership;
+/// tenants relate through Tenancy instead.
+model OrgMembership {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrgRole
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+// =============================================================================
+// PROPERTY & LISTINGS
+// =============================================================================
+
+model Property {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  type           PropertyType
+  addressLine1   String
+  addressLine2   String?
+  city           String
+  region         String?
+  postalCode     String?
+  country        String       @default("US")
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  units        Unit[]
+
+  @@index([organizationId])
+  @@index([city])
+}
+
+model Unit {
+  id          String     @id @default(cuid())
+  propertyId  String
+  label       String // e.g. "Apt 2B", "Unit 101"
+  bedrooms    Int        @default(0)
+  bathrooms   Float      @default(1)
+  areaSqft    Int?
+  rentAmount  Int // monthly rent in cents
+  status      UnitStatus @default(available)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  property            Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  listings            Listing[]
+  leases              Lease[]
+  maintenanceRequests MaintenanceRequest[]
+  inspections         Inspection[]
+
+  @@unique([propertyId, label])
+  @@index([propertyId])
+  @@index([status])
+}
+
+model Listing {
+  id             String        @id @default(cuid())
+  organizationId String
+  unitId         String
+  title          String
+  description    String?
+  rentAmount     Int // cents (may differ from Unit.rentAmount for a promo)
+  depositAmount  Int           @default(0)
+  availableFrom  DateTime?
+  status         ListingStatus @default(draft)
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit         Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@index([organizationId])
+  @@index([unitId])
+  @@index([status])
+}
+
+// =============================================================================
+// APPLICATIONS & SCREENING
+// =============================================================================
+
+model Application {
+  id              String            @id @default(cuid())
+  organizationId  String
+  listingId       String
+  applicantUserId String
+  status          ApplicationStatus @default(submitted)
+  moveInDate      DateTime?
+  message         String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  listing      Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  applicant    User         @relation("ApplicantUser", fields: [applicantUserId], references: [id])
+  screening    Screening?
+
+  @@unique([listingId, applicantUserId])
+  @@index([organizationId])
+  @@index([applicantUserId])
+  @@index([status])
+}
+
+model Screening {
+  id            String          @id @default(cuid())
+  applicationId String          @unique
+  status        ScreeningStatus @default(pending)
+  creditScore   Int?
+  backgroundOk  Boolean?
+  reportUrl     String?
+  ranAt         DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+// =============================================================================
+// LEASES, RENT & DEPOSITS
+// =============================================================================
+
+model Lease {
+  id             String      @id @default(cuid())
+  organizationId String
+  unitId         String
+  status         LeaseStatus @default(draft)
+  startDate      DateTime
+  endDate        DateTime
+  rentAmount     Int // monthly rent in cents (frozen at signing)
+  depositAmount  Int         @default(0)
+  rentDueDay     Int         @default(1) // day of month rent is due
+  signedAt       DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit         Unit          @relation(fields: [unitId], references: [id])
+  tenancies    Tenancy[]
+  invoices     RentInvoice[]
+  deposit      Deposit?
+
+  @@index([organizationId])
+  @@index([unitId])
+  @@index([status])
+}
+
+/// A tenant on a lease (supports multiple tenants per lease).
+model Tenancy {
+  id        String   @id @default(cuid())
+  leaseId   String
+  userId    String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lease Lease @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([leaseId, userId])
+  @@index([userId])
+}
+
+model RentInvoice {
+  id             String        @id @default(cuid())
+  organizationId String
+  leaseId        String
+  periodStart    DateTime
+  periodEnd      DateTime
+  dueDate        DateTime
+  amount         Int // cents
+  status         InvoiceStatus @default(open)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lease        Lease        @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@unique([leaseId, periodStart])
+  @@index([organizationId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  invoiceId     String
+  amount        Int // cents
+  method        PaymentMethod
+  status        PaymentStatus @default(pending)
+  providerRef   String? // gateway transaction id
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  invoice RentInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([status])
+}
+
+model Deposit {
+  id           String        @id @default(cuid())
+  leaseId      String        @unique
+  amount       Int // cents held
+  status       DepositStatus @default(held)
+  refundAmount Int? // cents returned at move-out
+  refundedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  lease Lease @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+}
+
+// =============================================================================
+// MAINTENANCE & VENDORS
+// =============================================================================
+
+model Vendor {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  trade          String? // "plumbing", "electrical", ...
+  phone          String?
+  email          String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workOrders   WorkOrder[]
+
+  @@index([organizationId])
+}
+
+model MaintenanceRequest {
+  id               String              @id @default(cuid())
+  organizationId   String
+  unitId           String
+  reportedByUserId String
+  title            String
+  description      String?
+  priority         MaintenancePriority @default(medium)
+  status           MaintenanceStatus   @default(open)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit         Unit         @relation(fields: [unitId], references: [id])
+  reportedBy   User         @relation("ReportedByUser", fields: [reportedByUserId], references: [id])
+  workOrders   WorkOrder[]
+
+  @@index([organizationId])
+  @@index([unitId])
+  @@index([status])
+}
+
+model WorkOrder {
+  id                   String          @id @default(cuid())
+  maintenanceRequestId String
+  vendorId             String?
+  status               WorkOrderStatus @default(pending)
+  scheduledAt          DateTime?
+  completedAt          DateTime?
+  costAmount           Int? // cents
+  notes                String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  request MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+  vendor  Vendor?            @relation(fields: [vendorId], references: [id])
+
+  @@index([maintenanceRequestId])
+  @@index([vendorId])
+  @@index([status])
+}
+
+model Inspection {
+  id        String         @id @default(cuid())
+  unitId    String
+  type      InspectionType
+  scheduledAt DateTime?
+  completedAt DateTime?
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([unitId])
+}
+
+// =============================================================================
+// DOCUMENTS, NOTIFICATIONS, FLAGS, AUDIT
+// =============================================================================
+
+/// Files attached to any entity. `entityType`/`entityId` is a soft polymorphic
+/// pointer (kept unconstrained on purpose — resolve in the service layer).
+model Document {
+  id             String       @id @default(cuid())
+  organizationId String
+  uploadedByUserId String?
+  type           DocumentType
+  url            String
+  entityType     String? // "Lease" | "Application" | "Unit" | ...
+  entityId       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation("UploadedByUser", fields: [uploadedByUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([entityType, entityId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  deepLink  String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([readAt])
+}
+
+/// Platform feature flags, read by all apps via a shared checker. Missing row
+/// fails closed. `storeIds` here is `organizationIds` in allowlist mode.
+model FeatureFlag {
+  id              String          @id @default(cuid())
+  key             String          @unique
+  name            String
+  description     String?
+  mode            FeatureFlagMode @default(global_off)
+  organizationIds String[]        @default([])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+/// Every admin/service write should append an AuditLog row.
+model AuditLog {
+  id             String   @id @default(cuid())
+  actorUserId    String?
+  organizationId String? // null = platform-global action
+  action         String // "lease.create", "payment.refund", ...
+  entityType     String
+  entityId       String
+  payload        Json?
+  createdAt      DateTime @default(now())
+
+  actor User? @relation("ActorUser", fields: [actorUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

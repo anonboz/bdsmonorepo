@@ -1,0 +1,10 @@
+node_modules
+.next
+dist
+build
+out
+.turbo
+package-lock.json
+packages/db/prisma/migrations
+*.min.js
+*.min.css

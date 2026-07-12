@@ -1,1 +1,10 @@
-pnpm exec commitlint --edit "$1"
+#!/usr/bin/env sh
+# Commit-message lint (conventional commits). The commitlint config + deps live
+# in house-renting/, so resolve the message path to absolute before cd'ing in.
+msg="$1"
+case "$msg" in
+  /*) ;;                       # already absolute
+  *) msg="$(pwd)/$msg" ;;      # git passes it relative to the repo root
+esac
+
+cd house-renting && npx --no-install commitlint --edit "$msg"

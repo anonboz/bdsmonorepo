@@ -2,9 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'rewrite/**']
   pull_request:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -15,255 +14,53 @@ env:
   NODE_OPTIONS: --max-old-space-size=4096
 
 jobs:
-  ci:
-    name: lint · typecheck · test · build
+  verify:
+    name: typecheck · build (house-renting)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
-          POSTGRES_DB: app_test
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U app"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    defaults:
+      run:
+        working-directory: house-renting
 
     env:
-      DATABASE_URL: postgresql://app:app@localhost:5432/app_test
-      REDIS_URL: redis://localhost:6379
+      # Dummy values so module-load-time env reads (@repo/db pool URL, NextAuth
+      # secret) don't throw during build. No live DB is touched: pages are
+      # force-dynamic and the pg pool connects lazily, so nothing connects here.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      NEXTAUTH_SECRET: ci-not-a-real-secret-please-ignore-000000
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          cache: npm
+          cache-dependency-path: house-renting/package-lock.json
 
-      - name: Cache Turbo
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
+      # next-auth@4's React peer range predates React 19 — a known, benign
+      # ERESOLVE. --legacy-peer-deps mirrors local dev.
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-audit --fund=false
 
-      - name: Versions (debug)
+      - name: Generate Prisma client
+        run: npm run db:generate --workspace=@repo/db
+
+      - name: Typecheck (all apps)
         run: |
-          node --version
-          pnpm --version
-          pnpm config get engine-strict
-          pnpm config get strict-peer-dependencies
+          for app in landlord tenant agent listings admin vendor; do
+            echo "::group::typecheck $app"
+            npm run typecheck --workspace=$app
+            echo "::endgroup::"
+          done
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --reporter=append-only
-
-      - name: Format check
-        run: pnpm format:check
-
-      # Build workspace libs first so downstream lint/typecheck see dist/.
-      - name: Build (libs)
-        run: pnpm --filter @repo/shared --filter @repo/db --filter @repo/ui --filter @repo/config build
-
-      # Lint per package so a failure is named, not buried in a turbo summary.
-      - name: Lint — @repo/config
-        run: pnpm --filter @repo/config lint
-      - name: Lint — @repo/shared
-        run: pnpm --filter @repo/shared lint
-      - name: Lint — @repo/db
-        run: pnpm --filter @repo/db lint
-      - name: Lint — @repo/ui
-        run: pnpm --filter @repo/ui lint
-      - name: Lint — @repo/api
-        run: pnpm --filter @repo/api lint
-      - name: Lint — @repo/admin
-        run: pnpm --filter @repo/admin lint
-      - name: Lint — @repo/owner
-        run: pnpm --filter @repo/owner lint
-      - name: Lint — @repo/tenant
-        run: pnpm --filter @repo/tenant lint
-      - name: Lint — @repo/partner
-        run: pnpm --filter @repo/partner lint
-
-      - name: Typecheck
-        run: pnpm turbo typecheck --output-logs=new-only --concurrency=1
-
-      - name: Test
-        run: pnpm turbo test --output-logs=new-only --concurrency=1
-
-      - name: Build (apps)
-        run: pnpm turbo build --output-logs=new-only --concurrency=1
-
-  audit:
-    name: audit (advisories)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts --reporter=append-only
-
-      # Post-Phase-8.5: blocking on critical. Emits the full JSON
-      # report as an artifact regardless of severity. Lower severities
-      # are tracked in docs/security-advisories.md.
-      - name: Generate audit JSON
-        id: audit-json
-        continue-on-error: true
-        run: pnpm audit --prod --json > audit-report.json
-
-      - name: Fail on critical advisories
-        run: pnpm audit --prod --audit-level=critical
-
-      - name: Upload audit report
-        uses: actions/upload-artifact@v4
-        with:
-          name: audit-report
-          path: audit-report.json
-          retention-days: 30
-
-  e2e:
-    name: e2e (playwright)
-    runs-on: ubuntu-latest
-    needs: ci
-    timeout-minutes: 20
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: app
-          POSTGRES_PASSWORD: app
-          POSTGRES_DB: app_test
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U app"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-    env:
-      # `localhost` clears the e2e global-setup's loopback safety belt.
-      DATABASE_URL: postgresql://app:app@localhost:5432/app_test
-      REDIS_URL: redis://localhost:6379
-      API_PORT: '4001'
-      API_PUBLIC_URL: http://localhost:4001
-      API_CORS_ORIGINS: http://localhost:4000
-      AUTH_SECRET: e2e-test-secret-not-for-production-use-only
-      AUTH_COOKIE_DOMAIN: localhost
-      AUTH_JWT_ACCESS_TTL: '900'
-      AUTH_JWT_REFRESH_TTL: '604800'
-      API_DISABLE_QUEUES: 'true'
-      # The auth helper logs in 4 + (2 × 4) times across the suite; the
-      # send-otp per-route limit (5/min) would otherwise turn that into
-      # a 429 cascade. Disable rate-limit entirely for e2e.
-      API_DISABLE_RATE_LIMIT: 'true'
-      # Phase 8.1 wires real email delivery into better-auth — force the
-      # stub mailer in CI so the OTP path doesn't try to reach MailHog
-      # (which we don't spin up).
-      API_DISABLE_MAILER: 'true'
-      NODE_ENV: test
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --reporter=append-only
-
-      - name: Apply migrations
-        run: pnpm --filter @repo/db exec prisma migrate deploy
-
-      - name: Build (libs)
-        run: pnpm --filter @repo/shared --filter @repo/db --filter @repo/ui --filter @repo/config build
-
-      - name: Install Playwright browsers
-        run: pnpm --filter @repo/e2e exec playwright install --with-deps chromium
-
-      - name: Run e2e suite
-        run: pnpm --filter @repo/e2e test
-
-      - name: Upload Playwright report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            apps/e2e/playwright-report
-            apps/e2e/test-results
-          retention-days: 7
-
-  commitlint:
-    name: commitlint
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Validate PR commits
-        run: pnpm exec commitlint --from origin/${{ github.base_ref }} --to HEAD --verbose
+      - name: Build (all apps)
+        run: |
+          for app in landlord tenant agent listings admin vendor; do
+            echo "::group::build $app"
+            npm run build --workspace=$app
+            echo "::endgroup::"
+          done

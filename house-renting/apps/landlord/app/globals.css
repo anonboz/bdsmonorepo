@@ -1,0 +1,6 @@
+/* Landlord app — Tailwind 4 entry. Pulls in the shared green theme + scans the
+ * @repo/ui source so its component classes aren't tree-shaken out. */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@repo/ui/styles/theme.css";
+@source "../../../packages/ui/src";
