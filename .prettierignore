@@ -1,17 +1,16 @@
 node_modules
+.next
 dist
 build
 out
-.next
 .turbo
-coverage
-playwright-report
-test-results
-pnpm-lock.yaml
+package-lock.json
+packages/db/prisma/migrations
 *.min.js
 *.min.css
-packages/db/prisma/migrations
 
-# claude.ai/design (design-sync) — generated bundle + build artifacts
-ds-bundle
-packages/ui/.design-sync
+# Reference template + legacy docs from the previous stack — leave as-is.
+house-renting-starter
+docs
+BUILD_PLAN.md
+README.md

@@ -4,7 +4,7 @@ on:
   # 03:00 UTC nightly — 1h before bills.daily-sweep (02:00) to keep the
   # nightly load profile predictable.
   schedule:
-    - cron: '0 3 * * *'
+    - cron: "0 3 * * *"
   workflow_dispatch: {}
 
 concurrency:

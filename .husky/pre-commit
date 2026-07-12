@@ -1,8 +1,6 @@
 #!/usr/bin/env sh
-# Pre-commit format check for the house-renting monorepo.
-#
-# The active project lives in house-renting/, which owns its own prettier +
-# config, so we cd in and run there. --cache skips unchanged files (~1s warm).
-# Lint + typecheck run in CI; the hook only enforces format so it stays fast.
+# Pre-commit format check. Runs prettier across the repo (the npm workspace lives
+# at the root). --cache skips unchanged files (~1s warm). Lint + typecheck run in
+# CI; the hook only enforces format so it stays fast.
 
-cd house-renting && npx --no-install prettier --check --cache "**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml,css}"
+npx --no-install prettier --check --cache "**/*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml,css}"

@@ -1,34 +1,34 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /house-renting
+    directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
       eslint:
         patterns:
-          - 'eslint*'
-          - '@eslint/*'
-          - 'typescript-eslint'
-          - '@typescript-eslint/*'
+          - "eslint*"
+          - "@eslint/*"
+          - "typescript-eslint"
+          - "@typescript-eslint/*"
       next:
         patterns:
-          - 'next'
-          - '@next/*'
-          - 'eslint-config-next'
+          - "next"
+          - "@next/*"
+          - "eslint-config-next"
       react:
         patterns:
-          - 'react'
-          - 'react-dom'
-          - '@types/react*'
+          - "react"
+          - "react-dom"
+          - "@types/react*"
       prisma:
         patterns:
-          - 'prisma'
-          - '@prisma/*'
+          - "prisma"
+          - "@prisma/*"
       types:
         patterns:
-          - '@types/*'
+          - "@types/*"
 
   - package-ecosystem: github-actions
     directory: /

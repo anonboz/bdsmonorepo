@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, 'rewrite/**']
+    branches: [main, "rewrite/**"]
   pull_request:
 
 concurrency:
@@ -15,13 +15,9 @@ env:
 
 jobs:
   verify:
-    name: typecheck · build (house-renting)
+    name: typecheck · build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
-    defaults:
-      run:
-        working-directory: house-renting
 
     env:
       # Dummy values so module-load-time env reads (@repo/db pool URL, NextAuth
@@ -39,7 +35,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: house-renting/package-lock.json
+          cache-dependency-path: package-lock.json
 
       # next-auth@4's React peer range predates React 19 — a known, benign
       # ERESOLVE. --legacy-peer-deps mirrors local dev.
