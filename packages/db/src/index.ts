@@ -31,11 +31,9 @@ const globalForPrisma = globalThis as unknown as {
 // PrismaPg built from a connectionString creates a NEW pool on every connect(),
 // which leaks until the Postgres/Supabase connection limit is hit. Keep `max`
 // small — each of the N apps holds its own pool.
-// Build the pg pool config from DATABASE_URL. Two adjustments for managed
-// Postgres (Supabase): (1) node-pg v8.13+ upgrades `sslmode=require` to
-// verify-full and rejects the self-signed chain, so we strip it and set ssl
-// explicitly; (2) scope every query to a dedicated schema via search_path when
-// DB_SCHEMA is set, keeping this stack's tables isolated in the database.
+// Build the pg pool config from DATABASE_URL. Adjustment for managed Postgres
+// (Supabase): node-pg v8.13+ upgrades `sslmode=require` to verify-full and
+// rejects the self-signed chain, so we strip it and set ssl explicitly.
 function buildPoolConfig() {
   const url = new URL(process.env.DATABASE_URL!);
   const sslmode = url.searchParams.get("sslmode");
@@ -49,19 +47,7 @@ function buildPoolConfig() {
   };
 }
 
-const dbSchema = process.env.DB_SCHEMA;
-
 const pool = globalForPrisma.pgPool ?? new pg.Pool(buildPoolConfig());
-
-// Scope every query to a dedicated schema. Startup `options=-c search_path`
-// gets swallowed by connection poolers (Supabase Supavisor), so run an explicit
-// `SET search_path` on each new physical connection instead — session poolers
-// preserve it for the life of the connection.
-if (dbSchema && !globalForPrisma.pgPool) {
-  pool.on("connect", (client) => {
-    client.query(`set search_path to "${dbSchema}", public`).catch(() => {});
-  });
-}
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.pgPool = pool;
 

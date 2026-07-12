@@ -25,7 +25,6 @@ generator client {
 // the direct URL (DIRECT_URL) configured in prisma.config.ts.
 datasource db {
   provider = "postgresql"
-  schemas  = ["house_renting"]
 }
 
 // =============================================================================
@@ -38,7 +37,6 @@ enum OrgRole {
   agent // leasing agent / property manager
   vendor // maintenance contractor
   admin // platform staff
-  @@schema("house_renting")
 }
 
 enum PropertyType {
@@ -48,7 +46,6 @@ enum PropertyType {
   townhouse
   room
   commercial
-  @@schema("house_renting")
 }
 
 enum UnitStatus {
@@ -56,7 +53,6 @@ enum UnitStatus {
   occupied
   maintenance
   offline
-  @@schema("house_renting")
 }
 
 enum ListingStatus {
@@ -65,7 +61,6 @@ enum ListingStatus {
   paused
   rented
   archived
-  @@schema("house_renting")
 }
 
 enum ApplicationStatus {
@@ -74,7 +69,6 @@ enum ApplicationStatus {
   approved
   rejected
   withdrawn
-  @@schema("house_renting")
 }
 
 enum ScreeningStatus {
@@ -82,7 +76,6 @@ enum ScreeningStatus {
   passed
   failed
   error
-  @@schema("house_renting")
 }
 
 enum LeaseStatus {
@@ -91,7 +84,6 @@ enum LeaseStatus {
   ended
   terminated
   renewed
-  @@schema("house_renting")
 }
 
 enum InvoiceStatus {
@@ -101,7 +93,6 @@ enum InvoiceStatus {
   paid
   overdue
   void
-  @@schema("house_renting")
 }
 
 enum PaymentMethod {
@@ -110,7 +101,6 @@ enum PaymentMethod {
   ach
   cash
   other
-  @@schema("house_renting")
 }
 
 enum PaymentStatus {
@@ -118,7 +108,6 @@ enum PaymentStatus {
   succeeded
   failed
   refunded
-  @@schema("house_renting")
 }
 
 enum DepositStatus {
@@ -126,7 +115,6 @@ enum DepositStatus {
   partially_refunded
   refunded
   forfeited
-  @@schema("house_renting")
 }
 
 enum MaintenancePriority {
@@ -134,7 +122,6 @@ enum MaintenancePriority {
   medium
   high
   emergency
-  @@schema("house_renting")
 }
 
 enum MaintenanceStatus {
@@ -144,7 +131,6 @@ enum MaintenanceStatus {
   in_progress
   completed
   cancelled
-  @@schema("house_renting")
 }
 
 enum WorkOrderStatus {
@@ -153,7 +139,6 @@ enum WorkOrderStatus {
   in_progress
   completed
   cancelled
-  @@schema("house_renting")
 }
 
 enum InspectionType {
@@ -161,7 +146,6 @@ enum InspectionType {
   move_out
   routine
   maintenance
-  @@schema("house_renting")
 }
 
 enum DocumentType {
@@ -171,14 +155,12 @@ enum DocumentType {
   inspection_photo
   invoice_pdf
   other
-  @@schema("house_renting")
 }
 
 enum FeatureFlagMode {
   global_on
   global_off
   allowlist
-  @@schema("house_renting")
 }
 
 // =============================================================================
@@ -205,7 +187,6 @@ model User {
   uploadedDocuments  Document[]           @relation("UploadedByUser")
   notifications      Notification[]
   auditLogs          AuditLog[]           @relation("ActorUser")
-  @@schema("house_renting")
 }
 
 /// A landlord company / property-management org — the multi-tenant boundary.
@@ -226,7 +207,6 @@ model Organization {
   vendors             Vendor[]
   maintenanceRequests MaintenanceRequest[]
   documents           Document[]
-  @@schema("house_renting")
 }
 
 /// Which users belong to which org, and in what role. Staff-side membership;
@@ -245,7 +225,6 @@ model OrgMembership {
   @@unique([organizationId, userId])
   @@index([userId])
   @@index([organizationId])
-  @@schema("house_renting")
 }
 
 // =============================================================================
@@ -273,7 +252,6 @@ model Property {
 
   @@index([organizationId])
   @@index([city])
-  @@schema("house_renting")
 }
 
 model Unit {
@@ -297,7 +275,6 @@ model Unit {
   @@unique([propertyId, label])
   @@index([propertyId])
   @@index([status])
-  @@schema("house_renting")
 }
 
 model Listing {
@@ -321,7 +298,6 @@ model Listing {
   @@index([organizationId])
   @@index([unitId])
   @@index([status])
-  @@schema("house_renting")
 }
 
 // =============================================================================
@@ -348,7 +324,6 @@ model Application {
   @@index([organizationId])
   @@index([applicantUserId])
   @@index([status])
-  @@schema("house_renting")
 }
 
 model Screening {
@@ -363,7 +338,6 @@ model Screening {
   updatedAt     DateTime        @updatedAt
 
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  @@schema("house_renting")
 }
 
 // =============================================================================
@@ -393,7 +367,6 @@ model Lease {
   @@index([organizationId])
   @@index([unitId])
   @@index([status])
-  @@schema("house_renting")
 }
 
 /// A tenant on a lease (supports multiple tenants per lease).
@@ -410,7 +383,6 @@ model Tenancy {
 
   @@unique([leaseId, userId])
   @@index([userId])
-  @@schema("house_renting")
 }
 
 model RentInvoice {
@@ -433,7 +405,6 @@ model RentInvoice {
   @@index([organizationId])
   @@index([status])
   @@index([dueDate])
-  @@schema("house_renting")
 }
 
 model Payment {
@@ -451,7 +422,6 @@ model Payment {
 
   @@index([invoiceId])
   @@index([status])
-  @@schema("house_renting")
 }
 
 model Deposit {
@@ -465,7 +435,6 @@ model Deposit {
   updatedAt    DateTime      @updatedAt
 
   lease Lease @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  @@schema("house_renting")
 }
 
 // =============================================================================
@@ -487,7 +456,6 @@ model Vendor {
   workOrders   WorkOrder[]
 
   @@index([organizationId])
-  @@schema("house_renting")
 }
 
 model MaintenanceRequest {
@@ -510,7 +478,6 @@ model MaintenanceRequest {
   @@index([organizationId])
   @@index([unitId])
   @@index([status])
-  @@schema("house_renting")
 }
 
 model WorkOrder {
@@ -531,7 +498,6 @@ model WorkOrder {
   @@index([maintenanceRequestId])
   @@index([vendorId])
   @@index([status])
-  @@schema("house_renting")
 }
 
 model Inspection {
@@ -547,7 +513,6 @@ model Inspection {
   unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
   @@index([unitId])
-  @@schema("house_renting")
 }
 
 // =============================================================================
@@ -572,7 +537,6 @@ model Document {
 
   @@index([organizationId])
   @@index([entityType, entityId])
-  @@schema("house_renting")
 }
 
 model Notification {
@@ -589,7 +553,6 @@ model Notification {
 
   @@index([userId])
   @@index([readAt])
-  @@schema("house_renting")
 }
 
 /// Platform feature flags, read by all apps via a shared checker. Missing row
@@ -603,7 +566,6 @@ model FeatureFlag {
   organizationIds String[]        @default([])
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-  @@schema("house_renting")
 }
 
 /// Every admin/service write should append an AuditLog row.
@@ -623,5 +585,4 @@ model AuditLog {
   @@index([actorUserId])
   @@index([entityType, entityId])
   @@index([createdAt])
-  @@schema("house_renting")
 }
