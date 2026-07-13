@@ -1,4 +1,4 @@
-// Idempotent seed for the live smoke test. Clears the house_renting schema then
+// Idempotent seed for the live smoke test. Clears all tables (public schema) then
 // inserts one primary org (Maple) with a full cast + data for every app's slice,
 // plus a second org (Cedar) so the admin console has more than one row.
 //

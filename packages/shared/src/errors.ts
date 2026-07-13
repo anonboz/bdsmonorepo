@@ -35,6 +35,7 @@ export const UNAUTHORIZED = "UNAUTHORIZED";
  * as features grow so every app maps them identically.
  */
 export const DOMAIN_ERROR_MAP: Record<string, { status: number; code: string; message: string }> = {
+  PROPERTY_NOT_FOUND: { status: 404, code: "PROPERTY_NOT_FOUND", message: "Property not found" },
   UNIT_NOT_FOUND: { status: 404, code: "UNIT_NOT_FOUND", message: "Unit not found" },
   LEASE_NOT_FOUND: { status: 404, code: "LEASE_NOT_FOUND", message: "Lease not found" },
   LISTING_NOT_FOUND: { status: 404, code: "LISTING_NOT_FOUND", message: "Listing not found" },
