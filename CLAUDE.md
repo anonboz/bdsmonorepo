@@ -6,8 +6,8 @@
 
 ## Stack
 
-Monorepo (Turborepo + npm workspaces): 6 Next.js 16 apps — landlord :3000,
-tenant :3001, agent :3002, listings :3003, admin :3004, vendor :3005. Prisma 7 +
+Monorepo (Turborepo + npm workspaces): 6 Next.js 16 apps — landlord :6100,
+tenant :6101, agent :6102, listings :6103, admin :6104, vendor :6105. Prisma 7 +
 Postgres (Supabase-hosted), NextAuth 4 (JWT), Base UI + Tailwind 4, Zod 4,
 TanStack Query/Table, Serwist PWA (tenant + vendor).
 
