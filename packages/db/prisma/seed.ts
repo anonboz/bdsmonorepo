@@ -2,10 +2,10 @@
 // inserts one primary org (Maple) with a full cast + data for every app's slice,
 // plus a second org (Cedar) so the admin console has more than one row.
 //
-// All logins use password: Passw0rd!23
-//   landlord@example.com (landlord) · agent@example.com (agent)
-//   admin@example.com (admin) · vendor@example.com (vendor)
-//   tenant1@example.com / tenant2@example.com (tenants)
+// All logins use password: 12345678
+//   landlord@test.com (landlord) · agent@test.com (agent)
+//   admin@test.com (admin) · vendor@test.com (vendor)
+//   tenant1@test.com / tenant2@test.com (tenants)
 
 import "dotenv/config";
 import { db } from "../src/index";
@@ -38,7 +38,7 @@ async function reset() {
 
 async function main() {
   await reset();
-  const passwordHash = await bcrypt.hash("Passw0rd!23", 10);
+  const passwordHash = await bcrypt.hash("12345678", 10);
   const user = (email: string, name: string) =>
     db.user.create({ data: { email, name, passwordHash } });
 
@@ -48,12 +48,12 @@ async function main() {
   const cedar = await db.organization.create({ data: { name: "Cedar Rentals", slug: "cedar" } });
 
   // Staff (org members) + tenants (no membership — they relate via Tenancy).
-  const landlord = await user("landlord@example.com", "Otto Landlord");
-  const agent = await user("agent@example.com", "Ava Agent");
-  const admin = await user("admin@example.com", "Sam Admin");
-  const vendorUser = await user("vendor@example.com", "Vince Vendor");
-  const tenant1 = await user("tenant1@example.com", "Tara Tenant");
-  const tenant2 = await user("tenant2@example.com", "Theo Tenant");
+  const landlord = await user("landlord@test.com", "Otto Landlord");
+  const agent = await user("agent@test.com", "Ava Agent");
+  const admin = await user("admin@test.com", "Sam Admin");
+  const vendorUser = await user("vendor@test.com", "Vince Vendor");
+  const tenant1 = await user("tenant1@test.com", "Tara Tenant");
+  const tenant2 = await user("tenant2@test.com", "Theo Tenant");
 
   await db.orgMembership.createMany({
     data: [
@@ -173,7 +173,7 @@ async function main() {
   });
 
   console.log(
-    "Seeded: orgs=maple,cedar  users=landlord/agent/admin/vendor/tenant1/tenant2  (pwd Passw0rd!23)",
+    "Seeded: orgs=maple,cedar  users=landlord/agent/admin/vendor/tenant1/tenant2  (pwd 12345678)",
   );
   console.log(
     "  listing=published(Apt 1B)  application=submitted(tenant2)  workOrder=scheduled(vendor)",
