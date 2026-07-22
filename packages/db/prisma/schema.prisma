@@ -110,6 +110,13 @@ enum PaymentStatus {
   refunded
 }
 
+enum InvoiceLineKind {
+  rent
+  water
+  electricity
+  other
+}
+
 enum DepositStatus {
   held
   partially_refunded
@@ -207,6 +214,7 @@ model Organization {
   vendors             Vendor[]
   maintenanceRequests MaintenanceRequest[]
   documents           Document[]
+  utilityRates        OrgUtilityRate[]
 }
 
 /// Which users belong to which org, and in what role. Staff-side membership;
@@ -397,14 +405,66 @@ model RentInvoice {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  lease        Lease        @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lease        Lease             @relation(fields: [leaseId], references: [id], onDelete: Cascade)
   payments     Payment[]
+  lineItems    InvoiceLineItem[]
 
   @@unique([leaseId, periodStart])
   @@index([organizationId])
   @@index([status])
   @@index([dueDate])
+}
+
+/// One charge on an invoice: rent, or a metered utility (water m³, electricity
+/// kWh). `quantity` + `unit` carry the consumption for utilities (null for rent);
+/// `amount` is the charge in integer cents. The invoice `amount` is the sum of
+/// its line items.
+model InvoiceLineItem {
+  id          String          @id @default(cuid())
+  invoiceId   String
+  kind        InvoiceLineKind
+  description String?
+  quantity    Float? // metered consumption: m³ or kWh (null for rent)
+  unit        String? // "m³", "kWh"
+  amount      Int // charge in cents
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  invoice RentInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+/// Platform-wide guardrail on a metered utility's unit price, set by the GLOBAL
+/// admin console (not org-scoped). Owners choose a per-org rate within
+/// [minPricePerUnit, maxPricePerUnit]. Prices are integer cents per unit.
+model UtilityRateBound {
+  id              String          @id @default(cuid())
+  kind            InvoiceLineKind @unique // water | electricity
+  unit            String // "m³" | "kWh"
+  minPricePerUnit Int // cents per unit
+  maxPricePerUnit Int // cents per unit
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+/// Per-organization unit price for a metered utility, set by the owner/landlord
+/// within the admin's UtilityRateBound. Invoice utility line-item amounts are
+/// computed as round(consumption × pricePerUnit).
+model OrgUtilityRate {
+  id             String          @id @default(cuid())
+  organizationId String
+  kind           InvoiceLineKind // water | electricity
+  unit           String // "m³" | "kWh"
+  pricePerUnit   Int // cents per unit
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, kind])
+  @@index([organizationId])
 }
 
 model Payment {

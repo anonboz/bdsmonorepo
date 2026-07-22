@@ -1,6 +1,7 @@
 import { FileText, Receipt, Wrench } from "lucide-react";
 import Link from "next/link";
 
+import { getTranslations } from "@/i18n/server";
 import { getSession } from "@/lib/session";
 import { listMyLeases } from "@/services/lease.service";
 import {
@@ -17,27 +18,28 @@ export const dynamic = "force-dynamic";
 export default async function TenantHome() {
   const session = await getSession();
   const { total } = await listMyLeases(session);
+  const t = await getTranslations("home");
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
       <header className="space-y-1">
-        <h1 className="text-3xl font-semibold">Welcome, {session.name || "tenant"}</h1>
-        <p className="text-muted-foreground">Everything about your rental in one place.</p>
+        <h1 className="text-3xl font-semibold">
+          {t("welcome", { name: session.name || "tenant" })}
+        </h1>
+        <p className="text-muted-foreground">{t("subtitle")}</p>
       </header>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="h-5 w-5 text-primary" />
-            My leases
+            {t("leasesTitle")}
           </CardTitle>
-          <CardDescription>
-            You are on {total} lease{total === 1 ? "" : "s"}. Review terms, rent and status.
-          </CardDescription>
+          <CardDescription>{t("leasesDesc", { count: total })}</CardDescription>
         </CardHeader>
         <CardContent>
           <Link href="/my-leases" className={buttonVariants()}>
-            View my leases
+            {t("leasesCta")}
           </Link>
         </CardContent>
       </Card>
@@ -47,13 +49,13 @@ export default async function TenantHome() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Receipt className="h-5 w-5 text-primary" />
-              My bills
+              {t("billsTitle")}
             </CardTitle>
-            <CardDescription>Track rent invoices and payment history.</CardDescription>
+            <CardDescription>{t("billsDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/my-bills" className={buttonVariants({ variant: "outline" })}>
-              View my bills
+              {t("billsCta")}
             </Link>
           </CardContent>
         </Card>
@@ -62,13 +64,13 @@ export default async function TenantHome() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Wrench className="h-5 w-5 text-primary" />
-              Requests
+              {t("requestsTitle")}
             </CardTitle>
-            <CardDescription>Raise and follow up on maintenance requests.</CardDescription>
+            <CardDescription>{t("requestsDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/my-tickets" className={buttonVariants({ variant: "outline" })}>
-              View requests
+              {t("requestsCta")}
             </Link>
           </CardContent>
         </Card>

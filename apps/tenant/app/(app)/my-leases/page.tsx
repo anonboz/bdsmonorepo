@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 
+import { getLocale, getTranslations } from "@/i18n/server";
 import { getSession } from "@/lib/session";
 import { listMyLeases } from "@/services/lease.service";
 import { formatMoney } from "@repo/shared";
@@ -18,18 +19,20 @@ const STATUS_STYLES: Record<string, string> = {
 export default async function MyLeasesPage() {
   const session = await getSession();
   const { rows, total } = await listMyLeases(session);
+  const t = await getTranslations("leases");
+  const locale = await getLocale();
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
       <header className="space-y-1">
-        <h1 className="text-3xl font-semibold">My leases</h1>
-        <p className="text-muted-foreground">You are on {total} lease(s).</p>
+        <h1 className="text-3xl font-semibold">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("subtitle", { count: total })}</p>
       </header>
 
       {rows.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            You&apos;re not on any leases yet.
+            {t("empty")}
           </CardContent>
         </Card>
       ) : (
@@ -38,10 +41,10 @@ export default async function MyLeasesPage() {
             <table className="w-full text-sm">
               <thead className="border-b text-left text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Property</th>
-                  <th className="px-4 py-3 font-medium">Term</th>
-                  <th className="px-4 py-3 font-medium">Rent</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium">{t("colProperty")}</th>
+                  <th className="px-4 py-3 font-medium">{t("colTerm")}</th>
+                  <th className="px-4 py-3 font-medium">{t("colRent")}</th>
+                  <th className="px-4 py-3 font-medium">{t("colStatus")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -58,14 +61,16 @@ export default async function MyLeasesPage() {
                       {format(lease.startDate, "MMM d, yyyy")} –{" "}
                       {format(lease.endDate, "MMM d, yyyy")}
                     </td>
-                    <td className="px-4 py-3">{formatMoney(lease.rentAmount)}/mo</td>
+                    <td className="px-4 py-3">
+                      {t("perMonth", { amount: formatMoney(lease.rentAmount, locale) })}
+                    </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           STATUS_STYLES[lease.status] ?? "bg-muted text-muted-foreground"
                         }`}
                       >
-                        {lease.status}
+                        {t(`status.${lease.status}`)}
                       </span>
                     </td>
                   </tr>

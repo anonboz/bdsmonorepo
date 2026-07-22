@@ -6,9 +6,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pg", "@prisma/client", "@prisma/adapter-pg"],
   // Workspace packages are consumed as raw TS — let Next transpile them.
   transpilePackages: ["@repo/ui", "@repo/shared"],
-  // typedRoutes intentionally OFF during the incremental rebuild — nav links to
-  // not-yet-created routes (my-bills/my-tickets) would fail the typed-routes
-  // check. Re-enable at cutover once every route exists.
+  // Every sidebar route now exists (/, /my-leases, /my-bills, /my-tickets), so
+  // statically type-check Link hrefs against the real route tree.
+  typedRoutes: true,
 };
 
 export default nextConfig;

@@ -14,7 +14,10 @@ import bcrypt from "bcryptjs";
 async function reset() {
   // Delete children before parents (FK order).
   await db.payment.deleteMany();
+  await db.invoiceLineItem.deleteMany();
   await db.rentInvoice.deleteMany();
+  await db.orgUtilityRate.deleteMany();
+  await db.utilityRateBound.deleteMany();
   await db.deposit.deleteMany();
   await db.tenancy.deleteMany();
   await db.workOrder.deleteMany();
@@ -99,7 +102,7 @@ async function main() {
   });
 
   // Active lease on Apt 1A (tenant1) — for landlord + tenant slices.
-  await db.lease.create({
+  const lease = await db.lease.create({
     data: {
       organizationId: org.id,
       unitId: apt1a.id,
@@ -112,6 +115,120 @@ async function main() {
       signedAt: new Date("2025-12-20"),
       tenancies: { create: { userId: tenant1.id, isPrimary: true } },
     },
+  });
+
+  // Utility pricing. The admin sets platform-wide min/max bounds (cents per unit);
+  // the owner picks a per-org rate inside that gate. Invoice utility amounts are
+  // then computed as round(consumption × the org's rate) — never hardcoded.
+  await db.utilityRateBound.createMany({
+    data: [
+      { kind: "water", unit: "m³", minPricePerUnit: 1000, maxPricePerUnit: 5000 },
+      { kind: "electricity", unit: "kWh", minPricePerUnit: 150, maxPricePerUnit: 600 },
+    ],
+  });
+  const WATER_RATE = 2000; // cents per m³ (within [1000, 5000])
+  const ELEC_RATE = 300; // cents per kWh (within [150, 600])
+  await db.orgUtilityRate.createMany({
+    data: [
+      { organizationId: org.id, kind: "water", unit: "m³", pricePerUnit: WATER_RATE },
+      { organizationId: org.id, kind: "electricity", unit: "kWh", pricePerUnit: ELEC_RATE },
+    ],
+  });
+
+  // Rent invoices on that lease so the tenant "My bills" page has real rows.
+  // Each invoice itemises rent + metered water (m³) + electricity (kWh); utility
+  // amounts derive from consumption × the org's rate. May + June settled (full
+  // payment), July overdue, August open. All money is integer cents.
+  const RENT_CENTS = 185000;
+  const invoice = (opts: {
+    periodStart: string;
+    periodEnd: string;
+    dueDate: string;
+    status: "paid" | "overdue" | "open";
+    waterM3: number;
+    elecKwh: number;
+    payment?: { method: "card" | "bank_transfer"; paidAt: string };
+  }) => {
+    const waterCents = Math.round(opts.waterM3 * WATER_RATE);
+    const elecCents = Math.round(opts.elecKwh * ELEC_RATE);
+    const total = RENT_CENTS + waterCents + elecCents;
+    return db.rentInvoice.create({
+      data: {
+        organizationId: org.id,
+        leaseId: lease.id,
+        periodStart: new Date(opts.periodStart),
+        periodEnd: new Date(opts.periodEnd),
+        dueDate: new Date(opts.dueDate),
+        amount: total,
+        status: opts.status,
+        lineItems: {
+          create: [
+            { kind: "rent", description: "Monthly rent", amount: RENT_CENTS },
+            {
+              kind: "water",
+              description: "Water",
+              quantity: opts.waterM3,
+              unit: "m³",
+              amount: waterCents,
+            },
+            {
+              kind: "electricity",
+              description: "Electricity",
+              quantity: opts.elecKwh,
+              unit: "kWh",
+              amount: elecCents,
+            },
+          ],
+        },
+        ...(opts.payment
+          ? {
+              payments: {
+                create: {
+                  amount: total,
+                  method: opts.payment.method,
+                  status: "succeeded",
+                  paidAt: new Date(opts.payment.paidAt),
+                },
+              },
+            }
+          : {}),
+      },
+    });
+  };
+
+  await invoice({
+    periodStart: "2026-05-01",
+    periodEnd: "2026-05-31",
+    dueDate: "2026-05-01",
+    status: "paid",
+    waterM3: 11,
+    elecKwh: 195,
+    payment: { method: "card", paidAt: "2026-04-29" },
+  });
+  await invoice({
+    periodStart: "2026-06-01",
+    periodEnd: "2026-06-30",
+    dueDate: "2026-06-01",
+    status: "paid",
+    waterM3: 12.5,
+    elecKwh: 210,
+    payment: { method: "bank_transfer", paidAt: "2026-06-02" },
+  });
+  await invoice({
+    periodStart: "2026-07-01",
+    periodEnd: "2026-07-31",
+    dueDate: "2026-07-01",
+    status: "overdue",
+    waterM3: 13.2,
+    elecKwh: 240,
+  });
+  await invoice({
+    periodStart: "2026-08-01",
+    periodEnd: "2026-08-31",
+    dueDate: "2026-08-01",
+    status: "open",
+    waterM3: 12,
+    elecKwh: 205,
   });
 
   // Published listing on the vacant Apt 1B — for the listings site + agent slice.

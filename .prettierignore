@@ -12,5 +12,8 @@ packages/db/prisma/migrations
 # Reference template + legacy docs from the previous stack — leave as-is.
 house-renting-starter
 docs
+
+# Session artifacts (handoffs, memory, projects) — not source we format.
+.claude
 BUILD_PLAN.md
 README.md
