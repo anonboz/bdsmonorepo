@@ -1,6 +1,9 @@
 "use client";
 
-// Generate a rent invoice: pick a lease, a billing period, and meter readings.
+// Generate a rent invoice: pick a lease, a billing period, and water/electricity
+// consumption. Consumption comes from a recorded (unbilled) meter reading when
+// one exists for the lease's unit — the delta from its previous reading is shown
+// right in the picker — otherwise it falls back to a manually-typed number.
 // Utility amounts = consumption × the org's current rate (computed server-side);
 // the preview here mirrors that so the owner sees the total before/after saving.
 
@@ -9,8 +12,18 @@ import { Button } from "@repo/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export type LeaseOption = { id: string; label: string };
+export type LeaseOption = { id: string; unitId: string; label: string };
 export type RateHint = { kind: "water" | "electricity"; unit: string; pricePerUnit: number | null };
+export type UnbilledReading = {
+  id: string;
+  unitId: string;
+  kind: "water" | "electricity";
+  value: number;
+  previousValue: number | null;
+  consumption: number | null;
+  readingDate: string; // ISO
+  photoUrl: string | null;
+};
 
 type ResultLine = {
   kind: string;
@@ -32,12 +45,76 @@ function isoFromDate(date: string): string {
   return `${date}T00:00:00.000Z`;
 }
 
+const field =
+  "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const labelCls = "text-sm font-medium";
+
+function UtilityField({
+  kind,
+  label,
+  rateLabel,
+  options,
+  manualValue,
+  onManualChange,
+  readingId,
+  onReadingChange,
+}: {
+  kind: "water" | "electricity";
+  label: string;
+  rateLabel: string;
+  options: UnbilledReading[];
+  manualValue: string;
+  onManualChange: (v: string) => void;
+  readingId: string;
+  onReadingChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className={labelCls}>{label}</label>
+      {options.length > 0 && (
+        <select
+          value={readingId}
+          onChange={(e) => onReadingChange(e.target.value)}
+          className={field}
+        >
+          <option value="">Enter manually</option>
+          {options.map((r) => (
+            <option key={r.id} value={r.id}>
+              {new Date(r.readingDate).toLocaleDateString()} — {r.value}
+              {r.previousValue != null
+                ? ` (prev ${r.previousValue} → +${r.consumption})`
+                : " (baseline)"}
+            </option>
+          ))}
+        </select>
+      )}
+      {(options.length === 0 || readingId === "") && (
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={manualValue}
+          onChange={(e) => onManualChange(e.target.value)}
+          className={field}
+          placeholder="0"
+        />
+      )}
+      <p className="text-xs text-muted-foreground">
+        Rate: {rateLabel}
+        {kind === "water" ? " · m³" : " · kWh"}
+      </p>
+    </div>
+  );
+}
+
 export function GenerateInvoiceForm({
   leases,
   rates,
+  unbilledReadings,
 }: {
   leases: LeaseOption[];
   rates: RateHint[];
+  unbilledReadings: UnbilledReading[];
 }) {
   const router = useRouter();
   const [leaseId, setLeaseId] = useState(leases[0]?.id ?? "");
@@ -46,9 +123,21 @@ export function GenerateInvoiceForm({
   const [dueDate, setDueDate] = useState("");
   const [water, setWater] = useState("");
   const [electricity, setElectricity] = useState("");
+  const [waterReadingId, setWaterReadingId] = useState("");
+  const [electricityReadingId, setElectricityReadingId] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
+
+  const unitId = leases.find((l) => l.id === leaseId)?.unitId;
+  const readingsFor = (kind: "water" | "electricity") =>
+    unbilledReadings.filter((r) => r.unitId === unitId && r.kind === kind);
+
+  function onLeaseChange(id: string) {
+    setLeaseId(id);
+    setWaterReadingId("");
+    setElectricityReadingId("");
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,8 +152,12 @@ export function GenerateInvoiceForm({
         periodStart: isoFromDate(periodStart),
         periodEnd: isoFromDate(periodEnd),
         dueDate: isoFromDate(dueDate),
-        waterConsumption: water === "" ? undefined : Number(water),
-        electricityConsumption: electricity === "" ? undefined : Number(electricity),
+        ...(waterReadingId
+          ? { waterReadingId }
+          : { waterConsumption: water === "" ? undefined : Number(water) }),
+        ...(electricityReadingId
+          ? { electricityReadingId }
+          : { electricityConsumption: electricity === "" ? undefined : Number(electricity) }),
       }),
     });
     const json = await res.json();
@@ -83,10 +176,6 @@ export function GenerateInvoiceForm({
     return `${formatMoney(r.pricePerUnit)} / ${r.unit}`;
   };
 
-  const field =
-    "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
-  const labelCls = "text-sm font-medium";
-
   return (
     <div className="space-y-6">
       <form onSubmit={onSubmit} className="space-y-4">
@@ -97,7 +186,7 @@ export function GenerateInvoiceForm({
           <select
             id="lease"
             value={leaseId}
-            onChange={(e) => setLeaseId(e.target.value)}
+            onChange={(e) => onLeaseChange(e.target.value)}
             required
             className={field}
           >
@@ -153,38 +242,26 @@ export function GenerateInvoiceForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label htmlFor="water" className={labelCls}>
-              Water consumption (m³)
-            </label>
-            <input
-              id="water"
-              type="number"
-              step="0.01"
-              min="0"
-              value={water}
-              onChange={(e) => setWater(e.target.value)}
-              className={field}
-              placeholder="0"
-            />
-            <p className="text-xs text-muted-foreground">Rate: {rateLabel("water")}</p>
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="elec" className={labelCls}>
-              Electricity consumption (kWh)
-            </label>
-            <input
-              id="elec"
-              type="number"
-              step="0.01"
-              min="0"
-              value={electricity}
-              onChange={(e) => setElectricity(e.target.value)}
-              className={field}
-              placeholder="0"
-            />
-            <p className="text-xs text-muted-foreground">Rate: {rateLabel("electricity")}</p>
-          </div>
+          <UtilityField
+            kind="water"
+            label="Water consumption"
+            rateLabel={rateLabel("water")}
+            options={readingsFor("water")}
+            manualValue={water}
+            onManualChange={setWater}
+            readingId={waterReadingId}
+            onReadingChange={setWaterReadingId}
+          />
+          <UtilityField
+            kind="electricity"
+            label="Electricity consumption"
+            rateLabel={rateLabel("electricity")}
+            options={readingsFor("electricity")}
+            manualValue={electricity}
+            onManualChange={setElectricity}
+            readingId={electricityReadingId}
+            onReadingChange={setElectricityReadingId}
+          />
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}

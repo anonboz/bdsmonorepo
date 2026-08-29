@@ -13,6 +13,7 @@
     "@repo/db": "*",
     "@repo/shared": "*",
     "@repo/ui": "*",
+    "@supabase/supabase-js": "^2.45.0",
     "@tanstack/react-query": "^5.62.0",
     "bcryptjs": "^2.4.3",
     "date-fns": "^4.1.0",

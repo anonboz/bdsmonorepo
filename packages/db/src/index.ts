@@ -111,4 +111,5 @@ export type {
   Notification,
   FeatureFlag,
   AuditLog,
+  MeterReading,
 } from "@prisma/client";

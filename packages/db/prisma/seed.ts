@@ -13,6 +13,7 @@ import bcrypt from "bcryptjs";
 
 async function reset() {
   // Delete children before parents (FK order).
+  await db.meterReading.deleteMany();
   await db.payment.deleteMany();
   await db.invoiceLineItem.deleteMany();
   await db.rentInvoice.deleteMany();
@@ -229,6 +230,44 @@ async function main() {
     status: "open",
     waterM3: 12,
     elecKwh: 205,
+  });
+
+  // Meter-reading history for Apt 1A. The invoices above predate this feature
+  // and were billed with manually-typed consumption numbers; this history
+  // starts fresh in August. The Aug 1 reading is the baseline; the Aug 28
+  // reading is unbilled, so it shows up in the invoice-generation picker for
+  // whoever bills September next.
+  await db.meterReading.createMany({
+    data: [
+      {
+        organizationId: org.id,
+        unitId: apt1a.id,
+        kind: "water",
+        value: 500,
+        readingDate: new Date("2026-08-01"),
+      },
+      {
+        organizationId: org.id,
+        unitId: apt1a.id,
+        kind: "water",
+        value: 512.5,
+        readingDate: new Date("2026-08-28"),
+      },
+      {
+        organizationId: org.id,
+        unitId: apt1a.id,
+        kind: "electricity",
+        value: 4200,
+        readingDate: new Date("2026-08-01"),
+      },
+      {
+        organizationId: org.id,
+        unitId: apt1a.id,
+        kind: "electricity",
+        value: 4380,
+        readingDate: new Date("2026-08-28"),
+      },
+    ],
   });
 
   // Published listing on the vacant Apt 1B — for the listings site + agent slice.

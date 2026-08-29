@@ -216,6 +216,7 @@ model Organization {
   documents           Document[]
   utilityRates        OrgUtilityRate[]
   announcements       Announcement[]
+  meterReadings       MeterReading[]
 }
 
 /// Which users belong to which org, and in what role. Staff-side membership;
@@ -280,6 +281,7 @@ model Unit {
   leases              Lease[]
   maintenanceRequests MaintenanceRequest[]
   inspections         Inspection[]
+  meterReadings       MeterReading[]
 
   @@unique([propertyId, label])
   @@index([propertyId])
@@ -432,7 +434,8 @@ model InvoiceLineItem {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  invoice RentInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice      RentInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  meterReading MeterReading?
 
   @@index([invoiceId])
 }
@@ -465,6 +468,39 @@ model OrgUtilityRate {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, kind])
+  @@index([organizationId])
+}
+
+/// A landlord-recorded meter reading: a cumulative value (like an odometer) for
+/// one unit + metered utility at a point in time. Consumption for billing is the
+/// delta from the immediately-prior reading for the same (unitId, kind), computed
+/// in the service layer — never stored directly. `lineItemId` is set once this
+/// reading has been used as the "current" reading of an invoice line item, so it
+/// can't be billed twice; the earlier reading it was diffed against is left
+/// unmodified. `photoUrl` is optional evidence uploaded to Supabase Storage.
+/// `isReset` marks a reading taken right after the physical meter was replaced
+/// or rolled over: its value is allowed to be lower than the prior reading, and
+/// it's treated as a fresh baseline (no consumption computed against it) — the
+/// next reading after it diffs normally against this one.
+model MeterReading {
+  id             String          @id @default(cuid())
+  organizationId String
+  unitId         String
+  kind           InvoiceLineKind // water | electricity only (enforced in Zod)
+  value          Float // cumulative meter value at readingDate
+  readingDate    DateTime
+  isReset        Boolean         @default(false) // true = meter was replaced/rolled over; value legitimately dropped
+  note           String?
+  photoUrl       String?
+  lineItemId     String?         @unique
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unit         Unit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  lineItem     InvoiceLineItem? @relation(fields: [lineItemId], references: [id], onDelete: SetNull)
+
+  @@unique([unitId, kind, readingDate])
   @@index([organizationId])
 }
 

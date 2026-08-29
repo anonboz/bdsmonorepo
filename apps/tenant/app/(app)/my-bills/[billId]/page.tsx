@@ -87,7 +87,35 @@ export default async function BillDetailPage({ params }: { params: Promise<{ bil
                 <tr key={li.id} className="border-b last:border-0">
                   <td className="px-4 py-3 font-medium">{t(`lineKinds.${li.kind}`)}</td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {li.quantity != null && li.unit ? `${li.quantity} ${li.unit}` : "—"}
+                    {li.quantity != null && li.unit ? (
+                      <div className="space-y-1">
+                        <div>
+                          {li.quantity} {li.unit}
+                        </div>
+                        {li.reading && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <span>
+                              {t("readingRange", {
+                                prev: li.reading.previousValue ?? "—",
+                                curr: li.reading.currentValue,
+                              })}
+                            </span>
+                            {li.reading.photoUrl && (
+                              <a href={li.reading.photoUrl} target="_blank" rel="noreferrer">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={li.reading.photoUrl}
+                                  alt={t("readingPhotoAlt")}
+                                  className="h-6 w-6 rounded object-cover"
+                                />
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">{money(li.amount)}</td>
                 </tr>

@@ -73,6 +73,8 @@ export type Messages = {
       chargesTitle: string;
       colItem: string;
       colConsumption: string;
+      readingRange: string;
+      readingPhotoAlt: string;
       total: string;
       lineKinds: { rent: string; water: string; electricity: string; other: string };
       paymentsTitle: string;
@@ -201,6 +203,8 @@ const en: Messages = {
       chargesTitle: "Charges",
       colItem: "Item",
       colConsumption: "Consumption",
+      readingRange: "Reading: {prev} → {curr}",
+      readingPhotoAlt: "Meter photo",
       total: "Total",
       lineKinds: {
         rent: "Rent",

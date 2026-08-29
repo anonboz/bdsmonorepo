@@ -73,6 +73,13 @@ export type MyBillPayment = {
   createdAt: Date;
 };
 
+export type MyBillLineItemReading = {
+  previousValue: number | null; // null if this was the unit's first-ever reading
+  currentValue: number;
+  readingDate: Date;
+  photoUrl: string | null;
+};
+
 export type MyBillLineItem = {
   id: string;
   kind: string; // rent | water | electricity | other
@@ -80,6 +87,7 @@ export type MyBillLineItem = {
   quantity: number | null; // metered consumption (m³ / kWh); null for rent
   unit: string | null; // "m³" | "kWh"
   amount: number; // cents
+  reading: MyBillLineItemReading | null; // the meter reading behind this charge, if any
 };
 
 export type MyBillDetail = MyBill & {
@@ -107,7 +115,14 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
           tenancies: { select: { userId: true } },
         },
       },
-      lineItems: { orderBy: { createdAt: "asc" } },
+      lineItems: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          meterReading: {
+            select: { unitId: true, kind: true, value: true, readingDate: true, photoUrl: true },
+          },
+        },
+      },
       payments: { orderBy: { createdAt: "desc" } },
     },
   });
@@ -137,14 +152,40 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
     city: prop.city,
     region: prop.region,
     addressLine1: prop.addressLine1,
-    lineItems: invoice.lineItems.map((li) => ({
-      id: li.id,
-      kind: li.kind,
-      description: li.description,
-      quantity: li.quantity,
-      unit: li.unit,
-      amount: li.amount,
-    })),
+    lineItems: await Promise.all(
+      invoice.lineItems.map(async (li) => {
+        let reading: MyBillLineItemReading | null = null;
+        if (li.meterReading) {
+          // The reading behind this charge doesn't carry its own "previous
+          // value" — look up the immediately-prior reading for the same
+          // unit+kind, same as the landlord-side delta computation.
+          const prior = await db.meterReading.findFirst({
+            where: {
+              unitId: li.meterReading.unitId,
+              kind: li.meterReading.kind,
+              readingDate: { lt: li.meterReading.readingDate },
+            },
+            orderBy: { readingDate: "desc" },
+            select: { value: true },
+          });
+          reading = {
+            previousValue: prior?.value ?? null,
+            currentValue: li.meterReading.value,
+            readingDate: li.meterReading.readingDate,
+            photoUrl: li.meterReading.photoUrl,
+          };
+        }
+        return {
+          id: li.id,
+          kind: li.kind,
+          description: li.description,
+          quantity: li.quantity,
+          unit: li.unit,
+          amount: li.amount,
+          reading,
+        };
+      }),
+    ),
     payments: invoice.payments.map((p) => ({
       id: p.id,
       amount: p.amount,

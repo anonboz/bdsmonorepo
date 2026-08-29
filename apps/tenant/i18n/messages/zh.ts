@@ -72,6 +72,8 @@ const zh: Messages = {
       chargesTitle: "费用明细",
       colItem: "项目",
       colConsumption: "用量",
+      readingRange: "读数：{prev} → {curr}",
+      readingPhotoAlt: "电表照片",
       total: "总计",
       lineKinds: {
         rent: "房租",

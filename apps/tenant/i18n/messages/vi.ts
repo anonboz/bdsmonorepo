@@ -72,6 +72,8 @@ const vi: Messages = {
       chargesTitle: "Các khoản phí",
       colItem: "Khoản mục",
       colConsumption: "Mức tiêu thụ",
+      readingRange: "Chỉ số: {prev} → {curr}",
+      readingPhotoAlt: "Ảnh đồng hồ",
       total: "Tổng cộng",
       lineKinds: {
         rent: "Tiền thuê",

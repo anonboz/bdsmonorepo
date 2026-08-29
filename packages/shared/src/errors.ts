@@ -55,4 +55,24 @@ export const DOMAIN_ERROR_MAP: Record<string, { status: number; code: string; me
     message: "This unit isn't available for a new lease",
   },
   INVALID_INPUT: { status: 400, code: "INVALID_INPUT", message: "The request was invalid" },
+  PHOTO_INVALID_TYPE: {
+    status: 400,
+    code: "PHOTO_INVALID_TYPE",
+    message: "Photo must be a JPEG, PNG, WEBP, or HEIC image",
+  },
+  PHOTO_TOO_LARGE: {
+    status: 400,
+    code: "PHOTO_TOO_LARGE",
+    message: "Photo must be smaller than 8 MB",
+  },
+  PHOTO_UPLOAD_FAILED: {
+    status: 500,
+    code: "PHOTO_UPLOAD_FAILED",
+    message: "Failed to upload photo",
+  },
+  STORAGE_NOT_CONFIGURED: {
+    status: 500,
+    code: "STORAGE_NOT_CONFIGURED",
+    message: "Photo storage isn't configured yet",
+  },
 };
