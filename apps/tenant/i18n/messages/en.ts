@@ -19,6 +19,11 @@ export type Messages = {
     requestsDesc: string;
     requestsCta: string;
   };
+  announcements: {
+    title: string;
+    empty: string;
+    system: string;
+  };
   leases: {
     title: string;
     subtitle: string;
@@ -141,6 +146,11 @@ const en: Messages = {
     requestsTitle: "Requests",
     requestsDesc: "Raise and follow up on maintenance requests.",
     requestsCta: "View requests",
+  },
+  announcements: {
+    title: "Announcements",
+    empty: "No announcements right now.",
+    system: "System",
   },
   leases: {
     title: "My leases",

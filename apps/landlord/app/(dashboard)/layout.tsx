@@ -1,4 +1,4 @@
-import { Building2, FileText, Gauge, Home, Receipt, Wrench } from "lucide-react";
+import { Building2, FileText, Gauge, Home, Megaphone, Receipt, Wrench } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -11,6 +11,7 @@ const NAV = [
   { href: "/invoices", label: "Generate invoice", icon: Receipt },
   { href: "/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/utility-rates", label: "Utility rates", icon: Gauge },
+  { href: "/announcements", label: "Announcements", icon: Megaphone },
 ] as const;
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

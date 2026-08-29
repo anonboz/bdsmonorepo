@@ -215,6 +215,7 @@ model Organization {
   maintenanceRequests MaintenanceRequest[]
   documents           Document[]
   utilityRates        OrgUtilityRate[]
+  announcements       Announcement[]
 }
 
 /// Which users belong to which org, and in what role. Staff-side membership;
@@ -613,6 +614,28 @@ model Notification {
 
   @@index([userId])
   @@index([readAt])
+}
+
+/// Broadcast announcements shown to tenants on their home page. A NULL
+/// organizationId is a platform-wide "system" announcement (admin-authored); a
+/// set organizationId is a "landlord" announcement scoped to that org and shown
+/// only to its tenants. Visible when publishedAt is set and in the past AND
+/// expiresAt is null or in the future. Not org-scoped in the usual sense — see
+/// the global-exceptions note in root CLAUDE.md.
+model Announcement {
+  id             String    @id @default(cuid())
+  organizationId String? // null = system/platform-wide; set = that landlord's org
+  title          String
+  body           String
+  publishedAt    DateTime? // null = draft; set = live from this instant
+  expiresAt      DateTime? // null = never expires
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([publishedAt])
 }
 
 /// Platform feature flags, read by all apps via a shared checker. Missing row

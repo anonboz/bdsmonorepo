@@ -1,8 +1,9 @@
-import { FileText, Receipt, Wrench } from "lucide-react";
+import { FileText, Megaphone, Receipt, Wrench } from "lucide-react";
 import Link from "next/link";
 
 import { getTranslations } from "@/i18n/server";
 import { getSession } from "@/lib/session";
+import { listMyAnnouncements } from "@/services/announcement.service";
 import { listMyLeases } from "@/services/lease.service";
 import {
   buttonVariants,
@@ -17,8 +18,12 @@ export const dynamic = "force-dynamic";
 
 export default async function TenantHome() {
   const session = await getSession();
-  const { total } = await listMyLeases(session);
+  const [{ total }, announcements] = await Promise.all([
+    listMyLeases(session),
+    listMyAnnouncements(session),
+  ]);
   const t = await getTranslations("home");
+  const ta = await getTranslations("announcements");
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
@@ -28,6 +33,38 @@ export default async function TenantHome() {
         </h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
       </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Megaphone className="h-5 w-5 text-primary" />
+            {ta("title")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {announcements.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{ta("empty")}</p>
+          ) : (
+            announcements.map((a) => (
+              <div key={a.id} className="border-b pb-4 last:border-0 last:pb-0">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={
+                      a.kind === "system"
+                        ? "inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
+                        : "inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                    }
+                  >
+                    {a.kind === "system" ? ta("system") : a.source}
+                  </span>
+                  <h3 className="font-medium">{a.title}</h3>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{a.body}</p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -289,6 +289,25 @@ async function main() {
     },
   });
 
+  // Tenant home-page announcements: one platform-wide "system" notice (null org,
+  // admin-authored) + one org-scoped "landlord" notice for Maple. Both published.
+  await db.announcement.createMany({
+    data: [
+      {
+        organizationId: null,
+        title: "Welcome to the new tenant portal",
+        body: "You can now view your leases, bills and maintenance requests in one place.",
+        publishedAt: new Date("2026-07-15"),
+      },
+      {
+        organizationId: org.id,
+        title: "Maple Court: lobby repainting next week",
+        body: "Expect minor noise Mon–Wed, 9am–4pm. Thanks for your patience.",
+        publishedAt: new Date("2026-07-21"),
+      },
+    ],
+  });
+
   console.log(
     "Seeded: orgs=maple,cedar  users=landlord/agent/admin/vendor/tenant1/tenant2  (pwd 12345678)",
   );

@@ -18,6 +18,11 @@ const vi: Messages = {
     requestsDesc: "Gửi và theo dõi các yêu cầu bảo trì.",
     requestsCta: "Xem yêu cầu",
   },
+  announcements: {
+    title: "Thông báo",
+    empty: "Hiện không có thông báo nào.",
+    system: "Hệ thống",
+  },
   leases: {
     title: "Hợp đồng thuê",
     subtitle: "Bạn đang có {count} hợp đồng thuê.",

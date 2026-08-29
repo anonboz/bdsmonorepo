@@ -1,4 +1,4 @@
-import { Building2, Gauge, LayoutDashboard, Settings, Users } from "lucide-react";
+import { Building2, Gauge, LayoutDashboard, Megaphone, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -9,6 +9,7 @@ const NAV = [
   { href: "/organizations", label: "Organizations", icon: Building2 },
   { href: "/users", label: "Users", icon: Users },
   { href: "/utility-bounds", label: "Utility bounds", icon: Gauge },
+  { href: "/announcements", label: "Announcements", icon: Megaphone },
   { href: "/config", label: "Config", icon: Settings },
 ] as const;
 

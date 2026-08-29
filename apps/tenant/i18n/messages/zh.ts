@@ -18,6 +18,11 @@ const zh: Messages = {
     requestsDesc: "提交并跟进维修请求。",
     requestsCta: "查看请求",
   },
+  announcements: {
+    title: "公告",
+    empty: "暂无公告。",
+    system: "系统",
+  },
   leases: {
     title: "我的租约",
     subtitle: "您当前有 {count} 份租约。",
