@@ -30,48 +30,48 @@ interface VarSpec {
 }
 
 const CORE: VarSpec[] = [
-  { name: 'NODE_ENV', reason: 'sets server-side fail-closed defaults' },
-  { name: 'DATABASE_URL', reason: 'API cannot start without DB' },
-  { name: 'REDIS_URL', reason: 'BullMQ queues + sweepers' },
-  { name: 'API_PUBLIC_URL', reason: 'OAuth + webhook callback origin' },
-  { name: 'API_CORS_ORIGINS', reason: 'comma-sep PWA origins; CORS preflights 403 without' },
+  { name: "NODE_ENV", reason: "sets server-side fail-closed defaults" },
+  { name: "DATABASE_URL", reason: "API cannot start without DB" },
+  { name: "REDIS_URL", reason: "BullMQ queues + sweepers" },
+  { name: "API_PUBLIC_URL", reason: "OAuth + webhook callback origin" },
+  { name: "API_CORS_ORIGINS", reason: "comma-sep PWA origins; CORS preflights 403 without" },
 ];
 
 const AUTH: VarSpec[] = [
-  { name: 'AUTH_SECRET', reason: 'session signing — leak = full takeover; min 32 bytes' },
-  { name: 'AUTH_JWT_ACCESS_TTL', reason: 'access-token TTL in seconds' },
-  { name: 'AUTH_JWT_REFRESH_TTL', reason: 'refresh-token TTL in seconds' },
-  { name: 'AUTH_COOKIE_DOMAIN', reason: 'cross-subdomain cookie scope (e.g. .example.com)' },
+  { name: "AUTH_SECRET", reason: "session signing — leak = full takeover; min 32 bytes" },
+  { name: "AUTH_JWT_ACCESS_TTL", reason: "access-token TTL in seconds" },
+  { name: "AUTH_JWT_REFRESH_TTL", reason: "refresh-token TTL in seconds" },
+  { name: "AUTH_COOKIE_DOMAIN", reason: "cross-subdomain cookie scope (e.g. .example.com)" },
 ];
 
 const PAYMENTS: VarSpec[] = [
-  { name: 'STRIPE_SECRET_KEY', reason: 'Stripe checkout, refunds, and Connect transfers' },
-  { name: 'STRIPE_WEBHOOK_SECRET', reason: 'Stripe webhook signature verification' },
-  { name: 'VNPAY_TMN_CODE', reason: 'VNPay merchant identifier for payment URLs' },
-  { name: 'VNPAY_HASH_SECRET', reason: 'VNPay HMAC-SHA512 for checkout, IPN, refund' },
-  { name: 'VNPAY_PAYMENT_URL', reason: 'VNPay hosted-page URL (sandbox vs prod)' },
-  { name: 'VNPAY_REFUND_URL', reason: 'VNPay merchant_webapi refund endpoint' },
-  { name: 'TENANT_APP_URL', reason: 'Stripe + VNPay redirect target' },
-  { name: 'PARTNER_APP_URL', reason: 'Stripe Connect onboarding return URL' },
+  { name: "STRIPE_SECRET_KEY", reason: "Stripe checkout, refunds, and Connect transfers" },
+  { name: "STRIPE_WEBHOOK_SECRET", reason: "Stripe webhook signature verification" },
+  { name: "VNPAY_TMN_CODE", reason: "VNPay merchant identifier for payment URLs" },
+  { name: "VNPAY_HASH_SECRET", reason: "VNPay HMAC-SHA512 for checkout, IPN, refund" },
+  { name: "VNPAY_PAYMENT_URL", reason: "VNPay hosted-page URL (sandbox vs prod)" },
+  { name: "VNPAY_REFUND_URL", reason: "VNPay merchant_webapi refund endpoint" },
+  { name: "TENANT_APP_URL", reason: "Stripe + VNPay redirect target" },
+  { name: "PARTNER_APP_URL", reason: "Stripe Connect onboarding return URL" },
 ];
 
 const STORAGE: VarSpec[] = [
-  { name: 'S3_ENDPOINT', reason: 'S3 / MinIO endpoint' },
-  { name: 'S3_REGION', reason: 'AWS region for the bucket' },
-  { name: 'S3_ACCESS_KEY_ID', reason: 'IAM credentials for signed PUT URLs' },
-  { name: 'S3_SECRET_ACCESS_KEY', reason: 'IAM credentials' },
-  { name: 'S3_BUCKET_UPLOADS', reason: 'destination bucket for media uploads' },
+  { name: "S3_ENDPOINT", reason: "S3 / MinIO endpoint" },
+  { name: "S3_REGION", reason: "AWS region for the bucket" },
+  { name: "S3_ACCESS_KEY_ID", reason: "IAM credentials for signed PUT URLs" },
+  { name: "S3_SECRET_ACCESS_KEY", reason: "IAM credentials" },
+  { name: "S3_BUCKET_UPLOADS", reason: "destination bucket for media uploads" },
 ];
 
 const EMAIL: VarSpec[] = [
-  { name: 'RESEND_API_KEY', reason: 'email delivery; else falls back to MailHog/stub' },
-  { name: 'EMAIL_FROM', reason: 'From: header for all outbound email' },
+  { name: "RESEND_API_KEY", reason: "email delivery; else falls back to MailHog/stub" },
+  { name: "EMAIL_FROM", reason: "From: header for all outbound email" },
 ];
 
 const OBSERVABILITY: VarSpec[] = [
-  { name: 'SENTRY_DSN', reason: 'API error reporting' },
-  { name: 'POSTHOG_KEY', reason: 'PostHog ingest (server-side analytics)' },
-  { name: 'POSTHOG_HOST', reason: 'PostHog regional ingest host' },
+  { name: "SENTRY_DSN", reason: "API error reporting" },
+  { name: "POSTHOG_KEY", reason: "PostHog ingest (server-side analytics)" },
+  { name: "POSTHOG_HOST", reason: "PostHog regional ingest host" },
 ];
 
 const PRODUCTION_REQUIRED: VarSpec[] = [
@@ -107,7 +107,7 @@ function main(): void {
   const missing: VarSpec[] = [];
   for (const spec of required) {
     const value = process.env[spec.name];
-    if (value === undefined || value === '') {
+    if (value === undefined || value === "") {
       missing.push(spec);
     }
   }

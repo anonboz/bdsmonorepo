@@ -22,25 +22,25 @@
 // docker-compose URL) to the prisma + seed subprocesses, so a caller
 // whose `.env` points at a remote DB stays safe.
 
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const REPO_ROOT = resolve(__dirname, '..');
+const REPO_ROOT = resolve(__dirname, "..");
 
-const LOCAL_DATABASE_URL = 'postgresql://app:app@localhost:5432/app';
-const LOCAL_REDIS_URL = 'redis://localhost:6379';
+const LOCAL_DATABASE_URL = "postgresql://app:app@localhost:5432/app";
+const LOCAL_REDIS_URL = "redis://localhost:6379";
 
 const colors = {
-  reset: '\x1b[0m',
-  bold: '\x1b[1m',
-  dim: '\x1b[2m',
-  green: '\x1b[32m',
-  red: '\x1b[31m',
-  yellow: '\x1b[33m',
-  cyan: '\x1b[36m',
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
 };
 
 function step(msg) {
@@ -65,54 +65,54 @@ function run(cmd, args, opts = {}) {
   const env = { ...process.env, ...(opts.env ?? {}) };
   const result = spawnSync(cmd, args, {
     cwd: opts.cwd ?? REPO_ROOT,
-    stdio: opts.silent ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+    stdio: opts.silent ? ["ignore", "pipe", "pipe"] : "inherit",
     env,
-    shell: process.platform === 'win32',
+    shell: process.platform === "win32",
   });
   if (result.error) fail(`${cmd} failed to spawn: ${result.error.message}`);
   if (result.status !== 0) {
     if (opts.silent) {
-      process.stderr.write(result.stderr?.toString() ?? '');
+      process.stderr.write(result.stderr?.toString() ?? "");
     }
-    fail(`${cmd} ${args.join(' ')} exited with ${result.status}`);
+    fail(`${cmd} ${args.join(" ")} exited with ${result.status}`);
   }
   return result;
 }
 
-step('Checking Docker is on PATH…');
-const dockerCheck = spawnSync('docker', ['--version'], {
-  stdio: ['ignore', 'pipe', 'pipe'],
-  shell: process.platform === 'win32',
+step("Checking Docker is on PATH…");
+const dockerCheck = spawnSync("docker", ["--version"], {
+  stdio: ["ignore", "pipe", "pipe"],
+  shell: process.platform === "win32",
 });
 if (dockerCheck.status !== 0) {
   fail(
-    'Docker not found. Install Docker Desktop (Windows / macOS) or the docker CLI (Linux), ' +
-      'start the daemon, then re-run `pnpm e2e:setup`.',
+    "Docker not found. Install Docker Desktop (Windows / macOS) or the docker CLI (Linux), " +
+      "start the daemon, then re-run `pnpm e2e:setup`.",
   );
 }
 ok(dockerCheck.stdout.toString().trim());
 
-step('Bringing up docker-compose stack (postgres / redis / minio / mailhog)…');
-note('First boot pulls images and primes volumes — can take a minute.');
-run('docker', ['compose', 'up', '-d', '--wait']);
-ok('All services healthy.');
+step("Bringing up docker-compose stack (postgres / redis / minio / mailhog)…");
+note("First boot pulls images and primes volumes — can take a minute.");
+run("docker", ["compose", "up", "-d", "--wait"]);
+ok("All services healthy.");
 
-step('Applying Prisma migrations to the local DB…');
-run('pnpm', ['--filter', '@repo/db', 'db:migrate:deploy'], {
+step("Applying Prisma migrations to the local DB…");
+run("pnpm", ["--filter", "@repo/db", "db:migrate:deploy"], {
   env: { DATABASE_URL: LOCAL_DATABASE_URL },
 });
-ok('Migrations applied.');
+ok("Migrations applied.");
 
-step('Seeding baseline data…');
-run('pnpm', ['--filter', '@repo/db', 'db:seed'], {
+step("Seeding baseline data…");
+run("pnpm", ["--filter", "@repo/db", "db:seed"], {
   env: { DATABASE_URL: LOCAL_DATABASE_URL },
 });
-ok('Seed complete.');
+ok("Seed complete.");
 
 console.log();
 console.log(`${colors.bold}${colors.green}✓ e2e environment is ready.${colors.reset}`);
 console.log();
-console.log('Run the e2e suite against the local stack with:');
+console.log("Run the e2e suite against the local stack with:");
 console.log();
 console.log(`  ${colors.cyan}DATABASE_URL=${LOCAL_DATABASE_URL} \\${colors.reset}`);
 console.log(`  ${colors.cyan}REDIS_URL=${LOCAL_REDIS_URL} \\${colors.reset}`);
@@ -125,4 +125,4 @@ note(
     LOCAL_REDIS_URL +
     '"; pnpm turbo test --filter=@repo/e2e',
 );
-note('See apps/e2e/CLAUDE.md for the full runbook.');
+note("See apps/e2e/CLAUDE.md for the full runbook.");
