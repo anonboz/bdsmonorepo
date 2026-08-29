@@ -21,11 +21,14 @@ function LoginForm() {
     setPending(true);
     setError(null);
     const res = await signIn("credentials", { email, password, redirect: false });
-    setPending(false);
     if (res?.error) {
+      setPending(false);
       setError("Invalid email or password.");
       return;
     }
+    // Leave `pending` true on success — router.push() doesn't block until the
+    // destination has rendered, and re-enabling here flashes the button before
+    // navigation lands. The form unmounts on navigation, so nothing to reset.
     router.push(callbackUrl);
     router.refresh();
   }
