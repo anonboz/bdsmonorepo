@@ -12,5 +12,7 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // app/sw.ts needs the "webworker" lib, which conflicts with the app's "dom"
+  // lib in one tsconfig — @serwist/next compiles it separately at build time.
+  "exclude": ["node_modules", "app/sw.ts"]
 }

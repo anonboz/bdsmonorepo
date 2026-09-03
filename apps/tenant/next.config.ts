@@ -1,3 +1,4 @@
+import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -11,4 +12,11 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
 };
 
-export default nextConfig;
+const withSerwist = withSerwistInit({
+  swSrc: "app/sw.ts",
+  swDest: "public/sw.js",
+  // Skip SW registration in dev — avoids stale-cache confusion while iterating.
+  disable: process.env.NODE_ENV !== "production",
+});
+
+export default withSerwist(nextConfig);

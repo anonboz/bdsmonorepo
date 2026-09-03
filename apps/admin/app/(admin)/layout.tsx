@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getSession, type SessionContext } from "@/lib/session";
+import { MobileNav } from "@repo/ui";
 
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -21,9 +22,27 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/login");
   }
 
+  const footer = (
+    <>
+      <p className="font-medium text-foreground">{session.name}</p>
+      <p>platform admin</p>
+    </>
+  );
+
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="flex flex-col border-r bg-sidebar text-sidebar-foreground">
+      <MobileNav
+        items={NAV}
+        brand={
+          <>
+            <Building2 className="h-5 w-5 text-primary" />
+            Admin — Platform
+          </>
+        }
+        footer={footer}
+      />
+
+      <aside className="hidden flex-col border-r bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex h-14 items-center gap-2 px-5 font-semibold">
           <Building2 className="h-5 w-5 text-primary" />
           Admin — Platform
@@ -40,10 +59,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           ))}
         </nav>
-        <div className="border-t px-5 py-3 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground">{session.name}</p>
-          <p>platform admin</p>
-        </div>
+        <div className="border-t px-5 py-3 text-xs text-muted-foreground">{footer}</div>
       </aside>
       <main className="min-w-0">{children}</main>
     </div>

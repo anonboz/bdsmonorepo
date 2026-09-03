@@ -14,9 +14,16 @@ const listPublicListingsSchema = z.object({
   city: z.string().min(1).optional(),
   minRent: z.coerce.number().int().min(0).optional(), // cents
   maxRent: z.coerce.number().int().min(0).optional(), // cents
+  sort: z.enum(["newest", "price_asc", "price_desc"]).default("newest"),
   take: z.coerce.number().int().min(1).max(100).default(24),
   skip: z.coerce.number().int().min(0).default(0),
 });
+
+const ORDER_BY = {
+  newest: { publishedAt: "desc" },
+  price_asc: { rentAmount: "asc" },
+  price_desc: { rentAmount: "desc" },
+} as const;
 
 const LISTING_DETAIL_INCLUDE = {
   unit: {
@@ -30,7 +37,7 @@ const LISTING_DETAIL_INCLUDE = {
 } as const;
 
 export async function listPublicListings(rawQuery: unknown) {
-  const { city, minRent, maxRent, take, skip } = listPublicListingsSchema.parse(rawQuery);
+  const { city, minRent, maxRent, sort, take, skip } = listPublicListingsSchema.parse(rawQuery);
 
   const rentAmount =
     minRent !== undefined || maxRent !== undefined
@@ -51,7 +58,7 @@ export async function listPublicListings(rawQuery: unknown) {
   const [rows, total] = await Promise.all([
     db.listing.findMany({
       where,
-      orderBy: { publishedAt: "desc" },
+      orderBy: ORDER_BY[sort],
       take,
       skip,
       include: LISTING_DETAIL_INCLUDE,
@@ -59,7 +66,7 @@ export async function listPublicListings(rawQuery: unknown) {
     db.listing.count({ where }),
   ]);
 
-  return { rows, total, take, skip };
+  return { rows, total, take, skip, sort };
 }
 
 // ── Read one (public) ────────────────────────────────────────────────────────

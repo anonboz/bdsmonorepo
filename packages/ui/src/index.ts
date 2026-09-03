@@ -12,3 +12,4 @@ export {
   CardContent,
   CardFooter,
 } from "./components/card";
+export { MobileNav, type MobileNavItem, type MobileNavProps } from "./components/mobile-nav";

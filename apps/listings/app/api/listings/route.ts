@@ -6,7 +6,7 @@ import { listPublicListings } from "@/services/listing.service";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/listings?city=&minRent=&maxRent=&take=&skip= — published listings. */
+/** GET /api/listings?city=&minRent=&maxRent=&sort=&take=&skip= — published listings. */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -14,6 +14,7 @@ export async function GET(req: Request) {
       city: url.searchParams.get("city") ?? undefined,
       minRent: url.searchParams.get("minRent") ?? undefined,
       maxRent: url.searchParams.get("maxRent") ?? undefined,
+      sort: url.searchParams.get("sort") ?? undefined,
       take: url.searchParams.get("take") ?? undefined,
       skip: url.searchParams.get("skip") ?? undefined,
     });

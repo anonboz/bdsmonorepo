@@ -1,0 +1,7 @@
+<!-- Placeholder maskable PWA icon — full-bleed fill (OS applies its own mask
+     shape), glyph kept inside the ~40% safe-zone radius so it survives any
+     mask crop. Swap for real brand artwork. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Vendor">
+  <rect width="512" height="512" fill="#1f8e66"/>
+  <text x="256" y="320" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="176" font-weight="700" fill="#fdfdfc" text-anchor="middle">V</text>
+</svg>

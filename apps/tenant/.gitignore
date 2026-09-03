@@ -1,1 +1,5 @@
 .vercel
+
+# Serwist-generated service worker (build output, not source)
+/public/sw.js
+/public/sw.js.map

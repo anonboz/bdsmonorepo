@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
 import { getTranslations } from "@/i18n/server";
 import { getSession, type SessionContext } from "@/lib/session";
+import { MobileNav } from "@repo/ui";
 import { SignOutButton } from "./_components/sign-out-button";
 
 const NAV = [
@@ -24,9 +25,37 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const t = await getTranslations();
 
+  const mobileNavItems = NAV.map(({ href, key, icon }) => ({
+    href,
+    icon,
+    label: t(`nav.${key}`),
+  }));
+
+  const footer = (
+    <div className="space-y-3">
+      <LocaleSwitcher className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60" />
+      <div className="text-xs text-muted-foreground">
+        <p className="font-medium text-foreground">{session.name}</p>
+        <p>{t("role")}</p>
+      </div>
+      <SignOutButton />
+    </div>
+  );
+
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="flex flex-col border-r bg-sidebar text-sidebar-foreground">
+      <MobileNav
+        items={mobileNavItems}
+        brand={
+          <>
+            <Home className="h-5 w-5 text-primary" />
+            {t("brand")}
+          </>
+        }
+        footer={footer}
+      />
+
+      <aside className="hidden flex-col border-r bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex h-14 items-center gap-2 px-5 font-semibold">
           <Home className="h-5 w-5 text-primary" />
           {t("brand")}
@@ -43,14 +72,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </Link>
           ))}
         </nav>
-        <div className="space-y-3 border-t px-5 py-3">
-          <LocaleSwitcher className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60" />
-          <div className="text-xs text-muted-foreground">
-            <p className="font-medium text-foreground">{session.name}</p>
-            <p>{t("role")}</p>
-          </div>
-          <SignOutButton />
-        </div>
+        <div className="border-t px-5 py-3">{footer}</div>
       </aside>
       <main className="min-w-0">{children}</main>
     </div>

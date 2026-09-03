@@ -21,25 +21,25 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
   const { unit } = listing;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
       <Link href="/" className={buttonVariants({ variant: "ghost", size: "sm" }) + " mb-6 -ml-2"}>
         <ArrowLeft className="size-4" />
         Back to listings
       </Link>
 
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           {unit.property.name}
           <span className="text-muted-foreground"> · {unit.label}</span>
         </h1>
         <p className="flex items-center gap-1 text-muted-foreground">
-          <MapPin className="size-4" />
+          <MapPin className="size-4 shrink-0" />
           {unit.property.city}
           {unit.property.region ? `, ${unit.property.region}` : ""}
         </p>
       </div>
 
-      <div className="mt-6 flex items-center gap-6 text-sm text-muted-foreground">
+      <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
         <span className="flex items-center gap-1">
           <BedDouble className="size-4" />
           {unit.bedrooms} bedroom{unit.bedrooms === 1 ? "" : "s"}
@@ -51,7 +51,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <Card className="mt-6">
-        <CardContent className="flex items-center justify-between p-6">
+        <CardContent className="flex flex-wrap items-center justify-between gap-2 p-5 sm:p-6">
           <span className="text-2xl font-semibold">
             {formatMoney(listing.rentAmount)}
             <span className="text-base font-normal text-muted-foreground">/mo</span>
