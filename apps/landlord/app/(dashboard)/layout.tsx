@@ -4,6 +4,7 @@ import {
   FileText,
   Gauge,
   Home,
+  Image,
   Megaphone,
   Receipt,
   Wrench,
@@ -17,6 +18,7 @@ import { MobileNav } from "@repo/ui";
 const NAV = [
   { href: "/", label: "Dashboard", icon: Home },
   { href: "/properties", label: "Properties", icon: Building2 },
+  { href: "/listings", label: "Listings", icon: Image },
   { href: "/leases", label: "Leases", icon: FileText },
   { href: "/meter-readings", label: "Meter readings", icon: ClipboardList },
   { href: "/invoices", label: "Generate invoice", icon: Receipt },

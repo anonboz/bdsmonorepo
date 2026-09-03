@@ -39,6 +39,20 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
         </p>
       </div>
 
+      {listing.photos.length > 0 ? (
+        <div className="mt-6 flex gap-3 overflow-x-auto">
+          {listing.photos.map((photo) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={photo.id}
+              src={photo.url}
+              alt={unit.property.name}
+              className="aspect-video w-64 shrink-0 rounded-md border object-cover"
+            />
+          ))}
+        </div>
+      ) : null}
+
       <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
         <span className="flex items-center gap-1">
           <BedDouble className="size-4" />

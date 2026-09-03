@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BedDouble, Bath, MapPin } from "lucide-react";
+import { BedDouble, Bath, ImageOff, MapPin } from "lucide-react";
 
 import { listPublicListings } from "@/services/listing.service";
 import { formatMoney, parseMoneyToCents } from "@repo/shared";
@@ -189,6 +189,18 @@ export default async function HomePage({
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((listing) => (
               <Card key={listing.id} className="flex flex-col overflow-hidden">
+                <div className="flex aspect-[4/3] w-full items-center justify-center bg-muted">
+                  {listing.photos[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={listing.photos[0].url}
+                      alt={listing.unit.property.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <ImageOff className="size-8 text-muted-foreground/40" />
+                  )}
+                </div>
                 <CardContent className="flex flex-1 flex-col gap-3 p-5">
                   <div className="space-y-1">
                     <h3 className="text-lg font-semibold leading-tight">

@@ -34,6 +34,7 @@ const LISTING_DETAIL_INCLUDE = {
       property: { select: { name: true, city: true, region: true, type: true } },
     },
   },
+  photos: { orderBy: { sortOrder: "asc" as const }, select: { id: true, url: true } },
 } as const;
 
 export async function listPublicListings(rawQuery: unknown) {
