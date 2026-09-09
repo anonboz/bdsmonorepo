@@ -1,4 +1,5 @@
 import {
+  Bell,
   Building2,
   ClipboardList,
   FileText,
@@ -13,7 +14,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getSession, type SessionContext } from "@/lib/session";
+import { getUnreadCount } from "@/services/notification.service";
 import { MobileNav } from "@repo/ui";
+import { NotificationBell } from "./_components/notification-bell";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -25,6 +28,7 @@ const NAV = [
   { href: "/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/utility-rates", label: "Utility rates", icon: Gauge },
   { href: "/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/notifications", label: "Notifications", icon: Bell },
 ] as const;
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   } catch {
     redirect("/login");
   }
+  const unread = await getUnreadCount(session);
 
   const footer = (
     <>
@@ -57,12 +62,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </>
         }
         footer={footer}
+        actions={<NotificationBell initialUnread={unread} />}
       />
 
       <aside className="hidden flex-col border-r bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex h-14 items-center gap-2 px-5 font-semibold">
           <Building2 className="h-5 w-5 text-primary" />
           Landlord
+          <NotificationBell initialUnread={unread} className="ml-auto" />
         </div>
         <nav className="flex-1 space-y-1 px-3 py-2">
           {NAV.map(({ href, label, icon: Icon }) => (

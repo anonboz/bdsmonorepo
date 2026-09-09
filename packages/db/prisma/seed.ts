@@ -401,6 +401,18 @@ async function main() {
     },
   ];
   await db.notification.createMany({ data: [...inboxFor(tenant1.id), ...inboxFor(tenant.id)] });
+  // …and the landlord's side: the seeded maintenance request, as the tenant app
+  // would have announced it.
+  await db.notification.create({
+    data: {
+      userId: landlord.id,
+      type: "maintenance_request_created",
+      title: "New maintenance request: Leaking kitchen faucet",
+      body: "Maple Court · Apt 1A — high priority, reported by Tara Tenant",
+      deepLink: "/maintenance",
+      createdAt: new Date("2026-08-20"),
+    },
+  });
 
   console.log(
     "Seeded: orgs=maple,cedar  users=landlord/agent/admin/vendor/tenant/tenant1/tenant2  (pwd 12345678)  notifications=3/tenant",

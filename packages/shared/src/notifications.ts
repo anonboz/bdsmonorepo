@@ -9,6 +9,7 @@ export const NOTIFICATION_TYPES = [
   "invoice_created",
   "lease_created",
   "announcement_published",
+  "maintenance_request_created",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

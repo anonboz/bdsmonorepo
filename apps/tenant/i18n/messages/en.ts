@@ -34,7 +34,12 @@ export type Messages = {
     bell: string;
     bellUnread: string;
     /** Keyed by NotificationType from @repo/shared. */
-    types: { invoice_created: string; lease_created: string; announcement_published: string };
+    types: {
+      invoice_created: string;
+      lease_created: string;
+      announcement_published: string;
+      maintenance_request_created: string;
+    };
   };
   leases: {
     title: string;
@@ -153,6 +158,21 @@ export type Messages = {
       high: string;
       emergency: string;
     };
+    form: {
+      open: string;
+      cancel: string;
+      lease: string;
+      title: string;
+      titlePlaceholder: string;
+      description: string;
+      descriptionPlaceholder: string;
+      priority: string;
+      submit: string;
+      submitting: string;
+      success: string;
+      error: string;
+      noLeases: string;
+    };
   };
   login: {
     title: string;
@@ -208,6 +228,7 @@ const en: Messages = {
       invoice_created: "New bill",
       lease_created: "New lease",
       announcement_published: "Announcement",
+      maintenance_request_created: "Maintenance request",
     },
   },
   leases: {
@@ -343,6 +364,21 @@ const en: Messages = {
       medium: "Medium",
       high: "High",
       emergency: "Emergency",
+    },
+    form: {
+      open: "New request",
+      cancel: "Cancel",
+      lease: "Lease",
+      title: "What's the problem?",
+      titlePlaceholder: "e.g. Kitchen tap is leaking",
+      description: "Details",
+      descriptionPlaceholder: "Where it is, when it started, anything the landlord should know…",
+      priority: "Priority",
+      submit: "Send request",
+      submitting: "Sending…",
+      success: "Request sent. Your landlord has been notified.",
+      error: "Couldn't send the request.",
+      noLeases: "You need a current lease to raise a request.",
     },
   },
   login: {

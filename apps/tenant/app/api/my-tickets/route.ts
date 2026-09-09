@@ -3,7 +3,7 @@
 
 import { apiSuccess, handleRouteError } from "@/lib/api";
 import { getSession } from "@/lib/session";
-import { listMyTickets } from "@/services/ticket.service";
+import { createMyTicket, listMyTickets } from "@/services/ticket.service";
 
 export const dynamic = "force-dynamic";
 
@@ -15,5 +15,17 @@ export async function GET() {
     return apiSuccess(data);
   } catch (err) {
     return handleRouteError(err, "Failed to list requests");
+  }
+}
+
+/** POST /api/my-tickets  { leaseId, title, description?, priority? } — raise a request. */
+export async function POST(req: Request) {
+  try {
+    const session = await getSession();
+    const body: unknown = await req.json().catch(() => ({}));
+    const data = await createMyTicket(session, body);
+    return apiSuccess(data, 201);
+  } catch (err) {
+    return handleRouteError(err, "Failed to submit request");
   }
 }

@@ -3,8 +3,11 @@
 // ONLY: a tenant sees the requests THEY reported (reportedByUserId), cross-org.
 
 import { db } from "@repo/db";
+import { ConflictError, NotFoundError } from "@repo/shared";
+import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
+import { notifyUsers } from "./notification.service";
 
 export type MyTicket = {
   id: string;
@@ -59,4 +62,70 @@ export async function listMyTickets(
   // "Open" = anything not yet completed or cancelled.
   const open = rows.filter((r) => r.status !== "completed" && r.status !== "cancelled").length;
   return { rows, total: rows.length, open };
+}
+
+// ── Create (raise a request on one of the tenant's own leases) ───────────────
+
+const createSchema = z.object({
+  leaseId: z.string().min(1),
+  title: z.string().trim().min(3).max(120),
+  description: z.string().trim().max(2000).optional(),
+  priority: z.enum(["low", "medium", "high", "emergency"]).default("medium"),
+});
+
+export async function createMyTicket(session: SessionContext, raw: unknown) {
+  const input = createSchema.parse(raw);
+
+  // The unit and org come from the tenant's OWN lease — never from the body.
+  // A lease they're not on is reported as "not found".
+  const lease = await db.lease.findUnique({
+    where: { id: input.leaseId },
+    select: {
+      id: true,
+      unitId: true,
+      organizationId: true,
+      status: true,
+      tenancies: { select: { userId: true } },
+      unit: { select: { label: true, property: { select: { name: true } } } },
+    },
+  });
+  if (!lease || !lease.tenancies.some((t) => t.userId === session.userId)) {
+    throw new NotFoundError("Lease not found");
+  }
+  if (lease.status !== "active" && lease.status !== "draft") {
+    throw new ConflictError("Requests can only be raised on a current lease");
+  }
+
+  // Request + staff notifications in one transaction: nobody is pinged about
+  // a request that failed to save.
+  return db.$transaction(async (tx) => {
+    const request = await tx.maintenanceRequest.create({
+      data: {
+        organizationId: lease.organizationId,
+        unitId: lease.unitId,
+        reportedByUserId: session.userId,
+        title: input.title,
+        description: input.description || null,
+        priority: input.priority,
+      },
+    });
+
+    // The org's staff who triage requests (not vendors, not platform admins).
+    const staff = await tx.orgMembership.findMany({
+      where: { organizationId: lease.organizationId, role: { in: ["owner", "landlord", "agent"] } },
+      select: { userId: true },
+    });
+    await notifyUsers(
+      tx,
+      staff.map((m) => m.userId),
+      {
+        type: "maintenance_request_created",
+        title: `New maintenance request: ${input.title}`,
+        body: `${lease.unit.property.name} · ${lease.unit.label} — ${input.priority} priority, reported by ${session.name || "a tenant"}`,
+        deepLink: "/maintenance",
+      },
+    );
+
+    return request;
+  });
 }

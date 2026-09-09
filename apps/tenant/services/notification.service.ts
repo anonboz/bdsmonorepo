@@ -3,8 +3,8 @@
 // and assert ownership after every findUnique — a row belonging to someone
 // else is reported as "not found" so we don't leak its existence.
 
-import { db } from "@repo/db";
-import { NotFoundError } from "@repo/shared";
+import { db, type Prisma } from "@repo/db";
+import { NotFoundError, type NotificationPayload } from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
@@ -89,4 +89,32 @@ export async function markAllNotificationsRead(
     data: { readAt: new Date() },
   });
   return { updated: count };
+}
+
+// ── Produce (the tenant app as a notification writer) ────────────────────────
+
+type DbClient = typeof db | Prisma.TransactionClient;
+
+/**
+ * Write one row per distinct user. The tenant is not org-scoped, so the CALLER
+ * decides the audience (e.g. the staff of the org a request was raised in) —
+ * never pass ids taken from a request body.
+ */
+export async function notifyUsers(
+  client: DbClient,
+  userIds: readonly string[],
+  payload: NotificationPayload,
+): Promise<number> {
+  const unique = [...new Set(userIds)];
+  if (unique.length === 0) return 0;
+  const { count } = await client.notification.createMany({
+    data: unique.map((userId) => ({
+      userId,
+      type: payload.type,
+      title: payload.title,
+      body: payload.body ?? null,
+      deepLink: payload.deepLink ?? null,
+    })),
+  });
+  return count;
 }

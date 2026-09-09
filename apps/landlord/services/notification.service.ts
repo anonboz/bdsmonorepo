@@ -9,7 +9,10 @@
 // that caused it (an invoice with no notification, or vice-versa, is a bug).
 
 import { db, type Prisma } from "@repo/db";
-import type { NotificationPayload } from "@repo/shared";
+import { NotFoundError, type NotificationPayload } from "@repo/shared";
+import { z } from "zod";
+
+import type { SessionContext } from "@/lib/session";
 
 type DbClient = typeof db | Prisma.TransactionClient;
 
@@ -73,4 +76,82 @@ export async function notifyOrgTenants(
     tenancies.map((t) => t.userId),
     payload,
   );
+}
+
+// ── Read side: the signed-in staff member's own inbox ────────────────────────
+// Notifications are per-user, so these scope by session.userId (not org) and
+// assert ownership after findUnique — someone else's row is "not found".
+
+export type NotificationRow = {
+  id: string;
+  type: string; // NotificationType, stored as a plain string
+  title: string;
+  body: string | null;
+  deepLink: string | null;
+  readAt: Date | null;
+  createdAt: Date;
+};
+
+const MAX_ROWS = 100;
+
+const rowSelect = {
+  id: true,
+  type: true,
+  title: true,
+  body: true,
+  deepLink: true,
+  readAt: true,
+  createdAt: true,
+} as const;
+
+export async function listMyNotifications(
+  session: SessionContext,
+): Promise<{ rows: NotificationRow[]; unreadCount: number }> {
+  const [rows, unreadCount] = await Promise.all([
+    db.notification.findMany({
+      where: { userId: session.userId },
+      orderBy: { createdAt: "desc" },
+      take: MAX_ROWS,
+      select: rowSelect,
+    }),
+    getUnreadCount(session),
+  ]);
+  return { rows, unreadCount };
+}
+
+export async function getUnreadCount(session: SessionContext): Promise<number> {
+  return db.notification.count({ where: { userId: session.userId, readAt: null } });
+}
+
+const markReadSchema = z.object({ read: z.literal(true) });
+
+export async function markNotificationRead(
+  session: SessionContext,
+  id: string,
+  raw: unknown,
+): Promise<{ id: string; readAt: Date }> {
+  markReadSchema.parse(raw);
+  const existing = await db.notification.findUnique({
+    where: { id },
+    select: { id: true, userId: true, readAt: true },
+  });
+  if (!existing || existing.userId !== session.userId) {
+    throw new NotFoundError("Notification not found");
+  }
+  if (existing.readAt) return { id: existing.id, readAt: existing.readAt };
+  return db.notification.update({
+    where: { id },
+    data: { readAt: new Date() },
+    select: { id: true, readAt: true },
+  }) as Promise<{ id: string; readAt: Date }>;
+}
+
+export async function markAllNotificationsRead(
+  session: SessionContext,
+): Promise<{ updated: number }> {
+  const { count } = await db.notification.updateMany({
+    where: { userId: session.userId, readAt: null },
+    data: { readAt: new Date() },
+  });
+  return { updated: count };
 }

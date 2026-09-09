@@ -2,8 +2,10 @@ import { format } from "date-fns";
 
 import { getTranslations } from "@/i18n/server";
 import { getSession } from "@/lib/session";
+import { listMyLeases } from "@/services/lease.service";
 import { listMyTickets } from "@/services/ticket.service";
 import { Card, CardContent } from "@repo/ui";
+import { NewTicketForm } from "./new-ticket-form";
 
 export const dynamic = "force-dynamic";
 
@@ -25,18 +27,29 @@ const PRIORITY_STYLES: Record<string, string> = {
 
 export default async function MyTicketsPage() {
   const session = await getSession();
-  const { rows, open } = await listMyTickets(session);
+  const [{ rows, open }, { rows: leases }] = await Promise.all([
+    listMyTickets(session),
+    listMyLeases(session),
+  ]);
   const t = await getTranslations("tickets");
+  // Only current leases can have requests raised against them.
+  const leaseOptions = leases
+    .filter((l) => l.status === "active" || l.status === "draft")
+    .map((l) => ({ id: l.id, label: `${l.unit.property.name} · ${l.unit.label}` }));
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
-      <header className="space-y-1">
-        <h1 className="text-3xl font-semibold">{t("title")}</h1>
-        <p className="text-muted-foreground">{t("subtitle")}</p>
-        {open > 0 && (
-          <p className="text-sm font-medium text-primary">{t("openCount", { count: open })}</p>
-        )}
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
+          {open > 0 && (
+            <p className="text-sm font-medium text-primary">{t("openCount", { count: open })}</p>
+          )}
+        </div>
       </header>
+
+      <NewTicketForm leases={leaseOptions} />
 
       {rows.length === 0 ? (
         <Card>
