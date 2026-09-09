@@ -7,6 +7,7 @@ import { NotFoundError } from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
+import { notifyOrgTenants } from "./notification.service";
 
 export type OrgAnnouncementRow = {
   id: string;
@@ -17,6 +18,22 @@ export type OrgAnnouncementRow = {
   expiresAt: string | null; // ISO
   createdAt: string; // ISO
 };
+
+/** Notification bodies are one-liners; announcements can be 5000 chars. */
+function excerpt(body: string, max = 160): string {
+  const oneLine = body.replace(/\s+/g, " ").trim();
+  return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
+}
+
+/** Fan a just-published announcement out to the org's current tenants. */
+function announcePublished(organizationId: string, a: { title: string; body: string }) {
+  return notifyOrgTenants(db, organizationId, {
+    type: "announcement_published",
+    title: a.title,
+    body: excerpt(a.body),
+    deepLink: "/",
+  });
+}
 
 function toRow(a: {
   id: string;
@@ -67,6 +84,7 @@ export async function createOrgAnnouncement(session: SessionContext, raw: unknow
       expiresAt: input.expiresAt ?? null,
     },
   });
+  if (created.publishedAt) await announcePublished(session.organizationId, created);
   return toRow(created);
 }
 
@@ -91,6 +109,11 @@ export async function setOrgAnnouncementPublished(
     where: { id },
     data: { publishedAt: published ? (existing.publishedAt ?? new Date()) : null },
   });
+  // Only the draft → published transition notifies; re-publishing an already
+  // published row (a no-op) or unpublishing never pings tenants.
+  if (published && existing.publishedAt == null) {
+    await announcePublished(session.organizationId, updated);
+  }
   return toRow(updated);
 }
 

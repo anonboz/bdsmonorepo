@@ -1,11 +1,13 @@
-import { FileText, Home, Receipt, Wrench } from "lucide-react";
+import { Bell, FileText, Home, Receipt, Wrench } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
 import { getTranslations } from "@/i18n/server";
 import { getSession, type SessionContext } from "@/lib/session";
+import { getUnreadCount } from "@/services/notification.service";
 import { MobileNav } from "@repo/ui";
+import { NotificationBell } from "./_components/notification-bell";
 import { SignOutButton } from "./_components/sign-out-button";
 
 const NAV = [
@@ -13,6 +15,7 @@ const NAV = [
   { href: "/my-leases", key: "leases", icon: FileText },
   { href: "/my-bills", key: "bills", icon: Receipt },
   { href: "/my-tickets", key: "requests", icon: Wrench },
+  { href: "/notifications", key: "notifications", icon: Bell },
 ] as const;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -23,11 +26,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect("/login");
   }
 
-  const t = await getTranslations();
+  const [t, unread] = await Promise.all([getTranslations(), getUnreadCount(session)]);
 
-  const mobileNavItems = NAV.map(({ href, key, icon }) => ({
+  const mobileNavItems = NAV.map(({ href, key, icon: Icon }) => ({
     href,
-    icon,
+    icon: <Icon className="h-4 w-4 shrink-0" />,
     label: t(`nav.${key}`),
   }));
 
@@ -53,12 +56,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </>
         }
         footer={footer}
+        actions={<NotificationBell initialUnread={unread} />}
       />
 
       <aside className="hidden flex-col border-r bg-sidebar text-sidebar-foreground lg:flex">
         <div className="flex h-14 items-center gap-2 px-5 font-semibold">
           <Home className="h-5 w-5 text-primary" />
           {t("brand")}
+          <NotificationBell initialUnread={unread} className="ml-auto" />
         </div>
         <nav className="flex-1 space-y-1 px-3 py-2">
           {NAV.map(({ href, key, icon: Icon }) => (

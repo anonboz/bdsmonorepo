@@ -4,7 +4,13 @@ const vi: Messages = {
   brand: "Người thuê",
   role: "Người thuê",
   signOut: "Đăng xuất",
-  nav: { home: "Trang chủ", leases: "Hợp đồng thuê", bills: "Hóa đơn", requests: "Yêu cầu" },
+  nav: {
+    home: "Trang chủ",
+    leases: "Hợp đồng thuê",
+    bills: "Hóa đơn",
+    requests: "Yêu cầu",
+    notifications: "Thông báo",
+  },
   home: {
     welcome: "Xin chào, {name}",
     subtitle: "Mọi thông tin về việc thuê nhà của bạn ở một nơi.",
@@ -22,6 +28,21 @@ const vi: Messages = {
     title: "Thông báo",
     empty: "Hiện không có thông báo nào.",
     system: "Hệ thống",
+  },
+  notifications: {
+    title: "Thông báo",
+    subtitle: "Cập nhật về hợp đồng thuê, hóa đơn và thông báo chung của bạn.",
+    empty: "Bạn đã xem hết thông báo.",
+    unreadCount: "{count} chưa đọc",
+    unread: "Chưa đọc",
+    markAllRead: "Đánh dấu tất cả đã đọc",
+    bell: "Thông báo",
+    bellUnread: "Thông báo, {count} chưa đọc",
+    types: {
+      invoice_created: "Hóa đơn mới",
+      lease_created: "Hợp đồng mới",
+      announcement_published: "Thông báo chung",
+    },
   },
   leases: {
     title: "Hợp đồng thuê",

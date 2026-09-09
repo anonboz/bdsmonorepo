@@ -6,10 +6,11 @@
 // session.organizationId ONLY. Money is integer cents.
 
 import { db } from "@repo/db";
-import { ConflictError, NotFoundError } from "@repo/shared";
+import { ConflictError, formatMoney, NotFoundError } from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
+import { formatNotificationDate, notifyLeaseTenants } from "./notification.service";
 
 const generateSchema = z.object({
   leaseId: z.string().min(1),
@@ -40,7 +41,13 @@ export async function generateInvoice(session: SessionContext, raw: unknown) {
   // lease is reported as "not found" so we don't leak its existence.
   const lease = await db.lease.findUnique({
     where: { id: input.leaseId },
-    select: { id: true, unitId: true, organizationId: true, rentAmount: true },
+    select: {
+      id: true,
+      unitId: true,
+      organizationId: true,
+      rentAmount: true,
+      unit: { select: { label: true, property: { select: { name: true } } } },
+    },
   });
   if (!lease) throw new Error("LEASE_NOT_FOUND");
   if (lease.organizationId !== session.organizationId) {
@@ -131,8 +138,10 @@ export async function generateInvoice(session: SessionContext, raw: unknown) {
   const amount = lineItems.reduce((sum, li) => sum + li.amount, 0);
 
   // Duplicate (leaseId, periodStart) surfaces as Prisma P2002 → 409 in the
-  // mapper. Creating the invoice and stamping its readings "billed" happen in
-  // one transaction so a reading can never be linked to a half-created invoice.
+  // mapper. Creating the invoice, stamping its readings "billed", and notifying
+  // the tenants happen in one transaction so a reading can never be linked to a
+  // half-created invoice and a tenant is never told about an invoice that
+  // failed to save.
   return db.$transaction(async (tx) => {
     const invoice = await tx.rentInvoice.create({
       data: {
@@ -157,6 +166,14 @@ export async function generateInvoice(session: SessionContext, raw: unknown) {
         });
       }
     }
+
+    // Lease ownership was asserted above, so this can't fan out cross-org.
+    await notifyLeaseTenants(tx, lease.id, {
+      type: "invoice_created",
+      title: `New rent invoice: ${formatMoney(amount)}`,
+      body: `${lease.unit.property.name} · ${lease.unit.label} — due ${formatNotificationDate(invoice.dueDate)}`,
+      deepLink: `/my-bills/${invoice.id}`,
+    });
 
     return invoice;
   });

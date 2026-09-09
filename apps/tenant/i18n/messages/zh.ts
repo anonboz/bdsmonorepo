@@ -4,7 +4,13 @@ const zh: Messages = {
   brand: "租户",
   role: "租户",
   signOut: "退出登录",
-  nav: { home: "首页", leases: "我的租约", bills: "我的账单", requests: "维修请求" },
+  nav: {
+    home: "首页",
+    leases: "我的租约",
+    bills: "我的账单",
+    requests: "维修请求",
+    notifications: "通知",
+  },
   home: {
     welcome: "欢迎，{name}",
     subtitle: "您租房的所有信息尽在一处。",
@@ -22,6 +28,21 @@ const zh: Messages = {
     title: "公告",
     empty: "暂无公告。",
     system: "系统",
+  },
+  notifications: {
+    title: "通知",
+    subtitle: "关于您的租约、账单和公告的更新。",
+    empty: "没有新通知。",
+    unreadCount: "{count} 条未读",
+    unread: "未读",
+    markAllRead: "全部标为已读",
+    bell: "通知",
+    bellUnread: "通知，{count} 条未读",
+    types: {
+      invoice_created: "新账单",
+      lease_created: "新租约",
+      announcement_published: "公告",
+    },
   },
   leases: {
     title: "我的租约",

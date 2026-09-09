@@ -5,7 +5,7 @@
 // All logins use password: 12345678
 //   landlord@test.com (landlord) · agent@test.com (agent)
 //   admin@test.com (admin) · vendor@test.com (vendor)
-//   tenant1@test.com / tenant2@test.com (tenants)
+//   tenant@test.com / tenant1@test.com / tenant2@test.com (tenants)
 
 import "dotenv/config";
 import { db } from "../src/index";
@@ -56,6 +56,7 @@ async function main() {
   const agent = await user("agent@test.com", "Ava Agent");
   const admin = await user("admin@test.com", "Sam Admin");
   const vendorUser = await user("vendor@test.com", "Vince Vendor");
+  const tenant = await user("tenant@test.com", "Tenant Test");
   const tenant1 = await user("tenant1@test.com", "Tara Tenant");
   const tenant2 = await user("tenant2@test.com", "Theo Tenant");
 
@@ -102,7 +103,7 @@ async function main() {
     },
   });
 
-  // Active lease on Apt 1A (tenant1) — for landlord + tenant slices.
+  // Active lease on Apt 1A (tenant1 primary, tenant co-tenant) — for landlord + tenant slices.
   const lease = await db.lease.create({
     data: {
       organizationId: org.id,
@@ -114,7 +115,12 @@ async function main() {
       depositAmount: 185000,
       rentDueDay: 1,
       signedAt: new Date("2025-12-20"),
-      tenancies: { create: { userId: tenant1.id, isPrimary: true } },
+      tenancies: {
+        create: [
+          { userId: tenant1.id, isPrimary: true },
+          { userId: tenant.id, isPrimary: false },
+        ],
+      },
     },
   });
 
@@ -223,7 +229,7 @@ async function main() {
     waterM3: 13.2,
     elecKwh: 240,
   });
-  await invoice({
+  const augustInvoice = await invoice({
     periodStart: "2026-08-01",
     periodEnd: "2026-08-31",
     dueDate: "2026-08-01",
@@ -347,8 +353,43 @@ async function main() {
     ],
   });
 
+  // In-app notifications (tenant inbox + bell badge). Real flows write these
+  // from the landlord app — invoice generation, lease creation, announcement
+  // publishing — so seed the rows those flows would have produced for the
+  // Apt 1A tenants. Newest first in the UI; one left unread per user.
+  const augustTotal = `${new Intl.NumberFormat("en-US").format(Math.round(augustInvoice.amount / 100))} VND`;
+  const inboxFor = (userId: string) => [
+    {
+      userId,
+      type: "invoice_created",
+      title: `New rent invoice: ${augustTotal}`,
+      body: "Maple Court · Apt 1A — due Aug 1, 2026",
+      deepLink: `/my-bills/${augustInvoice.id}`,
+      createdAt: new Date("2026-07-28"),
+    },
+    {
+      userId,
+      type: "announcement_published",
+      title: "Maple Court: lobby repainting next week",
+      body: "Expect minor noise Mon–Wed, 9am–4pm. Thanks for your patience.",
+      deepLink: "/",
+      createdAt: new Date("2026-07-21"),
+      readAt: new Date("2026-07-22"),
+    },
+    {
+      userId,
+      type: "lease_created",
+      title: "New lease: Maple Court · Apt 1A",
+      body: "Jan 1, 2026 – Dec 31, 2026. Review the terms in My leases.",
+      deepLink: "/my-leases",
+      createdAt: new Date("2025-12-20"),
+      readAt: new Date("2025-12-21"),
+    },
+  ];
+  await db.notification.createMany({ data: [...inboxFor(tenant1.id), ...inboxFor(tenant.id)] });
+
   console.log(
-    "Seeded: orgs=maple,cedar  users=landlord/agent/admin/vendor/tenant1/tenant2  (pwd 12345678)",
+    "Seeded: orgs=maple,cedar  users=landlord/agent/admin/vendor/tenant/tenant1/tenant2  (pwd 12345678)  notifications=3/tenant",
   );
   console.log(
     "  listing=published(Apt 1B)  application=submitted(tenant2)  workOrder=scheduled(vendor)",

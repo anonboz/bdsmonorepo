@@ -8,6 +8,7 @@ import { NotFoundError } from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
+import { formatNotificationDate, notifyUsers } from "./notification.service";
 
 // ── Create ───────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,12 @@ export async function createLease(session: SessionContext, raw: unknown) {
   // unit is reported as "not found" so we don't leak its existence.
   const unit = await db.unit.findUnique({
     where: { id: input.unitId },
-    select: { id: true, status: true, property: { select: { organizationId: true } } },
+    select: {
+      id: true,
+      status: true,
+      label: true,
+      property: { select: { organizationId: true, name: true } },
+    },
   });
   if (!unit) throw new Error("UNIT_NOT_FOUND");
   if (unit.property.organizationId !== session.organizationId) {
@@ -51,21 +57,39 @@ export async function createLease(session: SessionContext, raw: unknown) {
   });
   if (overlap) throw new Error("OVERLAPPING_LEASE");
 
-  return db.lease.create({
-    data: {
-      organizationId: session.organizationId,
-      unitId: input.unitId,
-      status: "draft",
-      startDate: new Date(input.startDate),
-      endDate: new Date(input.endDate),
-      rentAmount: input.rentAmount,
-      depositAmount: input.depositAmount,
-      rentDueDay: input.rentDueDay,
-      tenancies: {
-        create: input.tenantUserIds.map((userId, i) => ({ userId, isPrimary: i === 0 })),
+  // Lease + tenant notifications in one transaction: nobody is told about a
+  // lease that failed to save. The unit was asserted in-org above, and the
+  // tenant ids come straight from the rows we just created.
+  return db.$transaction(async (tx) => {
+    const lease = await tx.lease.create({
+      data: {
+        organizationId: session.organizationId,
+        unitId: input.unitId,
+        status: "draft",
+        startDate: new Date(input.startDate),
+        endDate: new Date(input.endDate),
+        rentAmount: input.rentAmount,
+        depositAmount: input.depositAmount,
+        rentDueDay: input.rentDueDay,
+        tenancies: {
+          create: input.tenantUserIds.map((userId, i) => ({ userId, isPrimary: i === 0 })),
+        },
       },
-    },
-    include: { tenancies: { select: { userId: true, isPrimary: true } } },
+      include: { tenancies: { select: { userId: true, isPrimary: true } } },
+    });
+
+    await notifyUsers(
+      tx,
+      lease.tenancies.map((t) => t.userId),
+      {
+        type: "lease_created",
+        title: `New lease: ${unit.property.name} · ${unit.label}`,
+        body: `${formatNotificationDate(lease.startDate)} – ${formatNotificationDate(lease.endDate)}. Review the terms in My leases.`,
+        deepLink: "/my-leases",
+      },
+    );
+
+    return lease;
   });
 }
 

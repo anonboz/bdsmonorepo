@@ -5,7 +5,7 @@ export type Messages = {
   brand: string;
   role: string;
   signOut: string;
-  nav: { home: string; leases: string; bills: string; requests: string };
+  nav: { home: string; leases: string; bills: string; requests: string; notifications: string };
   home: {
     welcome: string;
     subtitle: string;
@@ -23,6 +23,18 @@ export type Messages = {
     title: string;
     empty: string;
     system: string;
+  };
+  notifications: {
+    title: string;
+    subtitle: string;
+    empty: string;
+    unreadCount: string;
+    unread: string;
+    markAllRead: string;
+    bell: string;
+    bellUnread: string;
+    /** Keyed by NotificationType from @repo/shared. */
+    types: { invoice_created: string; lease_created: string; announcement_published: string };
   };
   leases: {
     title: string;
@@ -135,7 +147,13 @@ const en: Messages = {
   brand: "Tenant",
   role: "Tenant",
   signOut: "Sign out",
-  nav: { home: "Home", leases: "My leases", bills: "My bills", requests: "Requests" },
+  nav: {
+    home: "Home",
+    leases: "My leases",
+    bills: "My bills",
+    requests: "Requests",
+    notifications: "Notifications",
+  },
   home: {
     welcome: "Welcome, {name}",
     subtitle: "Everything about your rental in one place.",
@@ -153,6 +171,21 @@ const en: Messages = {
     title: "Announcements",
     empty: "No announcements right now.",
     system: "System",
+  },
+  notifications: {
+    title: "Notifications",
+    subtitle: "Updates about your leases, bills and announcements.",
+    empty: "You're all caught up.",
+    unreadCount: "{count} unread",
+    unread: "Unread",
+    markAllRead: "Mark all as read",
+    bell: "Notifications",
+    bellUnread: "Notifications, {count} unread",
+    types: {
+      invoice_created: "New bill",
+      lease_created: "New lease",
+      announcement_published: "Announcement",
+    },
   },
   leases: {
     title: "My leases",
