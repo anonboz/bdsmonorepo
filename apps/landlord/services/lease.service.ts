@@ -131,8 +131,15 @@ export async function getLease(session: SessionContext, leaseId: string) {
   const lease = await db.lease.findUnique({
     where: { id: leaseId },
     include: {
-      unit: { select: { label: true, property: { select: { name: true } } } },
-      tenancies: { select: { userId: true, isPrimary: true } },
+      unit: { select: { label: true, property: { select: { name: true, city: true } } } },
+      tenancies: {
+        orderBy: { isPrimary: "desc" },
+        select: {
+          userId: true,
+          isPrimary: true,
+          user: { select: { name: true, email: true } },
+        },
+      },
       invoices: { orderBy: { periodStart: "desc" }, take: 12 },
     },
   });

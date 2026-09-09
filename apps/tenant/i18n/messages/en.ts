@@ -52,6 +52,29 @@ export type Messages = {
       terminated: string;
       renewed: string;
     };
+    detail: {
+      back: string;
+      terms: string;
+      term: string;
+      rent: string;
+      deposit: string;
+      dueDay: string;
+      signed: string;
+      notSigned: string;
+      condition: string;
+      conditionHint: string;
+      conditionEmpty: string;
+      recordedOn: string;
+      noPhotos: string;
+      photoAlt: string;
+      inspectionTypes: { move_in: string; move_out: string; routine: string; maintenance: string };
+      bills: string;
+      billsEmpty: string;
+      colPeriod: string;
+      colDue: string;
+      colAmount: string;
+      colStatus: string;
+    };
   };
   bills: {
     title: string;
@@ -202,6 +225,35 @@ const en: Messages = {
       ended: "Ended",
       terminated: "Terminated",
       renewed: "Renewed",
+    },
+    detail: {
+      back: "Back to leases",
+      terms: "Lease terms",
+      term: "Term",
+      rent: "Monthly rent",
+      deposit: "Deposit",
+      dueDay: "Rent due on day {day} of each month",
+      signed: "Signed {date}",
+      notSigned: "Not signed yet",
+      condition: "Condition records",
+      conditionHint:
+        "Photos and notes recorded by your landlord at move-in and move-out. Keep them for reference when you move out.",
+      conditionEmpty: "No condition record yet.",
+      recordedOn: "Recorded {date}",
+      noPhotos: "No photos attached.",
+      photoAlt: "Condition photo",
+      inspectionTypes: {
+        move_in: "Move-in inspection",
+        move_out: "Move-out inspection",
+        routine: "Routine inspection",
+        maintenance: "Maintenance inspection",
+      },
+      bills: "Bills on this lease",
+      billsEmpty: "No bills yet.",
+      colPeriod: "Period",
+      colDue: "Due",
+      colAmount: "Amount",
+      colStatus: "Status",
     },
   },
   bills: {

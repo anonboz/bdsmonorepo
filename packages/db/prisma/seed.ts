@@ -124,6 +124,20 @@ async function main() {
     },
   });
 
+  // Move-in condition record for that lease. Inspections hang off the unit and
+  // are matched to a lease by creation order (see leaseInspectionWindow in
+  // @repo/shared), so this must be created AFTER the lease above. Photos are
+  // uploaded through the landlord UI; the seed only records the inspection.
+  await db.inspection.create({
+    data: {
+      unitId: apt1a.id,
+      type: "move_in",
+      completedAt: new Date("2025-12-28"),
+      notes:
+        "Walls freshly painted. Minor scuff on the hallway floor by the door. All appliances tested and working.",
+    },
+  });
+
   // Utility pricing. The admin sets platform-wide min/max bounds (cents per unit);
   // the owner picks a per-org rate inside that gate. Invoice utility amounts are
   // then computed as round(consumption × the org's rate) — never hardcoded.

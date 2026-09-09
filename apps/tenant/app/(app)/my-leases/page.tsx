@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import Link from "next/link";
 
 import { getLocale, getTranslations } from "@/i18n/server";
 import { getSession } from "@/lib/session";
@@ -51,8 +52,10 @@ export default async function MyLeasesPage() {
                 {rows.map((lease) => (
                   <tr key={lease.id} className="border-b last:border-0">
                     <td className="px-4 py-3">
-                      <span className="font-medium">{lease.unit.property.name}</span>
-                      <span className="text-muted-foreground"> · {lease.unit.label}</span>
+                      <Link href={`/my-leases/${lease.id}`} className="hover:underline">
+                        <span className="font-medium">{lease.unit.property.name}</span>
+                        <span className="text-muted-foreground"> · {lease.unit.label}</span>
+                      </Link>
                       <span className="block text-xs text-muted-foreground">
                         {lease.unit.property.city}
                       </span>

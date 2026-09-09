@@ -5,8 +5,17 @@
 // cents.
 
 import { db } from "@repo/db";
+import { leaseInspectionWindow } from "@repo/shared";
 
 import type { SessionContext } from "@/lib/session";
+
+export type LeaseInspection = {
+  id: string;
+  type: string; // InspectionType
+  completedAt: Date | null;
+  notes: string | null;
+  photos: { id: string; url: string }[];
+};
 
 // ── List (this tenant's leases, cross-org) ───────────────────────────────────
 
@@ -49,5 +58,41 @@ export async function getMyLease(session: SessionContext, leaseId: string) {
   if (!lease || !lease.tenancies.some((t) => t.userId === session.userId)) {
     throw new Error("LEASE_NOT_FOUND");
   }
-  return lease;
+
+  // Condition records: inspections the landlord recorded for THIS lease (see
+  // leaseInspectionWindow) plus their photos, read-only for the tenant.
+  const next = await db.lease.findFirst({
+    where: { unitId: lease.unitId, createdAt: { gt: lease.createdAt } },
+    orderBy: { createdAt: "asc" },
+    select: { createdAt: true },
+  });
+  const inspectionRows = await db.inspection.findMany({
+    where: {
+      unitId: lease.unitId,
+      createdAt: leaseInspectionWindow(lease.createdAt, next?.createdAt ?? null),
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  const photos =
+    inspectionRows.length === 0
+      ? []
+      : await db.document.findMany({
+          where: {
+            organizationId: lease.organizationId,
+            type: "inspection_photo",
+            entityType: "Inspection",
+            entityId: { in: inspectionRows.map((i) => i.id) },
+          },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, url: true, entityId: true },
+        });
+  const inspections: LeaseInspection[] = inspectionRows.map((i) => ({
+    id: i.id,
+    type: i.type,
+    completedAt: i.completedAt,
+    notes: i.notes,
+    photos: photos.filter((p) => p.entityId === i.id).map((p) => ({ id: p.id, url: p.url })),
+  }));
+
+  return { ...lease, inspections };
 }

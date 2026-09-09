@@ -4,6 +4,7 @@
 export * from "./errors";
 export * from "./money";
 export * from "./notifications";
+export * from "./inspections";
 
 /** The API response envelope every route handler returns. */
 export type ApiSuccess<T> = { success: true; data: T };

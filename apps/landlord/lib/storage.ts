@@ -1,5 +1,5 @@
 // Server-only Supabase Storage client for file uploads (meter-reading photos,
-// listing photos). Uses the service-role key — never expose this client or
+// listing photos, inspection photos). Uses the service-role key — never expose this client or
 // its key to the browser. Domain errors are string-coded and mapped centrally
 // in @repo/shared/errors.
 
@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const METER_READING_BUCKET = "meter-readings";
 const LISTING_PHOTO_BUCKET = "listing-photos";
+const INSPECTION_PHOTO_BUCKET = "inspection-photos";
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic"]);
 
@@ -72,4 +73,18 @@ export function uploadListingPhoto(
 /** Best-effort delete of a previously-uploaded listing photo. */
 export function deleteListingPhoto(url: string): Promise<void> {
   return deletePhoto(LISTING_PHOTO_BUCKET, url);
+}
+
+/** Upload an inspection (move-in / move-out condition) photo; returns its public URL. */
+export function uploadInspectionPhoto(
+  organizationId: string,
+  inspectionId: string,
+  file: File,
+): Promise<string> {
+  return uploadPhoto(INSPECTION_PHOTO_BUCKET, `${organizationId}/${inspectionId}`, file);
+}
+
+/** Best-effort delete of a previously-uploaded inspection photo. */
+export function deleteInspectionPhoto(url: string): Promise<void> {
+  return deletePhoto(INSPECTION_PHOTO_BUCKET, url);
 }
