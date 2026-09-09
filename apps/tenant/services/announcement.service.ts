@@ -17,7 +17,10 @@ export type AnnouncementRow = {
   publishedAt: Date;
 };
 
-export async function listMyAnnouncements(session: SessionContext): Promise<AnnouncementRow[]> {
+export async function listMyAnnouncements(
+  session: SessionContext,
+  opts: { limit?: number } = {},
+): Promise<AnnouncementRow[]> {
   // The tenant's orgs: distinct organizationId across leases they're a tenant on.
   const leases = await db.lease.findMany({
     where: { tenancies: { some: { userId: session.userId } } },
@@ -36,6 +39,7 @@ export async function listMyAnnouncements(session: SessionContext): Promise<Anno
       ],
     },
     orderBy: { publishedAt: "desc" },
+    ...(opts.limit ? { take: opts.limit } : {}),
     include: { organization: { select: { name: true } } },
   });
 

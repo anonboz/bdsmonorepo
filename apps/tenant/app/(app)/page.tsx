@@ -20,7 +20,7 @@ export default async function TenantHome() {
   const session = await getSession();
   const [{ total }, announcements] = await Promise.all([
     listMyLeases(session),
-    listMyAnnouncements(session),
+    listMyAnnouncements(session, { limit: 3 }),
   ]);
   const t = await getTranslations("home");
   const ta = await getTranslations("announcements");
@@ -41,25 +41,25 @@ export default async function TenantHome() {
             {ta("title")}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           {announcements.length === 0 ? (
             <p className="text-sm text-muted-foreground">{ta("empty")}</p>
           ) : (
             announcements.map((a) => (
-              <div key={a.id} className="border-b pb-4 last:border-0 last:pb-0">
+              <div key={a.id} className="border-b pb-3 last:border-0 last:pb-0">
                 <div className="flex items-center gap-2">
                   <span
                     className={
                       a.kind === "system"
-                        ? "inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
-                        : "inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                        ? "inline-flex shrink-0 items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
+                        : "inline-flex shrink-0 items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
                     }
                   >
                     {a.kind === "system" ? ta("system") : a.source}
                   </span>
-                  <h3 className="font-medium">{a.title}</h3>
+                  <h3 className="truncate text-sm font-medium">{a.title}</h3>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">{a.body}</p>
+                <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{a.body}</p>
               </div>
             ))
           )}
