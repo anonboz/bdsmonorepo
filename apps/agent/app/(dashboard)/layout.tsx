@@ -30,7 +30,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
       <MobileNav
-        items={NAV}
+        items={NAV.map(({ href, label, icon: Icon }) => ({
+          href,
+          label,
+          icon: <Icon className="h-4 w-4 shrink-0" />,
+        }))}
         brand={
           <>
             <ClipboardList className="h-5 w-5 text-primary" />

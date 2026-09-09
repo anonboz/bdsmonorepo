@@ -16,11 +16,17 @@ import { cn } from "../lib/cn";
 export interface MobileNavItem {
   href: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Already-rendered icon element (e.g. `<Home className="h-4 w-4 shrink-0" />`).
+   * A rendered node, not a component reference: callers are Server Components
+   * and component references (lucide's forwardRef objects) can't cross the
+   * RSC → client boundary, but React elements can.
+   */
+  icon: React.ReactNode;
 }
 
 export interface MobileNavProps {
-  /** Nav links, same shape each app's own NAV array already uses. */
+  /** Nav links — map each app's NAV array to rendered icons before passing. */
   items: readonly MobileNavItem[];
   /** Rendered in both the collapsed top bar and the open drawer header. */
   brand: React.ReactNode;
@@ -28,10 +34,19 @@ export interface MobileNavProps {
   activeHref?: string;
   /** User name/role/sign-out slot, rendered at the bottom of the drawer. */
   footer?: React.ReactNode;
+  /** Always-visible controls in the collapsed top bar, left of the menu button (e.g. a notification bell). */
+  actions?: React.ReactNode;
   className?: string;
 }
 
-export function MobileNav({ items, brand, activeHref, footer, className }: MobileNavProps) {
+export function MobileNav({
+  items,
+  brand,
+  activeHref,
+  footer,
+  actions,
+  className,
+}: MobileNavProps) {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -58,14 +73,17 @@ export function MobileNav({ items, brand, activeHref, footer, className }: Mobil
       {/* Collapsed top bar — replaces the desktop <aside> below `lg`. */}
       <div className="flex h-14 items-center justify-between border-b bg-sidebar px-4 text-sidebar-foreground lg:hidden">
         <div className="flex items-center gap-2 font-semibold">{brand}</div>
-        <button
-          type="button"
-          onClick={open}
-          aria-label="Open menu"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          {actions}
+          <button
+            type="button"
+            onClick={open}
+            aria-label="Open menu"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       <dialog
@@ -97,7 +115,7 @@ export function MobileNav({ items, brand, activeHref, footer, className }: Mobil
         </div>
 
         <nav aria-label="Main" className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-          {items.map(({ href, label, icon: Icon }) => (
+          {items.map(({ href, label, icon }) => (
             <Link
               key={href}
               // Shared across apps with different route tables, so typedRoutes
@@ -108,7 +126,7 @@ export function MobileNav({ items, brand, activeHref, footer, className }: Mobil
               aria-current={activeHref === href ? "page" : undefined}
               className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground"
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              {icon}
               {label}
             </Link>
           ))}
