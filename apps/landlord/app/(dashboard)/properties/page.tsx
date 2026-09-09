@@ -1,6 +1,10 @@
+import Link from "next/link";
+
 import { getSession } from "@/lib/session";
 import { listProperties } from "@/services/property.service";
 import { Card, CardContent } from "@repo/ui";
+
+import { PropertyForm } from "./property-form";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +23,14 @@ export default async function PropertiesPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
-      <header className="space-y-1">
-        <h1 className="text-3xl font-semibold">Properties</h1>
-        <p className="text-muted-foreground">{total} property(ies) in this organization.</p>
+      <header className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold">Properties</h1>
+          <p className="text-muted-foreground">{total} property(ies) in this organization.</p>
+        </div>
       </header>
+
+      <PropertyForm />
 
       {rows.length === 0 ? (
         <Card>
@@ -45,7 +53,11 @@ export default async function PropertiesPage() {
               <tbody>
                 {rows.map((property) => (
                   <tr key={property.id} className="border-b last:border-0">
-                    <td className="px-4 py-3 font-medium">{property.name}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <Link href={`/properties/${property.id}`} className="hover:underline">
+                        {property.name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {TYPE_LABELS[property.type] ?? property.type}
                     </td>
