@@ -31,7 +31,7 @@ function announcePublished(organizationId: string, a: { title: string; body: str
     type: "announcement_published",
     title: a.title,
     body: excerpt(a.body),
-    deepLink: "/",
+    deepLink: "/announcements",
   });
 }
 

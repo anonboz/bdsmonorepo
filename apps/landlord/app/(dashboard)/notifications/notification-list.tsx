@@ -27,9 +27,12 @@ export type NotificationListRow = {
 
 const TYPE_LABELS: Record<NotificationType, string> = {
   invoice_created: "Invoice",
+  invoice_status_changed: "Invoice",
   lease_created: "Lease",
+  lease_status_changed: "Lease",
   announcement_published: "Announcement",
   maintenance_request_created: "Maintenance request",
+  maintenance_request_updated: "Maintenance request",
 };
 
 export function NotificationList({

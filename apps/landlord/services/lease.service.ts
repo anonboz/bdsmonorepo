@@ -4,11 +4,11 @@
 
 import { db } from "@repo/db";
 import type { LeaseStatus } from "@repo/db";
-import { NotFoundError } from "@repo/shared";
+import { ConflictError, NotFoundError } from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
-import { formatNotificationDate, notifyUsers } from "./notification.service";
+import { formatNotificationDate, notifyLeaseTenants, notifyUsers } from "./notification.service";
 
 // ── Create ───────────────────────────────────────────────────────────────────
 
@@ -148,4 +148,62 @@ export async function getLease(session: SessionContext, leaseId: string) {
     throw new Error("LEASE_NOT_FOUND");
   }
   return lease;
+}
+
+// ── Status transitions ───────────────────────────────────────────────────────
+// draft → active (signing), active → ended | terminated | renewed. Anything
+// else is a conflict. Tenants are told in the same transaction as the write.
+
+const LEASE_TRANSITIONS: Record<LeaseStatus, readonly LeaseStatus[]> = {
+  draft: ["active"],
+  active: ["ended", "terminated", "renewed"],
+  ended: [],
+  terminated: [],
+  renewed: [],
+};
+
+const setLeaseStatusSchema = z.object({
+  status: z.enum(["active", "ended", "terminated", "renewed"]),
+});
+
+const LEASE_STATUS_TITLES: Record<z.infer<typeof setLeaseStatusSchema>["status"], string> = {
+  active: "Your lease is now active",
+  ended: "Your lease has ended",
+  terminated: "Your lease has been terminated",
+  renewed: "Your lease has been renewed",
+};
+
+export async function setLeaseStatus(session: SessionContext, leaseId: string, raw: unknown) {
+  const { status } = setLeaseStatusSchema.parse(raw);
+
+  const lease = await db.lease.findUnique({
+    where: { id: leaseId },
+    include: { unit: { select: { label: true, property: { select: { name: true } } } } },
+  });
+  // Assert ownership AFTER findUnique — the load-bearing multi-tenant check.
+  if (!lease || lease.organizationId !== session.organizationId) {
+    throw new NotFoundError("Lease not found");
+  }
+  if (lease.status === status) return lease;
+  if (!LEASE_TRANSITIONS[lease.status].includes(status)) {
+    throw new ConflictError(`A ${lease.status} lease can't be marked ${status}`);
+  }
+
+  return db.$transaction(async (tx) => {
+    const updated = await tx.lease.update({
+      where: { id: lease.id },
+      data: {
+        status,
+        // Activation is the signing event; keep an existing signedAt untouched.
+        ...(status === "active" && !lease.signedAt ? { signedAt: new Date() } : {}),
+      },
+    });
+    await notifyLeaseTenants(tx, lease.id, {
+      type: "lease_status_changed",
+      title: LEASE_STATUS_TITLES[status],
+      body: `${lease.unit.property.name} · ${lease.unit.label} — ${formatNotificationDate(lease.startDate)} – ${formatNotificationDate(lease.endDate)}`,
+      deepLink: `/my-leases/${lease.id}`,
+    });
+    return updated;
+  });
 }

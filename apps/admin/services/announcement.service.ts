@@ -8,6 +8,7 @@ import { ForbiddenError, NotFoundError } from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
+import { notifyAllTenants } from "./notification.service";
 
 function assertAdmin(session: SessionContext): void {
   if (session.role !== "admin") throw new ForbiddenError("Admin access required");
@@ -22,6 +23,22 @@ export type SystemAnnouncementRow = {
   expiresAt: string | null; // ISO
   createdAt: string; // ISO
 };
+
+/** Notification bodies are one-liners; announcements can be 5000 chars. */
+function excerpt(body: string, max = 160): string {
+  const oneLine = body.replace(/\s+/g, " ").trim();
+  return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
+}
+
+/** Fan a just-published system announcement out to every current tenant. */
+function announcePublished(a: { title: string; body: string }) {
+  return notifyAllTenants(db, {
+    type: "announcement_published",
+    title: a.title,
+    body: excerpt(a.body),
+    deepLink: "/announcements",
+  });
+}
 
 function toRow(a: {
   id: string;
@@ -76,6 +93,7 @@ export async function createSystemAnnouncement(session: SessionContext, raw: unk
       expiresAt: input.expiresAt ?? null,
     },
   });
+  if (created.publishedAt) await announcePublished(created);
   return toRow(created);
 }
 
@@ -100,6 +118,9 @@ export async function setSystemAnnouncementPublished(
     where: { id },
     data: { publishedAt: published ? (existing.publishedAt ?? new Date()) : null },
   });
+  // Only the draft → published transition notifies; re-publishing an already
+  // published row (a no-op) or unpublishing never pings tenants.
+  if (published && existing.publishedAt == null) await announcePublished(updated);
   return toRow(updated);
 }
 

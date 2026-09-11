@@ -41,9 +41,12 @@ const vi: Messages = {
     bellUnread: "Thông báo, {count} chưa đọc",
     types: {
       invoice_created: "Hóa đơn mới",
+      invoice_status_changed: "Cập nhật hóa đơn",
       lease_created: "Hợp đồng mới",
+      lease_status_changed: "Cập nhật hợp đồng",
       announcement_published: "Thông báo chung",
       maintenance_request_created: "Yêu cầu bảo trì",
+      maintenance_request_updated: "Cập nhật yêu cầu",
     },
   },
   leases: {

@@ -41,9 +41,12 @@ const zh: Messages = {
     bellUnread: "通知，{count} 条未读",
     types: {
       invoice_created: "新账单",
+      invoice_status_changed: "账单更新",
       lease_created: "新租约",
+      lease_status_changed: "租约更新",
       announcement_published: "公告",
       maintenance_request_created: "维修请求",
+      maintenance_request_updated: "请求更新",
     },
   },
   leases: {

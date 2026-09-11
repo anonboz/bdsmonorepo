@@ -38,9 +38,12 @@ export type Messages = {
     /** Keyed by NotificationType from @repo/shared. */
     types: {
       invoice_created: string;
+      invoice_status_changed: string;
       lease_created: string;
+      lease_status_changed: string;
       announcement_published: string;
       maintenance_request_created: string;
+      maintenance_request_updated: string;
     };
   };
   leases: {
@@ -229,9 +232,12 @@ const en: Messages = {
     bellUnread: "Notifications, {count} unread",
     types: {
       invoice_created: "New bill",
+      invoice_status_changed: "Bill update",
       lease_created: "New lease",
+      lease_status_changed: "Lease update",
       announcement_published: "Announcement",
       maintenance_request_created: "Maintenance request",
+      maintenance_request_updated: "Request update",
     },
   },
   leases: {

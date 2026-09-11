@@ -6,6 +6,7 @@
 // session.organizationId ONLY. Money is integer cents.
 
 import { db } from "@repo/db";
+import type { InvoiceStatus } from "@repo/db";
 import { ConflictError, formatMoney, NotFoundError } from "@repo/shared";
 import { z } from "zod";
 
@@ -176,5 +177,71 @@ export async function generateInvoice(session: SessionContext, raw: unknown) {
     });
 
     return invoice;
+  });
+}
+
+// ── Status transitions ───────────────────────────────────────────────────────
+// Manual bookkeeping until payments are wired up: staff mark an invoice
+// partially paid / paid / overdue / void. Paid and void are terminal. Tenants
+// on the lease are told in the same transaction as the write.
+
+const INVOICE_TRANSITIONS: Record<InvoiceStatus, readonly InvoiceStatus[]> = {
+  draft: ["open", "void"],
+  open: ["partially_paid", "paid", "overdue", "void"],
+  partially_paid: ["paid", "overdue", "void"],
+  overdue: ["partially_paid", "paid", "void"],
+  paid: [],
+  void: [],
+};
+
+const setInvoiceStatusSchema = z.object({
+  status: z.enum(["open", "partially_paid", "paid", "overdue", "void"]),
+});
+
+const INVOICE_STATUS_TITLES: Record<z.infer<typeof setInvoiceStatusSchema>["status"], string> = {
+  open: "Invoice issued",
+  partially_paid: "Partial payment recorded",
+  paid: "Invoice paid",
+  overdue: "Invoice overdue",
+  void: "Invoice cancelled",
+};
+
+export async function setInvoiceStatus(session: SessionContext, invoiceId: string, raw: unknown) {
+  const { status } = setInvoiceStatusSchema.parse(raw);
+
+  const invoice = await db.rentInvoice.findUnique({
+    where: { id: invoiceId },
+    include: {
+      lease: {
+        select: {
+          id: true,
+          unit: { select: { label: true, property: { select: { name: true } } } },
+        },
+      },
+    },
+  });
+  // Assert ownership AFTER findUnique — the load-bearing multi-tenant check.
+  if (!invoice || invoice.organizationId !== session.organizationId) {
+    throw new NotFoundError("Invoice not found");
+  }
+  if (invoice.status === status) return invoice;
+  if (!INVOICE_TRANSITIONS[invoice.status].includes(status)) {
+    throw new ConflictError(
+      `A ${invoice.status.replace("_", " ")} invoice can't be marked ${status.replace("_", " ")}`,
+    );
+  }
+
+  return db.$transaction(async (tx) => {
+    const updated = await tx.rentInvoice.update({
+      where: { id: invoice.id },
+      data: { status },
+    });
+    await notifyLeaseTenants(tx, invoice.lease.id, {
+      type: "invoice_status_changed",
+      title: `${INVOICE_STATUS_TITLES[status]}: ${formatMoney(invoice.amount)}`,
+      body: `${invoice.lease.unit.property.name} · ${invoice.lease.unit.label} — due ${formatNotificationDate(invoice.dueDate)}`,
+      deepLink: `/my-bills/${invoice.id}`,
+    });
+    return updated;
   });
 }

@@ -2,7 +2,10 @@ import { format } from "date-fns";
 
 import { getSession } from "@/lib/session";
 import { listOrgMaintenanceRequests } from "@/services/maintenance.service";
+import type { OrgRole } from "@repo/db";
 import { Card, CardContent } from "@repo/ui";
+
+import { StatusSelect } from "../_components/status-select";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +25,36 @@ const PRIORITY_STYLES: Record<string, string> = {
   emergency: "bg-destructive/15 text-destructive",
 };
 
+const EDIT_ROLES: readonly OrgRole[] = ["owner", "landlord", "agent"];
+
+// Mirrors the transition table in maintenance.service.
+const NEXT: Record<string, readonly { value: string; label: string }[]> = {
+  open: [
+    { value: "triaged", label: "Triaged" },
+    { value: "assigned", label: "Assigned" },
+    { value: "in_progress", label: "In progress" },
+    { value: "cancelled", label: "Cancelled" },
+  ],
+  triaged: [
+    { value: "assigned", label: "Assigned" },
+    { value: "in_progress", label: "In progress" },
+    { value: "cancelled", label: "Cancelled" },
+  ],
+  assigned: [
+    { value: "in_progress", label: "In progress" },
+    { value: "completed", label: "Completed" },
+    { value: "cancelled", label: "Cancelled" },
+  ],
+  in_progress: [
+    { value: "completed", label: "Completed" },
+    { value: "cancelled", label: "Cancelled" },
+  ],
+};
+
 export default async function MaintenancePage() {
   const session = await getSession();
   const { rows, open } = await listOrgMaintenanceRequests(session);
+  const canEdit = EDIT_ROLES.includes(session.role);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
@@ -52,6 +82,7 @@ export default async function MaintenancePage() {
                   <th className="px-4 py-3 font-medium">Priority</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Reported</th>
+                  {canEdit && <th className="px-4 py-3 font-medium sr-only">Update</th>}
                 </tr>
               </thead>
               <tbody>
@@ -96,6 +127,16 @@ export default async function MaintenancePage() {
                     <td className="px-4 py-3 text-muted-foreground">
                       {format(r.createdAt, "MMM d, yyyy")}
                     </td>
+                    {canEdit && (
+                      <td className="px-4 py-3">
+                        <StatusSelect
+                          aria-label="Change request status"
+                          endpoint={`/api/maintenance-requests/${r.id}`}
+                          current={r.status}
+                          options={NEXT[r.status] ?? []}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

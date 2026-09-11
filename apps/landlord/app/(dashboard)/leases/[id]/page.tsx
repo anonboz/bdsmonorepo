@@ -10,6 +10,7 @@ import type { OrgRole } from "@repo/db";
 import { formatMoney } from "@repo/shared";
 import { buttonVariants, Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
 
+import { StatusSelect } from "../../_components/status-select";
 import { InspectionManager } from "./inspection-manager";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,39 @@ const INVOICE_STATUS_STYLES: Record<string, string> = {
 };
 
 const EDIT_ROLES: readonly OrgRole[] = ["owner", "landlord", "agent"];
+
+// Mirrors the transition tables in lease.service / invoice.service.
+const LEASE_NEXT: Record<string, readonly { value: string; label: string }[]> = {
+  draft: [{ value: "active", label: "Activate" }],
+  active: [
+    { value: "ended", label: "Mark ended" },
+    { value: "terminated", label: "Terminate" },
+    { value: "renewed", label: "Mark renewed" },
+  ],
+};
+
+const INVOICE_NEXT: Record<string, readonly { value: string; label: string }[]> = {
+  draft: [
+    { value: "open", label: "Issue" },
+    { value: "void", label: "Void" },
+  ],
+  open: [
+    { value: "partially_paid", label: "Partially paid" },
+    { value: "paid", label: "Paid" },
+    { value: "overdue", label: "Overdue" },
+    { value: "void", label: "Void" },
+  ],
+  partially_paid: [
+    { value: "paid", label: "Paid" },
+    { value: "overdue", label: "Overdue" },
+    { value: "void", label: "Void" },
+  ],
+  overdue: [
+    { value: "partially_paid", label: "Partially paid" },
+    { value: "paid", label: "Paid" },
+    { value: "void", label: "Void" },
+  ],
+};
 
 export default async function LeaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,13 +99,23 @@ export default async function LeaseDetailPage({ params }: { params: Promise<{ id
           </h1>
           <p className="text-muted-foreground">{lease.unit.property.city}</p>
         </div>
-        <span
-          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
-            STATUS_STYLES[lease.status] ?? "bg-muted text-muted-foreground"
-          }`}
-        >
-          {lease.status}
-        </span>
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+              STATUS_STYLES[lease.status] ?? "bg-muted text-muted-foreground"
+            }`}
+          >
+            {lease.status}
+          </span>
+          {canEdit && (
+            <StatusSelect
+              aria-label="Change lease status"
+              endpoint={`/api/leases/${lease.id}`}
+              current={lease.status}
+              options={LEASE_NEXT[lease.status] ?? []}
+            />
+          )}
+        </div>
       </header>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -143,6 +187,7 @@ export default async function LeaseDetailPage({ params }: { params: Promise<{ id
                     <th className="px-4 py-3 font-medium">Due</th>
                     <th className="px-4 py-3 font-medium">Amount</th>
                     <th className="px-4 py-3 font-medium">Status</th>
+                    {canEdit && <th className="px-4 py-3 font-medium sr-only">Update</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -164,6 +209,16 @@ export default async function LeaseDetailPage({ params }: { params: Promise<{ id
                           {inv.status.replace("_", " ")}
                         </span>
                       </td>
+                      {canEdit && (
+                        <td className="px-4 py-3">
+                          <StatusSelect
+                            aria-label="Change invoice status"
+                            endpoint={`/api/invoices/${inv.id}`}
+                            current={inv.status}
+                            options={INVOICE_NEXT[inv.status] ?? []}
+                          />
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
