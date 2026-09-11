@@ -5,7 +5,7 @@ export type Messages = {
   brand: string;
   role: string;
   signOut: string;
-  nav: { home: string; leases: string; bills: string; requests: string; notifications: string };
+  nav: { home: string; leases: string; bills: string; requests: string };
   home: {
     welcome: string;
     subtitle: string;
@@ -197,7 +197,6 @@ const en: Messages = {
     leases: "My leases",
     bills: "My bills",
     requests: "Requests",
-    notifications: "Notifications",
   },
   home: {
     welcome: "Welcome, {name}",

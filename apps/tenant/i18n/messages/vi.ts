@@ -9,7 +9,6 @@ const vi: Messages = {
     leases: "Hợp đồng thuê",
     bills: "Hóa đơn",
     requests: "Yêu cầu",
-    notifications: "Thông báo",
   },
   home: {
     welcome: "Xin chào, {name}",

@@ -1,4 +1,4 @@
-import { Bell, FileText, Home, Receipt, Wrench } from "lucide-react";
+import { FileText, Home, Receipt, Wrench } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -15,7 +15,6 @@ const NAV = [
   { href: "/my-leases", key: "leases", icon: FileText },
   { href: "/my-bills", key: "bills", icon: Receipt },
   { href: "/my-tickets", key: "requests", icon: Wrench },
-  { href: "/notifications", key: "notifications", icon: Bell },
 ] as const;
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

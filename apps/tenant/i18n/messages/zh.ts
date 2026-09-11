@@ -9,7 +9,6 @@ const zh: Messages = {
     leases: "我的租约",
     bills: "我的账单",
     requests: "维修请求",
-    notifications: "通知",
   },
   home: {
     welcome: "欢迎，{name}",
