@@ -35,7 +35,17 @@ const globalForPrisma = globalThis as unknown as {
 // (Supabase): node-pg v8.13+ upgrades `sslmode=require` to verify-full and
 // rejects the self-signed chain, so we strip it and set ssl explicitly.
 function buildPoolConfig() {
-  const url = new URL(process.env.DATABASE_URL!);
+  const raw = process.env.DATABASE_URL;
+  if (!raw) {
+    // Surface the real cause. Without this, Next's build-time "Collecting page
+    // data" step evaluates this module and dies with an opaque
+    // `TypeError: Invalid URL` from the line below.
+    throw new Error(
+      "[@repo/db] DATABASE_URL is not set. Add it to .env locally, or to the " +
+        "project's environment variables on Vercel (it is needed at build time too).",
+    );
+  }
+  const url = new URL(raw);
   const sslmode = url.searchParams.get("sslmode");
   url.searchParams.delete("sslmode");
   url.searchParams.delete("schema"); // Prisma-only param; pg doesn't understand it
