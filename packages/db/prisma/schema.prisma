@@ -217,6 +217,26 @@ model Organization {
   utilityRates        OrgUtilityRate[]
   announcements       Announcement[]
   meterReadings       MeterReading[]
+  paymentSettings     OrgPaymentSettings?
+}
+
+/// How an org accepts rent payments, shown to tenants on a bill: which methods
+/// are on, cash instructions, and the receiving bank account used to render a
+/// VietQR transfer code. One row per org; no row means cash only.
+model OrgPaymentSettings {
+  id                 String   @id @default(cuid())
+  organizationId     String   @unique
+  acceptCash         Boolean  @default(true)
+  acceptBankTransfer Boolean  @default(false)
+  cashInstructions   String?
+  bankBin            String? // NAPAS bank identifier, e.g. "970436" (Vietcombank)
+  bankName           String?
+  bankAccountNo      String?
+  bankAccountName    String? // as printed on the account; uppercase ASCII for VietQR
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 /// Which users belong to which org, and in what role. Staff-side membership;

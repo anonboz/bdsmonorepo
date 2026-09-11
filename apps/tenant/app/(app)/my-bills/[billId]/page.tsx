@@ -2,12 +2,15 @@ import { format } from "date-fns";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 
 import { getLocale, getTranslations } from "@/i18n/server";
 import { getSession } from "@/lib/session";
 import { getMyBill, type MyBillDetail } from "@/services/bill.service";
 import { NotFoundError, formatMoney } from "@repo/shared";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@repo/ui";
+
+import { PayBillCard } from "./pay-bill-card";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +47,17 @@ export default async function BillDetailPage({ params }: { params: Promise<{ bil
   }
 
   const money = (cents: number) => formatMoney(cents, locale);
+  const tPay = await getTranslations("bills.detail.pay");
+
+  // Only an open balance is payable; draft/void/paid bills show no pay card.
+  const payable =
+    bill.outstanding > 0 && ["open", "partially_paid", "overdue"].includes(bill.status);
+  const bank = bill.paymentOptions.bankTransfer;
+  // QR image is rendered here (edge) from the service-built VietQR payload.
+  const qrDataUrl =
+    payable && bank
+      ? await QRCode.toDataURL(bank.qrPayload, { margin: 1, width: 352, errorCorrectionLevel: "M" })
+      : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-6 py-10">
@@ -176,6 +190,34 @@ export default async function BillDetailPage({ params }: { params: Promise<{ bil
           </dl>
         </CardContent>
       </Card>
+
+      {payable && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">{tPay("title")}</CardTitle>
+            <CardDescription>
+              {tPay("subtitle", { amount: money(bill.outstanding) })}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <PayBillCard
+              cash={bill.paymentOptions.cash}
+              bankTransfer={
+                bank && qrDataUrl
+                  ? {
+                      bankName: bank.bankName,
+                      accountNo: bank.accountNo,
+                      accountName: bank.accountName,
+                      amountLabel: money(bill.outstanding),
+                      message: bank.message,
+                      qrDataUrl,
+                    }
+                  : null
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

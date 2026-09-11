@@ -50,6 +50,18 @@ async function main() {
     data: { name: "Maple Property Group", slug: "maple" },
   });
   const cedar = await db.organization.create({ data: { name: "Cedar Rentals", slug: "cedar" } });
+  await db.orgPaymentSettings.create({
+    data: {
+      organizationId: org.id,
+      acceptCash: true,
+      acceptBankTransfer: true,
+      cashInstructions: "Pay at the building office, Mon–Fri 9am–5pm.",
+      bankBin: "970436",
+      bankName: "Vietcombank",
+      bankAccountNo: "0123456789",
+      bankAccountName: "MAPLE PROPERTY GROUP",
+    },
+  });
 
   // Staff (org members) + tenants (no membership — they relate via Tenancy).
   const landlord = await user("landlord@test.com", "Otto Landlord");

@@ -3,8 +3,10 @@
 // Tenancy rows (Tenancy.userId), cross-org, scoping by session.userId ONLY.
 // Money is integer cents.
 
+import { format } from "date-fns";
+
 import { db } from "@repo/db";
-import { NotFoundError } from "@repo/shared";
+import { buildVietQrPayload, NotFoundError, sanitizeTransferMessage } from "@repo/shared";
 
 import type { SessionContext } from "@/lib/session";
 
@@ -90,12 +92,33 @@ export type MyBillLineItem = {
   reading: MyBillLineItemReading | null; // the meter reading behind this charge, if any
 };
 
+/** How the tenant can settle this bill, from the org's payment settings. */
+export type MyBillPaymentOptions = {
+  cash: { instructions: string | null } | null;
+  bankTransfer: {
+    bankName: string;
+    accountNo: string;
+    accountName: string;
+    amountVnd: number; // whole đồng for the transfer (outstanding balance)
+    message: string; // preset transfer reference, sanitized for VietQR
+    qrPayload: string; // EMVCo/VietQR string; render as a QR image at the edge
+  } | null;
+};
+
 export type MyBillDetail = MyBill & {
   addressLine1: string;
   region: string | null;
   lineItems: MyBillLineItem[];
   payments: MyBillPayment[];
+  paymentOptions: MyBillPaymentOptions;
 };
+
+/** "RENT APT 1A 092026 3TWZ" — unit, billing month, and a short bill id. */
+function transferMessage(unitLabel: string, periodStart: Date, billId: string): string {
+  return sanitizeTransferMessage(
+    `RENT ${unitLabel} ${format(periodStart, "MMyyyy")} ${billId.slice(-4)}`,
+  );
+}
 
 export async function getMyBill(session: SessionContext, billId: string): Promise<MyBillDetail> {
   const invoice = await db.rentInvoice.findUnique({
@@ -124,6 +147,7 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
         },
       },
       payments: { orderBy: { createdAt: "desc" } },
+      organization: { select: { paymentSettings: true } },
     },
   });
 
@@ -138,6 +162,35 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
     .reduce((sum, p) => sum + p.amount, 0);
 
   const prop = invoice.lease.unit.property;
+  const outstanding = Math.max(invoice.amount - paid, 0);
+
+  // No settings row → cash only (the platform default), no instructions.
+  const ps = invoice.organization.paymentSettings;
+  const bank =
+    ps?.acceptBankTransfer && ps.bankBin && ps.bankAccountNo && ps.bankAccountName
+      ? { bin: ps.bankBin, no: ps.bankAccountNo, name: ps.bankAccountName }
+      : null;
+  const amountVnd = Math.round(outstanding / 100);
+  const message = transferMessage(invoice.lease.unit.label, invoice.periodStart, invoice.id);
+  const paymentOptions: MyBillPaymentOptions = {
+    cash: !ps || ps.acceptCash ? { instructions: ps?.cashInstructions ?? null } : null,
+    bankTransfer: bank
+      ? {
+          bankName: ps?.bankName ?? "",
+          accountNo: bank.no,
+          accountName: bank.name,
+          amountVnd,
+          message,
+          qrPayload: buildVietQrPayload({
+            bankBin: bank.bin,
+            accountNo: bank.no,
+            amountVnd,
+            message,
+          }),
+        }
+      : null,
+  };
+
   return {
     id: invoice.id,
     periodStart: invoice.periodStart,
@@ -145,7 +198,7 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
     dueDate: invoice.dueDate,
     amount: invoice.amount,
     paid,
-    outstanding: Math.max(invoice.amount - paid, 0),
+    outstanding,
     status: invoice.status,
     property: prop.name,
     unitLabel: invoice.lease.unit.label,
@@ -195,5 +248,6 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
       paidAt: p.paidAt,
       createdAt: p.createdAt,
     })),
+    paymentOptions,
   };
 }

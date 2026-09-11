@@ -122,4 +122,5 @@ export type {
   FeatureFlag,
   AuditLog,
   MeterReading,
+  OrgPaymentSettings,
 } from "@prisma/client";

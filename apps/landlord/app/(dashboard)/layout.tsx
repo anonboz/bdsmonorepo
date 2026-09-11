@@ -6,6 +6,7 @@ import {
   Gauge,
   Home,
   Image,
+  Landmark,
   Megaphone,
   Receipt,
   Wrench,
@@ -27,6 +28,7 @@ const NAV = [
   { href: "/invoices", label: "Generate invoice", icon: Receipt },
   { href: "/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/utility-rates", label: "Utility rates", icon: Gauge },
+  { href: "/payment-settings", label: "Payment settings", icon: Landmark },
   { href: "/announcements", label: "Announcements", icon: Megaphone },
   { href: "/notifications", label: "Notifications", icon: Bell },
 ] as const;

@@ -136,6 +136,27 @@ export type Messages = {
         failed: string;
         refunded: string;
       };
+      pay: {
+        title: string;
+        subtitle: string;
+        noMethods: string;
+        cash: string;
+        cashDefault: string;
+        bankTransfer: string;
+        bank: string;
+        accountNo: string;
+        accountName: string;
+        amount: string;
+        message: string;
+        copy: string;
+        copied: string;
+        qrAlt: string;
+        scanHint: string;
+        card: string;
+        ewallet: string;
+        points: string;
+        comingSoon: string;
+      };
     };
   };
   tickets: {
@@ -346,6 +367,27 @@ const en: Messages = {
         succeeded: "Succeeded",
         failed: "Failed",
         refunded: "Refunded",
+      },
+      pay: {
+        title: "Pay this bill",
+        subtitle: "Outstanding: {amount}. Choose a payment method.",
+        noMethods: "Your landlord hasn't set up payment methods yet. Please contact them.",
+        cash: "Cash",
+        cashDefault: "Pay in cash to your landlord or property manager.",
+        bankTransfer: "Bank transfer",
+        bank: "Bank",
+        accountNo: "Account number",
+        accountName: "Account holder",
+        amount: "Amount",
+        message: "Transfer message",
+        copy: "Copy",
+        copied: "Copied",
+        qrAlt: "VietQR code for this bill",
+        scanHint: "Scan with your banking app. Amount and message are filled in.",
+        card: "Card",
+        ewallet: "E-wallet",
+        points: "Points",
+        comingSoon: "Coming soon",
       },
     },
   },
