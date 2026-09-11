@@ -33,6 +33,8 @@ async function reset() {
   await db.property.deleteMany();
   await db.orgMembership.deleteMany();
   await db.notification.deleteMany();
+  await db.announcement.deleteMany(); // system rows have no org, so no cascade
+  await db.paymentMethodCatalog.deleteMany();
   await db.document.deleteMany();
   await db.auditLog.deleteMany();
   await db.featureFlag.deleteMany();
