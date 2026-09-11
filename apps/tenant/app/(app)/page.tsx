@@ -20,10 +20,11 @@ export default async function TenantHome() {
   const session = await getSession();
   const [{ total }, announcements] = await Promise.all([
     listMyLeases(session),
-    listMyAnnouncements(session, { limit: 3 }),
+    listMyAnnouncements(session, { limit: 1 }),
   ]);
   const t = await getTranslations("home");
   const ta = await getTranslations("announcements");
+  const latest = announcements[0];
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
@@ -35,33 +36,37 @@ export default async function TenantHome() {
       </header>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Megaphone className="h-5 w-5 text-primary" />
             {ta("title")}
           </CardTitle>
+          <Link
+            href="/announcements"
+            className="shrink-0 text-sm font-medium text-primary hover:underline"
+          >
+            {ta("viewAll")}
+          </Link>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {announcements.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{ta("empty")}</p>
+        <CardContent>
+          {latest ? (
+            <Link href="/announcements" className="flex items-center gap-2">
+              <span
+                className={
+                  latest.kind === "system"
+                    ? "inline-flex shrink-0 items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
+                    : "inline-flex shrink-0 items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+                }
+              >
+                {latest.kind === "system" ? ta("system") : latest.source}
+              </span>
+              <span className="truncate text-sm font-medium">{latest.title}</span>
+              <span className="hidden min-w-0 truncate text-sm text-muted-foreground sm:inline">
+                {latest.body}
+              </span>
+            </Link>
           ) : (
-            announcements.map((a) => (
-              <div key={a.id} className="border-b pb-3 last:border-0 last:pb-0">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={
-                      a.kind === "system"
-                        ? "inline-flex shrink-0 items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
-                        : "inline-flex shrink-0 items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-                    }
-                  >
-                    {a.kind === "system" ? ta("system") : a.source}
-                  </span>
-                  <h3 className="truncate text-sm font-medium">{a.title}</h3>
-                </div>
-                <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{a.body}</p>
-              </div>
-            ))
+            <p className="text-sm text-muted-foreground">{ta("empty")}</p>
           )}
         </CardContent>
       </Card>

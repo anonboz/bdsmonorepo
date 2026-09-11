@@ -21,8 +21,10 @@ export type Messages = {
   };
   announcements: {
     title: string;
+    subtitle: string;
     empty: string;
     system: string;
+    viewAll: string;
   };
   notifications: {
     title: string;
@@ -212,8 +214,10 @@ const en: Messages = {
   },
   announcements: {
     title: "Announcements",
+    subtitle: "Updates from the platform and your landlords.",
     empty: "No announcements right now.",
     system: "System",
+    viewAll: "View all",
   },
   notifications: {
     title: "Notifications",

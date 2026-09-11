@@ -26,8 +26,10 @@ const zh: Messages = {
   },
   announcements: {
     title: "公告",
+    subtitle: "来自平台和您房东的更新。",
     empty: "暂无公告。",
     system: "系统",
+    viewAll: "查看全部",
   },
   notifications: {
     title: "通知",

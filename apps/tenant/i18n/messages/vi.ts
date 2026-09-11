@@ -26,8 +26,10 @@ const vi: Messages = {
   },
   announcements: {
     title: "Thông báo",
+    subtitle: "Cập nhật từ nền tảng và chủ nhà của bạn.",
     empty: "Hiện không có thông báo nào.",
     system: "Hệ thống",
+    viewAll: "Xem tất cả",
   },
   notifications: {
     title: "Thông báo",
