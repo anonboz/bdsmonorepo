@@ -46,6 +46,18 @@ async function main() {
   const user = (email: string, name: string) =>
     db.user.create({ data: { email, name, passwordHash } });
 
+  // Platform payment method catalog (admin-managed): bank transfer + cash on.
+  await db.paymentMethodCatalog.createMany({
+    data: [
+      { key: "bank_transfer", enabled: true, sortOrder: 0 },
+      { key: "cash", enabled: true, sortOrder: 1 },
+      { key: "card", enabled: false, sortOrder: 2 },
+      { key: "ewallet", enabled: false, sortOrder: 3 },
+      { key: "points", enabled: false, sortOrder: 4 },
+    ],
+    skipDuplicates: true,
+  });
+
   const org = await db.organization.create({
     data: { name: "Maple Property Group", slug: "maple" },
   });
@@ -53,8 +65,7 @@ async function main() {
   await db.orgPaymentSettings.create({
     data: {
       organizationId: org.id,
-      acceptCash: true,
-      acceptBankTransfer: true,
+      acceptedMethods: ["bank_transfer", "cash"],
       cashInstructions: "Pay at the building office, Mon–Fri 9am–5pm.",
       bankBin: "970436",
       bankName: "Vietcombank",

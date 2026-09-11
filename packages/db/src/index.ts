@@ -123,4 +123,5 @@ export type {
   AuditLog,
   MeterReading,
   OrgPaymentSettings,
+  PaymentMethodCatalog,
 } from "@prisma/client";

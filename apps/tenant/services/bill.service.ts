@@ -6,9 +6,20 @@
 import { format } from "date-fns";
 
 import { db } from "@repo/db";
-import { buildVietQrPayload, NotFoundError, sanitizeTransferMessage } from "@repo/shared";
+import {
+  buildVietQrPayload,
+  ConflictError,
+  formatMoney,
+  isPaymentMethodKey,
+  MANUAL_PAYMENT_METHODS,
+  NotFoundError,
+  sanitizeTransferMessage,
+  type PaymentMethodKey,
+} from "@repo/shared";
+import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
+import { notifyUsers } from "./notification.service";
 
 export type MyBill = {
   id: string;
@@ -92,8 +103,13 @@ export type MyBillLineItem = {
   reading: MyBillLineItemReading | null; // the meter reading behind this charge, if any
 };
 
-/** How the tenant can settle this bill, from the org's payment settings. */
+/**
+ * How the tenant can settle this bill: the admin-enabled catalog (in order)
+ * intersected with what the org accepts. `cash` / `bankTransfer` are null when
+ * not offered; other enabled methods render as "coming soon".
+ */
 export type MyBillPaymentOptions = {
+  methods: PaymentMethodKey[];
   cash: { instructions: string | null } | null;
   bankTransfer: {
     bankName: string;
@@ -103,7 +119,21 @@ export type MyBillPaymentOptions = {
     message: string; // preset transfer reference, sanitized for VietQR
     qrPayload: string; // EMVCo/VietQR string; render as a QR image at the edge
   } | null;
+  /** A tenant-reported payment awaiting landlord confirmation, if any. */
+  pendingPayment: { id: string; method: PaymentMethodKey; amount: number; createdAt: Date } | null;
 };
+
+const PAYABLE_STATUSES = new Set(["open", "partially_paid", "overdue"]);
+
+/** Admin-enabled catalog keys in display order. */
+async function enabledMethods(): Promise<PaymentMethodKey[]> {
+  const rows = await db.paymentMethodCatalog.findMany({
+    where: { enabled: true },
+    orderBy: { sortOrder: "asc" },
+    select: { key: true },
+  });
+  return rows.map((r) => r.key).filter(isPaymentMethodKey);
+}
 
 export type MyBillDetail = MyBill & {
   addressLine1: string;
@@ -164,16 +194,21 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
   const prop = invoice.lease.unit.property;
   const outstanding = Math.max(invoice.amount - paid, 0);
 
-  // No settings row → cash only (the platform default), no instructions.
+  // Offered = admin-enabled ∩ org-accepted (∩ configured, for bank transfer).
+  const methods = await enabledMethods();
   const ps = invoice.organization.paymentSettings;
+  const accepted = new Set(ps?.acceptedMethods ?? []);
+  const offers = (m: PaymentMethodKey) => methods.includes(m) && accepted.has(m);
   const bank =
-    ps?.acceptBankTransfer && ps.bankBin && ps.bankAccountNo && ps.bankAccountName
+    offers("bank_transfer") && ps?.bankBin && ps.bankAccountNo && ps.bankAccountName
       ? { bin: ps.bankBin, no: ps.bankAccountNo, name: ps.bankAccountName }
       : null;
+  const pending = invoice.payments.find((p) => p.status === "pending");
   const amountVnd = Math.round(outstanding / 100);
   const message = transferMessage(invoice.lease.unit.label, invoice.periodStart, invoice.id);
   const paymentOptions: MyBillPaymentOptions = {
-    cash: !ps || ps.acceptCash ? { instructions: ps?.cashInstructions ?? null } : null,
+    methods,
+    cash: offers("cash") ? { instructions: ps?.cashInstructions ?? null } : null,
     bankTransfer: bank
       ? {
           bankName: ps?.bankName ?? "",
@@ -189,6 +224,15 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
           }),
         }
       : null,
+    pendingPayment:
+      pending && isPaymentMethodKey(pending.method)
+        ? {
+            id: pending.id,
+            method: pending.method,
+            amount: pending.amount,
+            createdAt: pending.createdAt,
+          }
+        : null,
   };
 
   return {
@@ -250,4 +294,77 @@ export async function getMyBill(session: SessionContext, billId: string): Promis
     })),
     paymentOptions,
   };
+}
+
+// ── Report a payment (→ pending, landlord confirms) ──────────────────────────
+
+const reportSchema = z.object({ method: z.enum(MANUAL_PAYMENT_METHODS) });
+
+export async function reportMyPayment(session: SessionContext, billId: string, raw: unknown) {
+  const { method } = reportSchema.parse(raw);
+
+  const invoice = await db.rentInvoice.findUnique({
+    where: { id: billId },
+    include: {
+      lease: {
+        select: {
+          tenancies: { select: { userId: true } },
+          unit: { select: { label: true, property: { select: { name: true } } } },
+        },
+      },
+      payments: { select: { amount: true, status: true } },
+      organization: { select: { paymentSettings: { select: { acceptedMethods: true } } } },
+    },
+  });
+  // Assert the caller is a tenant on this bill's lease AFTER findUnique.
+  if (!invoice || !invoice.lease.tenancies.some((t) => t.userId === session.userId)) {
+    throw new NotFoundError("Bill not found");
+  }
+
+  const paid = invoice.payments
+    .filter((p) => p.status === "succeeded")
+    .reduce((sum, p) => sum + p.amount, 0);
+  const outstanding = Math.max(invoice.amount - paid, 0);
+  if (!PAYABLE_STATUSES.has(invoice.status) || outstanding <= 0) {
+    throw new ConflictError("This bill has no open balance");
+  }
+  if (invoice.payments.some((p) => p.status === "pending")) {
+    throw new ConflictError("A payment on this bill is already waiting for confirmation");
+  }
+  const [catalogRow, accepted] = [
+    await db.paymentMethodCatalog.findUnique({ where: { key: method }, select: { enabled: true } }),
+    invoice.organization.paymentSettings?.acceptedMethods ?? [],
+  ];
+  if (!catalogRow?.enabled || !accepted.includes(method)) {
+    throw new ConflictError("This payment method isn't available for this bill");
+  }
+
+  const unit = `${invoice.lease.unit.property.name} · ${invoice.lease.unit.label}`;
+  const methodLabel = method === "cash" ? "cash" : "bank transfer";
+
+  // Payment + staff notification in one transaction: nobody is pinged about a
+  // report that failed to save. Staff ids come from the org we just loaded.
+  return db.$transaction(async (tx) => {
+    const payment = await tx.payment.create({
+      data: { invoiceId: invoice.id, amount: outstanding, method, status: "pending" },
+    });
+    const staff = await tx.orgMembership.findMany({
+      where: {
+        organizationId: invoice.organizationId,
+        role: { in: ["owner", "landlord", "agent"] },
+      },
+      select: { userId: true },
+    });
+    await notifyUsers(
+      tx,
+      staff.map((m) => m.userId),
+      {
+        type: "payment_reported",
+        title: `Payment reported: ${formatMoney(outstanding)} by ${methodLabel}`,
+        body: `${unit} — ${session.name || "a tenant"} says this bill is paid. Confirm it under Payments.`,
+        deepLink: "/payments",
+      },
+    );
+    return { id: payment.id, status: payment.status, amount: payment.amount, method };
+  });
 }

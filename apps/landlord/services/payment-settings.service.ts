@@ -1,18 +1,25 @@
-// FAT service: how this org accepts rent payments. Tenants see these settings
-// on a bill: which methods are on, cash instructions, and the receiving bank
-// account used to render a VietQR transfer code. One row per org, upserted;
-// no row means "cash only, no instructions". Scopes by session.organizationId
-// ONLY.
+// FAT service: how this org accepts rent payments. The admin's catalog says
+// which methods exist platform-wide; the org picks the ones it accepts
+// (default: bank transfer) and, for bank transfer, enters the receiving
+// account used to render a VietQR code on tenants' bills. One row per org,
+// upserted. Scopes by session.organizationId ONLY.
 
 import { db } from "@repo/db";
-import { findVnBank } from "@repo/shared";
+import {
+  ConflictError,
+  findVnBank,
+  isPaymentMethodKey,
+  PAYMENT_METHOD_KEYS,
+  type PaymentMethodKey,
+} from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
 
 export type PaymentSettingsRow = {
-  acceptCash: boolean;
-  acceptBankTransfer: boolean;
+  /** Admin-enabled methods in display order — the only ones the org can pick. */
+  available: PaymentMethodKey[];
+  acceptedMethods: PaymentMethodKey[];
   cashInstructions: string | null;
   bankBin: string | null;
   bankName: string | null;
@@ -20,35 +27,33 @@ export type PaymentSettingsRow = {
   bankAccountName: string | null;
 };
 
-const DEFAULTS: PaymentSettingsRow = {
-  acceptCash: true,
-  acceptBankTransfer: false,
-  cashInstructions: null,
-  bankBin: null,
-  bankName: null,
-  bankAccountNo: null,
-  bankAccountName: null,
-};
+const DEFAULT_ACCEPTED: PaymentMethodKey[] = ["bank_transfer"];
 
-function toRow(s: PaymentSettingsRow): PaymentSettingsRow {
-  return {
-    acceptCash: s.acceptCash,
-    acceptBankTransfer: s.acceptBankTransfer,
-    cashInstructions: s.cashInstructions,
-    bankBin: s.bankBin,
-    bankName: s.bankName,
-    bankAccountNo: s.bankAccountNo,
-    bankAccountName: s.bankAccountName,
-  };
+async function availableMethods(): Promise<PaymentMethodKey[]> {
+  const rows = await db.paymentMethodCatalog.findMany({
+    where: { enabled: true },
+    orderBy: { sortOrder: "asc" },
+    select: { key: true },
+  });
+  return rows.map((r) => r.key).filter(isPaymentMethodKey);
 }
 
 // ── Read ─────────────────────────────────────────────────────────────────────
 
 export async function getPaymentSettings(session: SessionContext): Promise<PaymentSettingsRow> {
-  const row = await db.orgPaymentSettings.findUnique({
-    where: { organizationId: session.organizationId },
-  });
-  return row ? toRow(row) : DEFAULTS;
+  const [available, row] = await Promise.all([
+    availableMethods(),
+    db.orgPaymentSettings.findUnique({ where: { organizationId: session.organizationId } }),
+  ]);
+  return {
+    available,
+    acceptedMethods: (row?.acceptedMethods ?? DEFAULT_ACCEPTED).filter(isPaymentMethodKey),
+    cashInstructions: row?.cashInstructions ?? null,
+    bankBin: row?.bankBin ?? null,
+    bankName: row?.bankName ?? null,
+    bankAccountNo: row?.bankAccountNo ?? null,
+    bankAccountName: row?.bankAccountName ?? null,
+  };
 }
 
 // ── Upsert ───────────────────────────────────────────────────────────────────
@@ -57,8 +62,7 @@ const emptyToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? 
 
 const upsertSchema = z
   .object({
-    acceptCash: z.boolean(),
-    acceptBankTransfer: z.boolean(),
+    acceptedMethods: z.array(z.enum(PAYMENT_METHOD_KEYS)),
     cashInstructions: z.preprocess(emptyToNull, z.string().trim().max(500).nullable().optional()),
     bankBin: z.preprocess(
       emptyToNull,
@@ -89,7 +93,7 @@ const upsertSchema = z
     ),
   })
   .superRefine((v, ctx) => {
-    if (!v.acceptBankTransfer) return;
+    if (!v.acceptedMethods.includes("bank_transfer")) return;
     if (!v.bankBin) ctx.addIssue({ code: "custom", path: ["bankBin"], message: "Pick a bank" });
     if (!v.bankAccountNo)
       ctx.addIssue({ code: "custom", path: ["bankAccountNo"], message: "Account number required" });
@@ -104,20 +108,28 @@ export async function upsertPaymentSettings(
   raw: unknown,
 ): Promise<PaymentSettingsRow> {
   const input = upsertSchema.parse(raw);
+
+  // Only admin-enabled methods can be accepted; reject anything else loudly
+  // rather than silently dropping it.
+  const available = await availableMethods();
+  const notAvailable = input.acceptedMethods.filter((m) => !available.includes(m));
+  if (notAvailable.length > 0) {
+    throw new ConflictError(`Not available on this platform: ${notAvailable.join(", ")}`);
+  }
+
   const bank = input.bankBin ? findVnBank(input.bankBin) : null;
   const data = {
-    acceptCash: input.acceptCash,
-    acceptBankTransfer: input.acceptBankTransfer,
+    acceptedMethods: [...new Set(input.acceptedMethods)],
     cashInstructions: input.cashInstructions ?? null,
     bankBin: input.bankBin ?? null,
     bankName: bank?.name ?? null,
     bankAccountNo: input.bankAccountNo ?? null,
     bankAccountName: input.bankAccountName?.toUpperCase() ?? null,
   };
-  const row = await db.orgPaymentSettings.upsert({
+  await db.orgPaymentSettings.upsert({
     where: { organizationId: session.organizationId }, // from session ONLY
     create: { organizationId: session.organizationId, ...data },
     update: data,
   });
-  return toRow(row);
+  return getPaymentSettings(session);
 }

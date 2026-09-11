@@ -47,6 +47,9 @@ const vi: Messages = {
       announcement_published: "Thông báo chung",
       maintenance_request_created: "Yêu cầu bảo trì",
       maintenance_request_updated: "Cập nhật yêu cầu",
+      payment_reported: "Thanh toán",
+      payment_confirmed: "Đã xác nhận thanh toán",
+      payment_rejected: "Chưa xác nhận thanh toán",
     },
   },
   leases: {
@@ -176,6 +179,13 @@ const vi: Messages = {
         ewallet: "Ví điện tử",
         points: "Điểm thưởng",
         comingSoon: "Sắp ra mắt",
+        reportCash: "Tôi đã trả tiền mặt",
+        reportBank: "Tôi đã chuyển khoản",
+        reporting: "Đang gửi…",
+        reportFailed: "Không gửi được báo cáo thanh toán. Vui lòng thử lại.",
+        pendingTitle: "Đang chờ chủ nhà xác nhận",
+        pendingBody:
+          "Bạn đã báo thanh toán {amount} bằng {method} ngày {date}. Hóa đơn sẽ cập nhật sau khi được xác nhận.",
       },
     },
   },

@@ -201,6 +201,17 @@ export default async function BillDetailPage({ params }: { params: Promise<{ bil
           </CardHeader>
           <CardContent className="p-0">
             <PayBillCard
+              billId={bill.id}
+              methods={bill.paymentOptions.methods}
+              pendingPayment={
+                bill.paymentOptions.pendingPayment
+                  ? {
+                      method: bill.paymentOptions.pendingPayment.method,
+                      amountLabel: money(bill.paymentOptions.pendingPayment.amount),
+                      date: format(bill.paymentOptions.pendingPayment.createdAt, "MMM d, yyyy"),
+                    }
+                  : null
+              }
               cash={bill.paymentOptions.cash}
               bankTransfer={
                 bank && qrDataUrl

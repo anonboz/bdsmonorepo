@@ -33,6 +33,9 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   announcement_published: "Announcement",
   maintenance_request_created: "Maintenance request",
   maintenance_request_updated: "Maintenance request",
+  payment_reported: "Payment",
+  payment_confirmed: "Payment",
+  payment_rejected: "Payment",
 };
 
 export function NotificationList({

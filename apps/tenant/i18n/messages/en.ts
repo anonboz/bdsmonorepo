@@ -44,6 +44,9 @@ export type Messages = {
       announcement_published: string;
       maintenance_request_created: string;
       maintenance_request_updated: string;
+      payment_reported: string;
+      payment_confirmed: string;
+      payment_rejected: string;
     };
   };
   leases: {
@@ -156,6 +159,12 @@ export type Messages = {
         ewallet: string;
         points: string;
         comingSoon: string;
+        reportCash: string;
+        reportBank: string;
+        reporting: string;
+        reportFailed: string;
+        pendingTitle: string;
+        pendingBody: string;
       };
     };
   };
@@ -259,6 +268,9 @@ const en: Messages = {
       announcement_published: "Announcement",
       maintenance_request_created: "Maintenance request",
       maintenance_request_updated: "Request update",
+      payment_reported: "Payment",
+      payment_confirmed: "Payment confirmed",
+      payment_rejected: "Payment not confirmed",
     },
   },
   leases: {
@@ -388,6 +400,13 @@ const en: Messages = {
         ewallet: "E-wallet",
         points: "Points",
         comingSoon: "Coming soon",
+        reportCash: "I've paid in cash",
+        reportBank: "I've made the transfer",
+        reporting: "Sending…",
+        reportFailed: "Couldn't report the payment. Please try again.",
+        pendingTitle: "Waiting for your landlord to confirm",
+        pendingBody:
+          "You reported a {method} payment of {amount} on {date}. The bill updates once it's confirmed.",
       },
     },
   },

@@ -13,6 +13,9 @@ export const NOTIFICATION_TYPES = [
   "announcement_published",
   "maintenance_request_created",
   "maintenance_request_updated",
+  "payment_reported",
+  "payment_confirmed",
+  "payment_rejected",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

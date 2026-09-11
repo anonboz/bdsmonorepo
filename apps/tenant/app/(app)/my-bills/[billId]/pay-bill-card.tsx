@@ -1,18 +1,25 @@
 "use client";
 
-// "Pay this bill": the methods the landlord accepts, as a vertical list. Cash
-// shows instructions; bank transfer expands to account details + a VietQR code
-// with copy buttons. Card / e-wallet / points are listed greyed-out so future
-// rails slot in without a layout change. Everything here is presentation —
-// amounts arrive pre-formatted and the QR payload is built server-side.
+// "Pay this bill": the methods the landlord accepts (and the admin has enabled),
+// in the admin's order. Cash shows instructions; bank transfer expands to
+// account details + a VietQR code with copy buttons. Each live method has an
+// "I've paid" button that reports a pending payment for the landlord to
+// confirm. Methods without a rail yet are listed greyed-out. Everything here
+// is presentation — amounts arrive pre-formatted and the QR payload is built
+// server-side.
 
-import { Banknote, Check, Copy, CreditCard, Landmark, Star, Wallet } from "lucide-react";
+import { Banknote, Check, Clock, Copy, CreditCard, Landmark, Star, Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { useTranslations } from "@/i18n/provider";
-import { cn } from "@repo/ui";
+import type { PaymentMethodKey } from "@repo/shared";
+import { Button, cn } from "@repo/ui";
 
 export type PayBillCardProps = {
+  billId: string;
+  /** Admin-enabled methods in display order. */
+  methods: PaymentMethodKey[];
   cash: { instructions: string | null } | null;
   bankTransfer: {
     bankName: string;
@@ -22,6 +29,16 @@ export type PayBillCardProps = {
     message: string;
     qrDataUrl: string; // data:image/png;base64,…
   } | null;
+  /** A reported payment awaiting the landlord, if any (pre-formatted). */
+  pendingPayment: { method: PaymentMethodKey; amountLabel: string; date: string } | null;
+};
+
+const ICONS: Record<PaymentMethodKey, typeof Banknote> = {
+  cash: Banknote,
+  bank_transfer: Landmark,
+  card: CreditCard,
+  ewallet: Wallet,
+  points: Star,
 };
 
 function CopyButton({ value, label }: { value: string; label: string }) {
@@ -61,89 +78,161 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
   );
 }
 
-export function PayBillCard({ cash, bankTransfer }: PayBillCardProps) {
+export function PayBillCard({
+  billId,
+  methods,
+  cash,
+  bankTransfer,
+  pendingPayment,
+}: PayBillCardProps) {
   const t = useTranslations("bills.detail.pay");
-  const [open, setOpen] = useState<"cash" | "bank" | null>(bankTransfer ? "bank" : "cash");
+  const router = useRouter();
+  const [open, setOpen] = useState<PaymentMethodKey | null>(
+    bankTransfer ? "bank_transfer" : cash ? "cash" : null,
+  );
+  const [reporting, setReporting] = useState<PaymentMethodKey | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const comingSoon = [
-    { key: "card", icon: CreditCard },
-    { key: "ewallet", icon: Wallet },
-    { key: "points", icon: Star },
-  ] as const;
-
-  if (!cash && !bankTransfer) {
-    return <p className="text-sm text-muted-foreground">{t("noMethods")}</p>;
+  async function report(method: "cash" | "bank_transfer") {
+    setReporting(method);
+    setError(null);
+    const res = await fetch(`/api/my-bills/${billId}/payments`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ method }),
+    });
+    const json = await res.json().catch(() => null);
+    setReporting(null);
+    if (!res.ok || !json?.success) {
+      setError(json?.error?.message ?? t("reportFailed"));
+      return;
+    }
+    router.refresh();
   }
 
+  const offered = methods.filter((m) =>
+    m === "cash" ? cash !== null : m === "bank_transfer" ? bankTransfer !== null : true,
+  );
+  if (offered.length === 0) {
+    return <p className="p-4 text-sm text-muted-foreground">{t("noMethods")}</p>;
+  }
+
+  const methodLabel = (m: PaymentMethodKey) => (m === "bank_transfer" ? t("bankTransfer") : t(m));
+
   return (
-    <ul className="divide-y">
-      {cash && (
-        <li>
-          <button
-            type="button"
-            onClick={() => setOpen(open === "cash" ? null : "cash")}
-            aria-expanded={open === "cash"}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
-          >
-            <Banknote className="h-5 w-5 shrink-0 text-primary" />
-            <span className="flex-1 text-sm font-medium">{t("cash")}</span>
-          </button>
-          {open === "cash" && (
-            <p className="px-4 pb-4 pl-12 text-sm text-muted-foreground">
-              {cash.instructions || t("cashDefault")}
+    <div>
+      {pendingPayment && (
+        <div className="flex gap-3 border-b bg-accent/10 px-4 py-3">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
+          <div className="text-sm">
+            <p className="font-medium">{t("pendingTitle")}</p>
+            <p className="text-muted-foreground">
+              {t("pendingBody", {
+                method: methodLabel(pendingPayment.method),
+                amount: pendingPayment.amountLabel,
+                date: pendingPayment.date,
+              })}
             </p>
-          )}
-        </li>
+          </div>
+        </div>
       )}
 
-      {bankTransfer && (
-        <li>
-          <button
-            type="button"
-            onClick={() => setOpen(open === "bank" ? null : "bank")}
-            aria-expanded={open === "bank"}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
-          >
-            <Landmark className="h-5 w-5 shrink-0 text-primary" />
-            <span className="flex-1 text-sm font-medium">{t("bankTransfer")}</span>
-            <span className="text-xs text-muted-foreground">{bankTransfer.bankName}</span>
-          </button>
-          {open === "bank" && (
-            <div className="grid gap-4 px-4 pb-4 sm:grid-cols-[auto_1fr] sm:pl-12">
-              <div className="flex flex-col items-center gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={bankTransfer.qrDataUrl}
-                  alt={t("qrAlt")}
-                  width={176}
-                  height={176}
-                  className="h-44 w-44 rounded-md border bg-white p-1"
-                />
-                <p className="max-w-44 text-center text-xs text-muted-foreground">
-                  {t("scanHint")}
-                </p>
-              </div>
-              <div className="divide-y">
-                <Row label={t("bank")} value={bankTransfer.bankName} />
-                <Row label={t("accountNo")} value={bankTransfer.accountNo} mono />
-                <Row label={t("accountName")} value={bankTransfer.accountName} />
-                <Row label={t("amount")} value={bankTransfer.amountLabel} />
-                <Row label={t("message")} value={bankTransfer.message} mono />
-              </div>
-            </div>
-          )}
-        </li>
-      )}
+      <ul className="divide-y">
+        {offered.map((m) => {
+          const Icon = ICONS[m];
+          const live = m === "cash" || m === "bank_transfer";
+          if (!live) {
+            return (
+              <li
+                key={m}
+                className="flex items-center gap-3 px-4 py-3 opacity-50"
+                aria-disabled="true"
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                <span className="flex-1 text-sm font-medium">{methodLabel(m)}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  {t("comingSoon")}
+                </span>
+              </li>
+            );
+          }
+          const isOpen = open === m;
+          return (
+            <li key={m}>
+              <button
+                type="button"
+                onClick={() => setOpen(isOpen ? null : m)}
+                aria-expanded={isOpen}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
+              >
+                <Icon className="h-5 w-5 shrink-0 text-primary" />
+                <span className="flex-1 text-sm font-medium">{methodLabel(m)}</span>
+                {m === "bank_transfer" && bankTransfer && (
+                  <span className="text-xs text-muted-foreground">{bankTransfer.bankName}</span>
+                )}
+              </button>
 
-      {comingSoon.map(({ key, icon: Icon }) => (
-        <li key={key} className="flex items-center gap-3 px-4 py-3 opacity-50" aria-disabled="true">
-          <Icon className="h-5 w-5 shrink-0" />
-          <span className="flex-1 text-sm font-medium">{t(key)}</span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {t("comingSoon")}
-          </span>
-        </li>
-      ))}
-    </ul>
+              {isOpen && m === "cash" && cash && (
+                <div className="space-y-3 px-4 pb-4 sm:pl-12">
+                  <p className="text-sm text-muted-foreground">
+                    {cash.instructions || t("cashDefault")}
+                  </p>
+                  {!pendingPayment && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={reporting !== null}
+                      onClick={() => report("cash")}
+                    >
+                      {reporting === "cash" ? t("reporting") : t("reportCash")}
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {isOpen && m === "bank_transfer" && bankTransfer && (
+                <div className="space-y-3 px-4 pb-4 sm:pl-12">
+                  <div className="grid gap-4 sm:grid-cols-[auto_1fr]">
+                    <div className="flex flex-col items-center gap-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={bankTransfer.qrDataUrl}
+                        alt={t("qrAlt")}
+                        width={176}
+                        height={176}
+                        className="h-44 w-44 rounded-md border bg-white p-1"
+                      />
+                      <p className="max-w-44 text-center text-xs text-muted-foreground">
+                        {t("scanHint")}
+                      </p>
+                    </div>
+                    <div className="divide-y">
+                      <Row label={t("bank")} value={bankTransfer.bankName} />
+                      <Row label={t("accountNo")} value={bankTransfer.accountNo} mono />
+                      <Row label={t("accountName")} value={bankTransfer.accountName} />
+                      <Row label={t("amount")} value={bankTransfer.amountLabel} />
+                      <Row label={t("message")} value={bankTransfer.message} mono />
+                    </div>
+                  </div>
+                  {!pendingPayment && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={reporting !== null}
+                      onClick={() => report("bank_transfer")}
+                    >
+                      {reporting === "bank_transfer" ? t("reporting") : t("reportBank")}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {error && <p className="px-4 py-3 text-sm text-destructive">{error}</p>}
+    </div>
   );
 }

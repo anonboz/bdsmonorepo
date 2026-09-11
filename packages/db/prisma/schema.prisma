@@ -220,14 +220,26 @@ model Organization {
   paymentSettings     OrgPaymentSettings?
 }
 
-/// How an org accepts rent payments, shown to tenants on a bill: which methods
-/// are on, cash instructions, and the receiving bank account used to render a
-/// VietQR transfer code. One row per org; no row means cash only.
+/// Platform-wide catalog of tenant payment methods, managed by the admin.
+/// `key` is a PaymentMethodKey from @repo/shared. Landlords opt into enabled
+/// methods per org (OrgPaymentSettings.acceptedMethods); tenants see the
+/// intersection, in sortOrder.
+model PaymentMethodCatalog {
+  key       String   @id
+  enabled   Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// How an org accepts rent payments, shown to tenants on a bill: which catalog
+/// methods it accepts, cash instructions, and the receiving bank account used
+/// to render a VietQR transfer code. One row per org; no row = bank transfer
+/// selected but not yet configured, so nothing is offered until saved.
 model OrgPaymentSettings {
   id                 String   @id @default(cuid())
   organizationId     String   @unique
-  acceptCash         Boolean  @default(true)
-  acceptBankTransfer Boolean  @default(false)
+  acceptedMethods    String[] @default(["bank_transfer"]) // PaymentMethodKey[] ⊆ enabled catalog
   cashInstructions   String?
   bankBin            String? // NAPAS bank identifier, e.g. "970436" (Vietcombank)
   bankName           String?
