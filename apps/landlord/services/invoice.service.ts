@@ -1,5 +1,5 @@
-// FAT service: generate a rent invoice for a lease. Rent comes from the lease;
-// metered utilities are priced as consumption × the org's current OrgUtilityRate.
+// FAT service: generate a rent invoice for a lease. Rent and the lease's flat
+// monthly fees (LeaseFee: internet, trash, …) come from the lease; metered utilities are priced as consumption × the org's current OrgUtilityRate.
 // Consumption comes from a recorded MeterReading (preferred — the delta from its
 // prior reading) when a *ReadingId is given, else from a manually-typed number
 // (fallback for units with no reading history yet). Scopes by
@@ -7,7 +7,7 @@
 
 import { db } from "@repo/db";
 import type { InvoiceStatus } from "@repo/db";
-import { ConflictError, formatMoney, NotFoundError } from "@repo/shared";
+import { ConflictError, type FeeKindKey, formatMoney, NotFoundError } from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
@@ -25,8 +25,8 @@ const generateSchema = z.object({
 });
 
 type LineItemInput = {
-  kind: "rent" | "water" | "electricity";
-  description: string;
+  kind: "rent" | "water" | "electricity" | FeeKindKey;
+  description: string | null; // fee lines: the landlord's label, or null (apps label by kind)
   quantity?: number;
   unit?: string;
   amount: number;
@@ -48,6 +48,7 @@ export async function generateInvoice(session: SessionContext, raw: unknown) {
       organizationId: true,
       rentAmount: true,
       unit: { select: { label: true, property: { select: { name: true } } } },
+      fees: { orderBy: { createdAt: "asc" }, select: { kind: true, label: true, amount: true } },
     },
   });
   if (!lease) throw new Error("LEASE_NOT_FOUND");
@@ -105,6 +106,15 @@ export async function generateInvoice(session: SessionContext, raw: unknown) {
   const lineItems: LineItemInput[] = [
     { kind: "rent", description: "Monthly rent", amount: lease.rentAmount },
   ];
+  // The lease's flat monthly fees, as agreed on the lease (free ones skipped).
+  for (const fee of lease.fees) {
+    if (fee.amount <= 0) continue;
+    lineItems.push({
+      kind: fee.kind,
+      description: fee.label,
+      amount: fee.amount,
+    });
+  }
   // Tracks which MeterReading (if any) backs each metered line item, so it can
   // be stamped "billed" once the invoice + line items exist.
   const readingLinks: { kind: "water" | "electricity"; readingId: string }[] = [];

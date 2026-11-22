@@ -50,6 +50,10 @@ export async function getMyLease(session: SessionContext, leaseId: string) {
       },
       invoices: { orderBy: { periodStart: "desc" }, take: 12 },
       tenancies: { select: { userId: true, isPrimary: true } },
+      fees: {
+        orderBy: { createdAt: "asc" },
+        select: { id: true, kind: true, label: true, amount: true },
+      },
     },
   });
 
@@ -94,5 +98,13 @@ export async function getMyLease(session: SessionContext, leaseId: string) {
     photos: photos.filter((p) => p.entityId === i.id).map((p) => ({ id: p.id, url: p.url })),
   }));
 
-  return { ...lease, inspections };
+  // Water/electricity are priced per unit by the landlord's org (not per lease);
+  // the org comes from the tenancy-checked lease, never from input.
+  const utilityRates = await db.orgUtilityRate.findMany({
+    where: { organizationId: lease.organizationId, kind: { in: ["water", "electricity"] } },
+    orderBy: { kind: "asc" },
+    select: { kind: true, unit: true, pricePerUnit: true },
+  });
+
+  return { ...lease, inspections, utilityRates };
 }

@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { ArrowLeft, Camera, Receipt } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Fragment } from "react";
 
 import { getLocale, getTranslations } from "@/i18n/server";
 import { getSession } from "@/lib/session";
@@ -106,6 +107,51 @@ export default async function MyLeaseDetailPage({ params }: { params: Promise<{ 
           <p className="mt-3 text-xs text-muted-foreground">
             {t("detail.dueDay", { day: lease.rentDueDay })}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{t("detail.charges")}</CardTitle>
+          <CardDescription>{t("detail.chargesHint")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2 text-sm">
+            <dt className="text-muted-foreground">{t("detail.rent")}</dt>
+            <dd className="text-right">{formatMoney(lease.rentAmount, locale)}</dd>
+            {lease.fees.map((fee) => (
+              <Fragment key={fee.id}>
+                <dt className="text-muted-foreground">
+                  {t(`detail.feeKinds.${fee.kind}`)}
+                  {fee.label && <span className="ml-1 text-xs">({fee.label})</span>}
+                </dt>
+                <dd className="text-right">{formatMoney(fee.amount, locale)}</dd>
+              </Fragment>
+            ))}
+            <dt className="border-t pt-2 font-medium">{t("detail.fixedTotal")}</dt>
+            <dd className="border-t pt-2 text-right font-medium">
+              {formatMoney(
+                lease.rentAmount + lease.fees.reduce((sum, f) => sum + f.amount, 0),
+                locale,
+              )}
+            </dd>
+            {(["water", "electricity"] as const).map((kind) => {
+              const rate = lease.utilityRates.find((r) => r.kind === kind);
+              return (
+                <Fragment key={kind}>
+                  <dt className="text-muted-foreground">{t(`detail.utilityKinds.${kind}`)}</dt>
+                  <dd className="text-right">
+                    {rate
+                      ? t("detail.perUnit", {
+                          price: formatMoney(rate.pricePerUnit, locale),
+                          unit: rate.unit,
+                        })
+                      : t("detail.noRate")}
+                  </dd>
+                </Fragment>
+              );
+            })}
+          </dl>
         </CardContent>
       </Card>
 

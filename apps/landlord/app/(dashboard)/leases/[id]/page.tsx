@@ -4,12 +4,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getSession } from "@/lib/session";
+import { listLeaseFees } from "@/services/fee.service";
 import { listLeaseInspections } from "@/services/inspection.service";
 import { getLease } from "@/services/lease.service";
 import type { OrgRole } from "@repo/db";
 import { formatMoney } from "@repo/shared";
 import { buttonVariants, Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
 
+import { FeesManager } from "../../_components/fees-manager";
 import { StatusSelect } from "../../_components/status-select";
 import { InspectionManager } from "./inspection-manager";
 
@@ -78,7 +80,12 @@ export default async function LeaseDetailPage({ params }: { params: Promise<{ id
     notFound();
   }
   const inspections = await listLeaseInspections(session, lease.id);
+  const fees = await listLeaseFees(session, lease.id);
   const canEdit = EDIT_ROLES.includes(session.role);
+  // Mirrors fee.service: owner/landlord, and only while the lease is draft/active.
+  const canEditFees =
+    (session.role === "owner" || session.role === "landlord") &&
+    (lease.status === "draft" || lease.status === "active");
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
@@ -166,6 +173,16 @@ export default async function LeaseDetailPage({ params }: { params: Promise<{ id
           </CardContent>
         </Card>
       </div>
+
+      <FeesManager
+        title="Monthly fees"
+        description="Billed on every invoice for this lease, on top of rent and metered utilities. Changing a fee here only affects this lease."
+        collectionUrl={`/api/leases/${lease.id}/fees`}
+        itemUrlPrefix="/api/lease-fees"
+        initialFees={fees}
+        canEdit={canEditFees}
+        showOrigin
+      />
 
       <InspectionManager leaseId={lease.id} initialInspections={inspections} canEdit={canEdit} />
 

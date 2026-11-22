@@ -7,6 +7,7 @@ export * from "./notifications";
 export * from "./inspections";
 export * from "./vietqr";
 export * from "./payment-methods";
+export * from "./fees";
 
 /** The API response envelope every route handler returns. */
 export type ApiSuccess<T> = { success: true; data: T };

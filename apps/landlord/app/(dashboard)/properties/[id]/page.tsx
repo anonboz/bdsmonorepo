@@ -4,9 +4,11 @@ import { ArrowLeft, BedDouble, Bath } from "lucide-react";
 
 import { formatMoney } from "@repo/shared";
 import { getSession } from "@/lib/session";
+import { listPropertyFees } from "@/services/fee.service";
 import { getProperty } from "@/services/property.service";
 import { buttonVariants, Card, CardContent } from "@repo/ui";
 
+import { FeesManager } from "../../_components/fees-manager";
 import { ListingCreateForm } from "./listing-create-form";
 import { UnitForm } from "./unit-form";
 
@@ -38,6 +40,8 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   } catch {
     notFound();
   }
+  const fees = await listPropertyFees(session, property.id);
+  const canEditFees = session.role === "owner" || session.role === "landlord";
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
@@ -58,6 +62,15 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           {property.region ? `, ${property.region}` : ""}
         </p>
       </header>
+
+      <FeesManager
+        title="Default monthly fees"
+        description="Copied onto every new lease for this property. Changes also update draft leases, unless the fee was changed on the lease itself; active leases keep their own copy."
+        collectionUrl={`/api/properties/${property.id}/fees`}
+        itemUrlPrefix="/api/property-fees"
+        initialFees={fees}
+        canEdit={canEditFees}
+      />
 
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Units ({property.units.length})</h2>

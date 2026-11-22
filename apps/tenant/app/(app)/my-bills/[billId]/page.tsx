@@ -99,7 +99,18 @@ export default async function BillDetailPage({ params }: { params: Promise<{ bil
             <tbody>
               {bill.lineItems.map((li) => (
                 <tr key={li.id} className="border-b last:border-0">
-                  <td className="px-4 py-3 font-medium">{t(`lineKinds.${li.kind}`)}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {t(`lineKinds.${li.kind}`)}
+                    {/* Fee lines carry the landlord's own label, e.g. "Fiber 100 Mbps". */}
+                    {li.description &&
+                      li.kind !== "rent" &&
+                      li.kind !== "water" &&
+                      li.kind !== "electricity" && (
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          {li.description}
+                        </span>
+                      )}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {li.quantity != null && li.unit ? (
                       <div className="space-y-1">

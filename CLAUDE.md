@@ -63,7 +63,7 @@ Status codes: 200, 201, 400, 401, 403, 404, 409, 500. Use `apiSuccess` /
 - **Domain**:
   - `@claude-context/domain/rent-billing.md` — invoice totals, utility bounds, payments
   - `@claude-context/domain/notifications.md` — tx, recipients, deepLink
-  - `@claude-context/domain/leasing.md` — inspection-to-lease window
+  - `@claude-context/domain/leasing.md` — inspection window, property → lease fees
   - `@claude-context/domain/documents.md` — org + type assert on `Document`
 - **Gotchas**: `@claude-context/gotchas.md`
 

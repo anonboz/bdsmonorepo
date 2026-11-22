@@ -83,6 +83,19 @@ export type Messages = {
       inspectionTypes: { move_in: string; move_out: string; routine: string; maintenance: string };
       bills: string;
       billsEmpty: string;
+      charges: string;
+      chargesHint: string;
+      fixedTotal: string;
+      perUnit: string;
+      noRate: string;
+      feeKinds: {
+        internet: string;
+        trash: string;
+        parking: string;
+        cleaning: string;
+        other: string;
+      };
+      utilityKinds: { water: string; electricity: string };
       colPeriod: string;
       colDue: string;
       colAmount: string;
@@ -124,7 +137,16 @@ export type Messages = {
       readingRange: string;
       readingPhotoAlt: string;
       total: string;
-      lineKinds: { rent: string; water: string; electricity: string; other: string };
+      lineKinds: {
+        rent: string;
+        water: string;
+        electricity: string;
+        other: string;
+        internet: string;
+        trash: string;
+        parking: string;
+        cleaning: string;
+      };
       paymentsTitle: string;
       noPayments: string;
       pDate: string;
@@ -313,6 +335,23 @@ const en: Messages = {
       },
       bills: "Bills on this lease",
       billsEmpty: "No bills yet.",
+      charges: "Monthly charges",
+      chargesHint:
+        "What you pay each month under this lease. Water and electricity are billed by usage.",
+      fixedTotal: "Fixed monthly total",
+      perUnit: "{price} / {unit}",
+      noRate: "Not set",
+      feeKinds: {
+        internet: "Internet",
+        trash: "Trash collection",
+        parking: "Parking",
+        cleaning: "Cleaning",
+        other: "Other fee",
+      },
+      utilityKinds: {
+        water: "Water",
+        electricity: "Electricity",
+      },
       colPeriod: "Period",
       colDue: "Due",
       colAmount: "Amount",
@@ -359,6 +398,10 @@ const en: Messages = {
         water: "Water",
         electricity: "Electricity",
         other: "Other",
+        internet: "Internet",
+        trash: "Trash collection",
+        parking: "Parking",
+        cleaning: "Cleaning",
       },
       paymentsTitle: "Payments",
       noPayments: "No payments recorded yet.",

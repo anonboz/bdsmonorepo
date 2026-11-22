@@ -8,6 +8,7 @@ import { ConflictError, NotFoundError } from "@repo/shared";
 import { z } from "zod";
 
 import type { SessionContext } from "@/lib/session";
+import { copyPropertyFeesToLease } from "./fee.service";
 import { formatNotificationDate, notifyLeaseTenants, notifyUsers } from "./notification.service";
 
 // ── Create ───────────────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ export async function createLease(session: SessionContext, raw: unknown) {
       id: true,
       status: true,
       label: true,
-      property: { select: { organizationId: true, name: true } },
+      property: { select: { id: true, organizationId: true, name: true } },
     },
   });
   if (!unit) throw new Error("UNIT_NOT_FOUND");
@@ -77,6 +78,9 @@ export async function createLease(session: SessionContext, raw: unknown) {
       },
       include: { tenancies: { select: { userId: true, isPrimary: true } } },
     });
+
+    // The lease starts with its own copy of the property's default fees.
+    await copyPropertyFeesToLease(tx, session.organizationId, unit.property.id, lease.id);
 
     await notifyUsers(
       tx,

@@ -115,6 +115,20 @@ enum InvoiceLineKind {
   water
   electricity
   other
+  internet
+  trash
+  parking
+  cleaning
+}
+
+/// Flat monthly fee kinds (PropertyFee / LeaseFee). Each maps to the
+/// InvoiceLineKind of the same name when billed.
+enum FeeKind {
+  internet
+  trash
+  parking
+  cleaning
+  other
 }
 
 enum DepositStatus {
@@ -218,6 +232,8 @@ model Organization {
   announcements       Announcement[]
   meterReadings       MeterReading[]
   paymentSettings     OrgPaymentSettings?
+  propertyFees        PropertyFee[]
+  leaseFees           LeaseFee[]
 }
 
 /// Platform-wide catalog of tenant payment methods, managed by the admin.
@@ -291,6 +307,7 @@ model Property {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   units        Unit[]
+  fees         PropertyFee[]
 
   @@index([organizationId])
   @@index([city])
@@ -419,6 +436,7 @@ model Lease {
   tenancies    Tenancy[]
   invoices     RentInvoice[]
   deposit      Deposit?
+  fees         LeaseFee[]
 
   @@index([organizationId])
   @@index([unitId])
@@ -514,6 +532,51 @@ model OrgUtilityRate {
 
   @@unique([organizationId, kind])
   @@index([organizationId])
+}
+
+/// Default flat monthly fee on a property (internet, trash, …). Copied onto
+/// each new lease of the property's units as a LeaseFee. Edits/deletes here
+/// propagate only to DRAFT leases' fees that weren't customized on the lease.
+model PropertyFee {
+  id             String   @id @default(cuid())
+  organizationId String
+  propertyId     String
+  kind           FeeKind
+  label          String? // required when kind = other (Zod)
+  amount         Int // cents per month
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leaseFees    LeaseFee[]
+
+  @@index([organizationId])
+  @@index([propertyId])
+}
+
+/// A lease's own flat monthly fee, billed on every invoice. Usually copied from
+/// a PropertyFee (propertyFeeId set); `customized` = edited on the lease, so
+/// later property changes no longer overwrite it.
+model LeaseFee {
+  id             String   @id @default(cuid())
+  organizationId String
+  leaseId        String
+  propertyFeeId  String?
+  kind           FeeKind
+  label          String? // required when kind = other (Zod)
+  amount         Int // cents per month
+  customized     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lease        Lease        @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  propertyFee  PropertyFee? @relation(fields: [propertyFeeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([leaseId])
+  @@index([propertyFeeId])
 }
 
 /// A landlord-recorded meter reading: a cumulative value (like an odometer) for

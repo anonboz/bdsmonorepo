@@ -149,6 +149,25 @@ async function main() {
     },
   });
 
+  // Default flat monthly fees on Maple Court, copied onto the Apt 1A lease the
+  // way createLease does (org-owned rows: the org/lease cascades clear them).
+  const internetFee = await db.propertyFee.create({
+    data: { organizationId: org.id, propertyId: property.id, kind: "internet", amount: 20000 },
+  });
+  const trashFee = await db.propertyFee.create({
+    data: { organizationId: org.id, propertyId: property.id, kind: "trash", amount: 5000 },
+  });
+  await db.leaseFee.createMany({
+    data: [internetFee, trashFee].map((f) => ({
+      organizationId: org.id,
+      leaseId: lease.id,
+      propertyFeeId: f.id,
+      kind: f.kind,
+      label: f.label,
+      amount: f.amount,
+    })),
+  });
+
   // Move-in condition record for that lease. Inspections hang off the unit and
   // are matched to a lease by creation order (see leaseInspectionWindow in
   // @repo/shared), so this must be created AFTER the lease above. Photos are

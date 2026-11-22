@@ -96,6 +96,7 @@ export {
   InspectionType,
   DocumentType,
   FeatureFlagMode,
+  FeeKind,
 } from "@prisma/client";
 
 // ── Model types (type-only exports) ──────────────────────────────────────────
@@ -124,4 +125,6 @@ export type {
   MeterReading,
   OrgPaymentSettings,
   PaymentMethodCatalog,
+  PropertyFee,
+  LeaseFee,
 } from "@prisma/client";
