@@ -158,13 +158,22 @@ export async function generateInvoice(session: SessionContext, raw: unknown) {
       include: { lineItems: { orderBy: { createdAt: "asc" } } },
     });
 
+    // Conditional stamp: resolveConsumption's "already billed" check ran outside
+    // this transaction, so a concurrent generateInvoice for the same reading
+    // could have passed it too. `lineItemId: null` in the WHERE makes the stamp
+    // the real guard — Postgres re-checks the predicate after the competing
+    // transaction commits, so the loser matches 0 rows, throws, and rolls back
+    // its whole invoice instead of re-linking the reading (double-billing).
     for (const { kind, readingId } of readingLinks) {
       const lineItem = invoice.lineItems.find((li) => li.kind === kind);
       if (lineItem) {
-        await tx.meterReading.update({
-          where: { id: readingId },
+        const { count } = await tx.meterReading.updateMany({
+          where: { id: readingId, lineItemId: null },
           data: { lineItemId: lineItem.id },
         });
+        if (count !== 1) {
+          throw new ConflictError("This reading has already been billed");
+        }
       }
     }
 
