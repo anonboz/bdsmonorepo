@@ -25,6 +25,21 @@ the subsystem.
   `search_path` and pool `options` do NOT redirect it (Supabase's pooler swallows
   startup `options` anyway), so `The table public.X does not exist` persists even
   with `search_path` set. Keep everything in the DB's `public` schema.
+  Second cause, same symptom: `buildPoolConfig()` also deletes `?schema=` from
+  `DATABASE_URL`, so a `?schema=X` the Prisma CLI honors is silently ignored at
+  runtime — migrations/seed write to `X` while the app reads `public`.
+
+- **The Prisma CLI and the apps read different env files.** Prisma CLI commands
+  (migrate, studio) and `db:seed` run from `packages/db/` and load
+  `packages/db/.env` (`import "dotenv/config"`), **not** the root `.env`; the
+  apps read `apps/*/.env.local`. A stale `packages/db/.env` sends every
+  migration + seed to the wrong DB/schema while the root `.env` looks correct
+  (symptom: P3005 "database schema is not empty"). Keep all of them in step.
+
+- **Review `prisma migrate diff` output before deploying.** Prisma 7 has
+  emitted a stray `CREATE SCHEMA IF NOT EXISTS "house_renting";` with no
+  reference in `schema.prisma`. Delete stray schema DDL / qualifiers — every
+  object must land in `public`.
 
 - **`PrismaClientValidationError: Unknown field` after a schema change.** The
   running `next dev` holds the old generated client in memory; `prisma generate`
