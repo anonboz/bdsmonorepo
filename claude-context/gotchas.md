@@ -60,6 +60,13 @@ cash | other`). Only `MANUAL_PAYMENT_METHODS` (`bank_transfer`, `cash`) exist in
   server component that reads the session or hits Prisma cannot be statically
   prerendered — without it Next tries at build and throws `DynamicServerError`.
 
+- **Server → client props must be serializable: pass rendered elements, not
+  component references.** A Server Component layout passing `icon: Home` (a
+  lucide `forwardRef` object) to a `@repo/ui` client component such as
+  `MobileNav` throws "Only plain objects can be passed to Client Components".
+  Type such props as `React.ReactNode` and render first
+  (`icon: <Home className="h-4 w-4" />`).
+
 - **`useSearchParams` needs a `<Suspense>` boundary**, or the page's prerender
   fails with the CSR-bailout error.
 
@@ -81,3 +88,22 @@ cash | other`). Only `MANUAL_PAYMENT_METHODS` (`bank_transfer`, `cash`) exist in
 - **Run `vercel git connect` with the repo URL, not from a subdir.** From
   `apps/<app>` it fails with `No local Git repository found` (`.git` is at the
   repo root). Pass the repo URL explicitly.
+
+## Supabase Storage
+
+- **Buckets are provisioned manually.** `listing-photos`, `meter-readings` and
+  `inspection-photos` (see `apps/landlord/lib/storage.ts`) are public buckets
+  created by hand with the service-role key; a fresh Supabase project needs them
+  created or uploads fail.
+  <!-- TODO: remove once bucket provisioning is scripted or migrated. -->
+
+- **Public URLs keep serving deleted objects.** The CDN edge cache returns 200 for
+  a deleted object's public URL. Verify deletes with
+  `storage.from(bucket).list()` (service-role client), not by fetching the URL.
+
+## Tooling
+
+- **The pre-commit hook checks Prettier across the whole repo**, not just staged
+  files (`.husky/pre-commit` runs `prettier --check --cache "**/*.{ts,…,md}"`).
+  Unformatted unstaged or untracked WIP blocks the commit. Run
+  `npx prettier --write <file>` on what it names.

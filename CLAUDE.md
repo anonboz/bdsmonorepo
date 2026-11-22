@@ -17,14 +17,18 @@ TanStack Query/Table, Serwist PWA (tenant + vendor).
   `organizationId` comes from the **session only** — never from body/params/query.
   Assert ownership after every `findUnique`. Global exceptions (never
   org-filtered): `User`, the `Vendor` marketplace, the `Listing` search index,
-  `UtilityRateBound`, and `PaymentMethodCatalog`. `OrgUtilityRate` /
-  `OrgPaymentSettings` ARE org-scoped.
+  `UtilityRateBound`, `PaymentMethodCatalog`, and `Notification` (per-user:
+  scope by `session.userId`, assert `row.userId` after `findUnique`).
+  `OrgUtilityRate` / `OrgPaymentSettings` ARE org-scoped.
+  Tenant sessions carry no org (`{ userId, name }`): derive
+  `organizationId`/`unitId` from a lease the user has a `Tenancy` on, never
+  from the body.
 - **Money is integer cents everywhere.** Never floats. Format at the edges only.
 - **Schema**: never invent fields; never modify `schema.prisma` without instruction.
 - **Migrations**: hand-written SQL + `prisma migrate deploy` via `DIRECT_URL`
   (non-pooled). Never `migrate dev` / `db push` on the shared DB.
-- **`@repo/db` is server-only.** Client files `import type` only. Never import
-  `@repo/domain` inside `@repo/db` (direction is `domain → db`, no cycle).
+- **`@repo/db` is server-only.** Client files `import type` only.
+  `@repo/shared` is imported by client code: no React/Next/Prisma runtime imports.
 - **Auth**: `decode` from `next-auth/jwt` in middleware + `lib/session.ts`; never
   `getServerSession`. Per-app cookie names (`landlord.session-token`, …).
 - **Connection pool**: singleton `pg.Pool` in `@repo/db` (`max: 3`). List `"pg"`
@@ -57,7 +61,9 @@ Status codes: 200, 201, 400, 401, 403, 404, 409, 500. Use `apiSuccess` /
 - **Schema**: `packages/db/prisma/schema.prisma` (full source of truth)
 - **Domain**:
   - `@claude-context/domain/rent-billing.md` — invoice totals, utility bounds, payments
-  - `@claude-context/domain/notifications.md` — producers write in the event's tx
+  - `@claude-context/domain/notifications.md` — tx, recipients, deepLink
+  - `@claude-context/domain/leasing.md` — inspection-to-lease window
+  - `@claude-context/domain/documents.md` — org + type assert on `Document`
 - **Gotchas**: `@claude-context/gotchas.md`
 
 ## Apps
