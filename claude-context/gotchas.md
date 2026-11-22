@@ -91,6 +91,11 @@ cash | other`). Only `MANUAL_PAYMENT_METHODS` (`bank_transfer`, `cash`) exist in
 
 ## Supabase Storage
 
+- **Uploads go through server-only `apps/<app>/lib/storage.ts`** with
+  `SUPABASE_SERVICE_ROLE_KEY`. Never construct a Supabase client in client code
+  or expose the key with a `NEXT_PUBLIC_` prefix — the service-role key bypasses
+  all storage policies.
+
 - **Buckets are provisioned manually.** `listing-photos`, `meter-readings` and
   `inspection-photos` (see `apps/landlord/lib/storage.ts`) are public buckets
   created by hand with the service-role key; a fresh Supabase project needs them

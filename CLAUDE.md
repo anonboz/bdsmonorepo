@@ -19,10 +19,11 @@ TanStack Query/Table, Serwist PWA (tenant + vendor).
   org-filtered): `User`, the `Vendor` marketplace, the `Listing` search index,
   `UtilityRateBound`, `PaymentMethodCatalog`, and `Notification` (per-user:
   scope by `session.userId`, assert `row.userId` after `findUnique`).
-  `OrgUtilityRate` / `OrgPaymentSettings` ARE org-scoped.
-  Tenant sessions carry no org (`{ userId, name }`): derive
+  `OrgUtilityRate` / `OrgPaymentSettings` ARE org-scoped. `Announcement` is
+  mixed: `organizationId = null` = system (admin queries filter `null`), set =
+  that org's. Tenant sessions carry no org (`{ userId, name }`): derive
   `organizationId`/`unitId` from a lease the user has a `Tenancy` on, never
-  from the body.
+  from the body; for reads, use the set of orgs across all their tenancies.
 - **Money is integer cents everywhere.** Never floats. Format at the edges only.
 - **Schema**: never invent fields; never modify `schema.prisma` without instruction.
 - **Migrations**: hand-written SQL + `prisma migrate deploy` via `DIRECT_URL`

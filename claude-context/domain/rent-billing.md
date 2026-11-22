@@ -36,6 +36,37 @@ enum value must get a catalog label in every tenant message file
 (`en.ts`, `vi.ts`, `zh.ts`) or it renders the raw key path at runtime. Landlord/admin
 utility UIs only handle `water`/`electricity`.
 
+`MeterReading.kind` reuses this enum, so the DB accepts all four values; only the
+Zod `METERED` allowlist in `meter-reading.service.ts` restricts readings to
+`water`/`electricity`. A new meterable kind must be added there too, and any code
+writing a `MeterReading` outside that service must enforce the same allowlist.
+
+## Meter readings
+
+Landlord-recorded cumulative readings, managed in
+`apps/landlord/services/meter-reading.service.ts` and consumed by
+`generateInvoice` (`invoice.service.ts › resolveConsumption`).
+
+- **Consumption = `reading.value − prior.value`**, where `prior` is the
+  immediately earlier reading for the same `unitId` + `kind` by `readingDate`. A
+  reading flagged `isReset`, or with no prior reading, cannot be billed (409).
+  Why: billing a reset reading charges the tenant for the meter's absolute value
+  (e.g. a replaced meter), not real consumption.
+- **Values are non-decreasing per (`unitId`, `kind`) unless the new reading is
+  `isReset`.** `recordMeterReading` checks against the prior reading;
+  `updateMeterReading` checks against both the prior **and** the next reading,
+  since an edit can move the date. Why: a fat-fingered value otherwise yields
+  silently negative or wrong consumption.
+- **A reading backs at most one invoice line; once `lineItemId` is set it is
+  immutable.** `updateMeterReading` / `deleteMeterReading` and
+  `resolveConsumption` throw 409 on a billed reading; the `lineItemId` stamp is
+  written inside the invoice-creating transaction. Why: re-billing one delta
+  double-charges the tenant.
+  <!-- TODO: the billed check runs outside the tx and the stamp is an
+       unconditional update, so two concurrent generateInvoice calls with the
+       same readingId can both succeed. Fix: stamp via updateMany({ where:
+       { id, lineItemId: null } }) and 409 on count 0; then drop this note. -->
+
 ## Payments — invoice status is derived from settled payments
 
 When a payment is confirmed, the invoice status is recomputed from
