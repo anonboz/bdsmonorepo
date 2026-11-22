@@ -59,13 +59,13 @@ Landlord-recorded cumulative readings, managed in
   silently negative or wrong consumption.
 - **A reading backs at most one invoice line; once `lineItemId` is set it is
   immutable.** `updateMeterReading` / `deleteMeterReading` and
-  `resolveConsumption` throw 409 on a billed reading; the `lineItemId` stamp is
-  written inside the invoice-creating transaction. Why: re-billing one delta
-  double-charges the tenant.
-  <!-- TODO: the billed check runs outside the tx and the stamp is an
-       unconditional update, so two concurrent generateInvoice calls with the
-       same readingId can both succeed. Fix: stamp via updateMany({ where:
-       { id, lineItemId: null } }) and 409 on count 0; then drop this note. -->
+  `resolveConsumption` throw 409 on a billed reading. That pre-check runs
+  outside the transaction, so the real guard is the stamp inside the
+  invoice-creating transaction: `updateMany({ where: { id, lineItemId: null } })`,
+  throwing 409 (and rolling back the invoice) when it matches no row. Never
+  stamp with an unconditional `update` — two concurrent `generateInvoice` calls
+  would both succeed and the reading would be billed twice. Why: re-billing one
+  delta double-charges the tenant.
 
 ## Payments — invoice status is derived from settled payments
 
